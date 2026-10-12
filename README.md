@@ -60,6 +60,17 @@ The test is a script (exit 0 = good, 125 = skip, anything else = bad — `git bi
 deployment as `QFT_*` environment variables, or `manual: true` to be prompted after each swap. See
 [docs/bisect.md](docs/bisect.md).
 
+## Components
+
+| Component | Version sources | Runs | Verified |
+|---|---|---|---|
+| `qfieldcloud` | `release`, `git`, `worktree` | upstream compose stack, one project/network/port block per deployment | releases, concurrent deployments, worker jobs, bisect swaps |
+| `qgis` | `host`, `docker:<tag>` | host QGIS or `qgis/qgis:<tag>` with an isolated profile | QGIS 4.2 host, 4.3 image |
+| `qfieldsync` | `release`, `git`, `worktree` | plugin in the profile, logged in at startup | release zip, worktree with live edits |
+| `qfield-android` | `release`, `artifact`, `build` | `budtmo/docker-android` emulator, app pre-configured | release APK on Android 14 |
+| `qfield-desktop` | `release` | Linux AppImage with its own settings | release AppImage |
+| `qfield-ios` | `build` | Xcode Simulator on a remote Mac over SSH | unit-tested only (needs a Mac) |
+
 ## Commands
 
 | Command | Purpose |

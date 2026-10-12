@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `qfield-ios` component: QField in the iOS Simulator of a remote macOS host driven over SSH (`ios_hosts` in
+  the global config), from a simulator build made on the Mac; QFieldCloud is reached through a reverse SSH
+  tunnel and pre-filled in the app's preferences. Unconfigured or unreachable hosts are refused at `add`.
+- `qfield-desktop` component: the Linux AppImage of a QField release with its own XDG directories and the
+  deployment's QFieldCloud pre-filled.
+- `qgis: docker:<tag>` backend: `qgis/qgis:<tag>` from Docker Hub instead of the host QGIS, sharing the host
+  network and display, with the profile, cache and worktrees mounted at their own paths.
 - `qfield-android` component: QField in a `budtmo/docker-android` emulator on the deployment network, with
   the APK from a GitHub release, a CI artifact of any ref, or a local `scripts/build.sh` build; QFieldCloud is
   reachable from the app at `http://10.0.2.2:8000/` and pre-filled in its settings; noVNC and adb are exposed

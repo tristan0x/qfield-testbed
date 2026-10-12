@@ -10,7 +10,10 @@ QFieldSync and extra plugins are installed and where the QFieldCloud connection 
 | Source | Backend | Notes |
 |---|---|---|
 | `host` (default) | `qgis-host` | `/usr/bin/qgis --profiles-path <deployment>/qgis --profile default`. Profile seeding uses the system Python with `PYTHONPATH=/usr/share/qgis/python`. |
-| `docker:<tag>` | `qgis-docker` | `qgis/qgis:<tag>` on the deployment network, X11 socket shared, the profile and cache bind-mounted. Reaches QFieldCloud at `http://app:8000/`. |
+| `docker:<tag>` | `qgis-docker` | `qft-qgis:<tag>`, built once from `qgis/qgis:<tag>` plus `libxcb-cursor0` (the published image targets CI and cannot open a display as is). The container shares the host network — so an SSH-forwarded `localhost:N.0` display and the deployment's QFieldCloud URL work unchanged — runs as your user, and mounts your home, the testbed home, the cache and any worktree at their own paths. |
+
+The Docker launcher allocates a TTY only when it has one, so scripts can drive it headless:
+`QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/null`.
 
 ## Launcher
 

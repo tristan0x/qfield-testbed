@@ -15,7 +15,7 @@ from qfield_testbed.components.qfieldsync import (
 )
 from qfield_testbed.components.qgis import Qgis
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import TestbedError, UnsupportedComponentError
+from qfield_testbed.errors import TestbedError
 from qfield_testbed.provision.qgis_profile import AuthConfig, ProfileLayout, parse_seed_report, render_seed_script
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import DeploymentSpec
@@ -148,9 +148,40 @@ def test_qgis_host_render_and_seed(testbed: Testbed, runner_with_qgis: FakeRunne
     assert deployment.env()["QFT_QGIS_LAUNCHER"] == str(launcher)
 
 
-def test_qgis_docker_not_available_yet(testbed: Testbed, runner_with_qgis: FakeRunner) -> None:
-    with pytest.raises(UnsupportedComponentError, match="docker backend"):
-        testbed.add(DeploymentSpec.from_yaml("name: q\nqgis: {version: docker:ltr}\n"))
+def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path) -> None:
+    runner_with_qgis.reply(["docker", "info"])
+    runner_with_qgis.reply(["docker", "image", "inspect"], returncode=1)
+    runner_with_qgis.reply_when(
+        lambda args: args[0] == "docker" and args[-1] == "--version",
+        stdout="QGIS 3.44.15-Solothurn 'Solothurn' (abc)\n",
+    )
+    runner_with_qgis.reply_when(
+        lambda args: args[0] == "docker" and "python3" in args, stdout='{"settings_dir": "/x/", "authcfg": "d0cker"}\n'
+    )
+    plugin_src = tmp_path / "myplugin"
+    plugin_src.mkdir()
+    (plugin_src / "metadata.txt").write_text("[general]\nname=My\n")
+    spec = DeploymentSpec.from_yaml(f"name: q\nqgis:\n  version: docker:ltr\n  plugins: [{{path: {plugin_src}}}]\n")
+    deployment = testbed.add(spec)
+    deployment.start()
+    info = deployment.describe()["components"]["qgis"]
+    assert info["backend"] == "qgis-docker"
+    assert info["version"] == "3.44.15"
+    commands = runner_with_qgis.commands()
+    assert any(cmd.startswith("docker pull --quiet qgis/qgis:ltr") for cmd in commands)
+    assert any(cmd.startswith("docker build --quiet -t qft-qgis:ltr") for cmd in commands)
+    launcher = Path(info["launcher"]).read_text()
+    assert "--network host" in launcher
+    assert "qft-qgis:ltr" in launcher
+    assert "QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}" in launcher
+    assert "--profile default" in launcher
+    assert f"-v {plugin_src}:{plugin_src}" in launcher  # the plugin folder is visible at the same path
+    assert "/tmp/.X11-unix" in launcher
+    # the seed script ran through the image, not the host interpreter
+    seed = [c for c in commands if "python3" in c and "seed_profile.py" in c]
+    assert seed
+    assert seed[0].startswith("docker run --rm --network host")
+    assert deployment.testbed.cache.load().entries["qgis/image/ltr"].images == ["qft-qgis:ltr"]
 
 
 # --- qfieldsync component --------------------------------------------------------------------------------

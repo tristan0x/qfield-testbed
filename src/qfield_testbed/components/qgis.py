@@ -15,14 +15,16 @@ from typing import Any, ClassVar
 
 import requests
 
+from qfield_testbed.backends.qgis_docker import QgisDockerBackend
 from qfield_testbed.backends.qgis_host import PROFILE_NAME, QgisHostBackend
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import TestbedError, UnsupportedComponentError
+from qfield_testbed.errors import TestbedError
 from qfield_testbed.provision import qgis_profile
 from qfield_testbed.provision.qgis_profile import ProfileLayout
 from qfield_testbed.revisions import Revision
-from qfield_testbed.spec import DockerSource, HostSource, PluginSpec, QgisSpec
+from qfield_testbed.runtimes import docker
+from qfield_testbed.spec import DockerSource, PluginSpec, QgisSpec, WorktreeSource
 
 log = logging.getLogger(__name__)
 
@@ -42,35 +44,52 @@ class Qgis(Component):
     def launcher(self) -> Path:
         return self.ctx.directory / "bin" / "qgis"
 
-    def backend(self) -> QgisHostBackend:
+    def backend(self) -> QgisHostBackend | QgisDockerBackend:
         if isinstance(self.spec.version, DockerSource):
-            raise UnsupportedComponentError("qgis: the docker backend is not available yet; use `version: host`")
+            return QgisDockerBackend(self.ctx.runner, self.spec.version.tag, mounts=self.docker_mounts())
         return QgisHostBackend.detect(self.ctx.runner)
+
+    def docker_mounts(self) -> list[Path]:
+        """Host paths the container must see at the same place: testbed home, cache, worktrees and plugin folders."""
+        mounts = [self.ctx.paths.home, self.ctx.paths.cache]
+        sync = self.ctx.spec.qfieldsync
+        if sync is not None and isinstance(sync.version, WorktreeSource):
+            mounts.append(sync.version.path)
+        mounts.extend(plugin.path for plugin in self.spec.plugins if plugin.path is not None)
+        return mounts
 
     def check_host(self) -> list[str]:
         if isinstance(self.spec.version, DockerSource):
-            return ["the docker backend is not available yet; use `version: host`"]
-        try:
-            backend = self.backend()
-            backend.version()
-        except TestbedError as exc:
-            return [str(exc)]
-        if not backend.python.exists():
-            return [f"{backend.python} missing (needed to seed the profile)"]
+            problems = [] if docker.daemon_available(self.ctx.runner) else ["docker daemon not reachable"]
+        else:
+            try:
+                backend = QgisHostBackend.detect(self.ctx.runner)
+                backend.version()
+            except TestbedError as exc:
+                return [str(exc)]
+            problems = [] if backend.python.exists() else [f"{backend.python} missing (needed to seed the profile)"]
         for plugin in self.spec.plugins:
             if plugin.path is not None and not (plugin.path / "metadata.txt").is_file():
-                return [f"plugin path {plugin.path} has no metadata.txt"]
-        return []
+                problems.append(f"plugin path {plugin.path} has no metadata.txt")
+        return problems
 
     # --- lifecycle --------------------------------------------------------------------------------------
 
     def resolve(self) -> Revision:
-        if isinstance(self.spec.version, HostSource):
-            return Revision(source=self.spec.version, label=f"host-{self.backend().version()}")
-        raise UnsupportedComponentError("qgis: the docker backend is not available yet; use `version: host`")
+        backend = self.backend()
+        if isinstance(backend, QgisDockerBackend):
+            backend.pull()
+            return Revision(source=self.spec.version, label=f"docker-{backend.tag}-{backend.version()}")
+        return Revision(source=self.spec.version, label=f"host-{backend.version()}")
 
-    def materialize(self, revision: Revision) -> Path:  # noqa: ARG002 - the host install is the materialization
-        return self.backend().binary
+    def materialize(self, revision: Revision) -> Path:  # noqa: ARG002 - the install/image is the materialization
+        backend = self.backend()
+        if isinstance(backend, QgisDockerBackend):
+            marker = self.ctx.paths.cache / "qgis-images" / backend.tag
+            marker.mkdir(parents=True, exist_ok=True)
+            self.ctx.cache.touch(f"qgis/image/{backend.tag}", marker, user=self.ctx.name, images=[backend.image])
+            return marker
+        return backend.binary
 
     def render(self, revision: Revision, materialized: Path) -> None:  # noqa: ARG002 - host QGIS has one revision
         layout = self.layout
@@ -83,8 +102,8 @@ class Qgis(Component):
         installed = [self.install_plugin(plugin, layout) for plugin in self.spec.plugins]
         self.state.facts.update(
             {
-                "backend": "qgis-host",
-                "binary": str(materialized),
+                "backend": "qgis-docker" if isinstance(backend, QgisDockerBackend) else "qgis-host",
+                "binary": backend.image if isinstance(backend, QgisDockerBackend) else str(materialized),
                 "profiles_path": str(layout.profiles_path),
                 "profile": str(layout.profile),
                 "launcher": str(self.launcher),
@@ -160,7 +179,7 @@ class Qgis(Component):
         facts = self.state.facts
         return {
             "backend": facts.get("backend", "qgis-host"),
-            "version": self.state.revision.label.removeprefix("host-") if self.state.revision else None,
+            "version": self.state.revision.label.rsplit("-", 1)[-1] if self.state.revision else None,
             "launcher": facts.get("launcher", str(self.launcher)),
             "profiles_path": facts.get("profiles_path", str(self.layout.profiles_path)),
             "profile": facts.get("profile", str(self.layout.profile)),

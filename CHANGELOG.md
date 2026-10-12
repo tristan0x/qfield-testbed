@@ -7,6 +7,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `qfieldcloud` component: runs QFieldCloud's own compose stack per deployment from an official release
+  (ghcr.io images), any git ref (images built and shared by revision) or a local worktree (live reload);
+  provisions the test account and a processed demo project.
 - `qft` command line with the deployment lifecycle (`add`, `list`, `show`, `start`, `stop`, `restart`,
   `remove`, `logs`, `launch`, `run`, `env`), `doctor`, `spec example|validate`, `cache list|prune` and
   `config show|path`.

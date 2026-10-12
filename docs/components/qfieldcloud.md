@@ -29,8 +29,12 @@ On the first start: `manage.py migrate`, `collectstatic`, then `manage.py create
 `QFT_QFIELDCLOUD_TOKEN`. With `demo_project: true`, the bundled sample project is created and uploaded through
 the API with `qfieldcloud-sdk`.
 
-`SENTRY_RELEASE` is set to the revision label, so `GET /api/v1/server/info/` tells which revision answers — the
-bisect engine checks it after every swap.
+`SENTRY_RELEASE` is set to the revision label; the testbed reads it back from the running `app` container (and
+from `GET /api/v1/server/info/` when the release exposes it) as the `version` fact — the bisect engine checks it
+after every swap.
+
+The worker's temporary directory is the host `/tmp` (see [isolation](../isolation.md)); the Django `app` and
+`worker_wrapper` containers share the deployment network with the QGIS containers the worker spawns.
 
 ## Facts (`show`, `QFT_QFIELDCLOUD_*`)
 

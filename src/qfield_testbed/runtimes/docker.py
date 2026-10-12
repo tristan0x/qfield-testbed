@@ -66,6 +66,8 @@ class Compose:
     env_file: Path | None = None
     project_directory: Path | None = None
     profiles: Sequence[str] = field(default_factory=tuple)
+    env: dict[str, str] = field(default_factory=dict)
+    """Extra interpolation variables; QFieldCloud's compose files read ``${PWD}``, which subprocess does not set."""
 
     def base(self) -> list[str]:
         cmd = ["docker", "compose", "-p", self.project]
@@ -80,7 +82,15 @@ class Compose:
         return cmd
 
     def run(self, *args: str, check: bool = True, capture: bool = True, timeout: float | None = None) -> Completed:
-        return self.runner.run([*self.base(), *args], check=check, capture=capture, timeout=timeout)
+        env = {"PWD": str(self.project_directory), **self.env} if self.project_directory else self.env
+        return self.runner.run(
+            [*self.base(), *args],
+            cwd=self.project_directory,
+            env=env or None,
+            check=check,
+            capture=capture,
+            timeout=timeout,
+        )
 
     def up(self, *services: str, build: bool = False, pull: bool = False) -> None:
         args = ["up", "-d", "--remove-orphans"]
@@ -90,13 +100,13 @@ class Compose:
         self.run(*args, *services, capture=False, timeout=1800)
 
     def stop(self) -> None:
-        self.run("stop", check=False, capture=False)
+        self.run("stop", check=False, timeout=600)
 
     def down(self, *, volumes: bool) -> None:
         args = ["down", "--remove-orphans"]
         if volumes:
             args.append("-v")
-        self.run(*args, check=False, capture=False)
+        self.run(*args, check=False, timeout=600)
 
     def exec_run(self, service: str, *cmd: str, timeout: float | None = 900) -> Completed:
         """`compose run --rm <service> <cmd>` — for one-off management commands."""

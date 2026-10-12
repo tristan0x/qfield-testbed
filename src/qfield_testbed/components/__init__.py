@@ -14,3 +14,6 @@ def register(cls: type[Component]) -> type[Component]:
 
 
 __all__ = ["REGISTRY", "Component", "ComponentContext", "register"]
+
+# importing the component modules registers them (each module decorates its class with @register)
+from qfield_testbed.components import qfieldcloud as _qfieldcloud  # noqa: E402, F401

@@ -208,7 +208,7 @@ def run(ctx: typer.Context, name: NameArg) -> None:
 def env(name: NameArg) -> None:
     """Print the QFT_* environment of a deployment, ready for `eval "$(qft deployment env NAME)"`."""
     for key, value in sorted(Testbed().deployment(name).env().items()):
-        console.print(f"export {key}={_shell_quote(value)}", highlight=False, markup=False)
+        print(f"export {key}={_shell_quote(value)}")  # noqa: T201 - plain stdout, meant for `eval`
 
 
 def _shell_quote(value: str) -> str:

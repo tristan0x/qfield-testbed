@@ -9,8 +9,9 @@ from rich.console import Console
 
 from qfield_testbed.state import Status
 
-console = Console()
-stderr = Console(stderr=True)
+# soft_wrap: never fold long URLs/paths; piped output (eval "$(qft deployment env …)") must stay one item per line
+console = Console(soft_wrap=True)
+stderr = Console(stderr=True, soft_wrap=True)
 
 _STATUS_STYLE = {
     Status.CREATED: "dim",

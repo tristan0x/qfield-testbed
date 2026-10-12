@@ -37,6 +37,10 @@ The slot is recorded in `$QFT_HOME/registry.json` and released by `remove`.
 Volumes inherit their compose project prefix, so `remove` (which runs `compose down -v`) never touches another
 deployment.
 
+One thing is shared on purpose: QFieldCloud's worker hands `/tmp/<job>` host paths to the QGIS containers it
+spawns through the Docker socket (`TMP_FILE` is hardcoded in `worker_wrapper/wrapper.py`), so `TMP_DIRECTORY`
+must be the host's `/tmp` for every deployment. Job directories are named randomly and removed after each job.
+
 ## Locks
 
 Registry mutations and slot allocation take `$QFT_HOME/registry.lock`; `start`, `stop`, `remove` and `swap` take

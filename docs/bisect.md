@@ -2,7 +2,9 @@
 
 A **bisect session** finds the first bad **candidate** of one component, exactly like `git bisect`, while the
 other components stay fixed. Each step **swaps** the varying component's revision inside the session's dedicated
-deployment, waits for it to be healthy and wired, then runs the **test**.
+deployment (`bs-<session>`), waits for it to be healthy and wired, then runs the **test**. Swapping QFieldCloud
+with `reset: volumes` (the default) wipes its database and storage, re-applies the migrations and re-creates
+the test account and the demo project, so every candidate is tested from a pristine server.
 
 ## Scenario
 
@@ -32,12 +34,18 @@ expired, a build failure) are skipped automatically.
 ## Running
 
 ```sh
-qft bisect start scenario.yaml [--session NAME]   # creates the session and its deployment `qft-bs-<name>`
+qft bisect example > scenario.yaml                 # a commented scenario to start from
+qft bisect start scenario.yaml [--session NAME] [--run]   # resolves the candidates; the deployment is `bs-<name>`
 qft bisect run [NAME]                              # loops until the first bad candidate is known
-qft bisect status [NAME]                           # candidates, verdicts, what comes next
-qft bisect log [NAME]                              # test output of every step
-qft bisect reset [NAME] [--remove-deployment]
+qft bisect status [NAME] [--json]                  # candidates, verdicts, what comes next
+qft bisect log [NAME] [--index N]                  # test output of every step, or of one candidate
+qft bisect list
+qft bisect reset [NAME] [--remove-deployment]      # forget the verdicts, keep the candidates
+qft bisect remove NAME                             # delete the session and its deployment
 ```
+
+The session name may be omitted when only one session exists. Scenario names are at most 16 characters
+because they prefix the deployment name.
 
 For a manual test, `run` prepares a candidate, prints the deployment summary (`show`) and prompts; or step
 from another terminal while QGIS stays open: `qft bisect next`, then `qft bisect good|bad|skip`.
@@ -52,12 +60,13 @@ It runs with the session deployment's environment:
 | Variable | Meaning |
 |---|---|
 | `QFT_DEPLOYMENT`, `QFT_DEPLOYMENT_DIR`, `QFT_NETWORK` | the deployment |
-| `QFT_QFIELDCLOUD_URL`, `QFT_QFIELDCLOUD_URL_INTERNAL` | API base from the host / from the Docker network |
+| `QFT_QFIELDCLOUD_URL`, `QFT_QFIELDCLOUD_URL_INTERNAL`, `QFT_QFIELDCLOUD_VERSION` | server base URL from the host / from the Docker network; the revision label it runs |
 | `QFT_QFIELDCLOUD_USERNAME`, `QFT_QFIELDCLOUD_PASSWORD`, `QFT_QFIELDCLOUD_TOKEN` | the test account |
 | `QFT_QGIS_LAUNCHER`, `QFT_QGIS_PROFILE` | QGIS with the deployment's profile |
 | `QFT_QFIELD_ANDROID_ADB`, `QFT_QFIELD_ANDROID_QFIELDCLOUD_URL` | `adb` against the emulator; the URL as seen from Android |
-| `QFT_REVISION_<COMPONENT>` | the revision under test |
-| `QFT_BISECT_INDEX`, `QFT_SESSION_DIR` | step number and where to leave extra logs |
+| `QFT_REVISION_<COMPONENT>` | every component's revision |
+| `QFT_BISECT_COMPONENT`, `QFT_BISECT_INDEX`, `QFT_BISECT_CANDIDATE`, `QFT_BISECT_SHA` | the candidate under test |
+| `QFT_SESSION`, `QFT_SESSION_DIR` | the session and where to leave extra logs |
 
 Exit codes follow `git bisect run`: 0 good, 125 skip, 1–124 and 126–127 bad, 128 and above abort.
 

@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Bisect sessions (`qft bisect start|run|next|good|bad|skip|status|log|list|reset|remove|example`): a
+  scenario fixes every component but one, whose revisions between a good and a bad ref are searched with a
+  script (`git bisect run` exit codes) or a manual prompt; sessions resume after an interruption and end
+  with a report naming the first bad revision.
 - `qgis` component (host backend): an isolated profile per deployment, a launcher
   (`qft deployment launch NAME qgis`), extra plugins from zips or local folders.
 - `qfieldsync` component: the plugin from a release zip, a git ref or a local worktree (live edits), with

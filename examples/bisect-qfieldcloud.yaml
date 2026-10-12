@@ -1,0 +1,20 @@
+# Which QFieldCloud revision broke QFieldSync? The plugin (your worktree) and QGIS stay fixed; QFieldCloud
+# moves along the first-parent history between a good and a bad ref, built from git for every candidate.
+name: qfs-on-qfc
+description: "QFieldSync packaging fails against recent QFieldCloud"
+
+deployment:
+  qgis: { version: host }
+  qfieldsync: { version: worktree:~/src/github.com/opengisch/qfieldsync }
+
+bisect:
+  component: qfieldcloud
+  good: v26.20
+  bad: master
+  candidates: first-parent       # one candidate per merged pull request
+  source: git                    # build each candidate (images are cached per revision)
+  reset: volumes                 # fresh database and storage for every candidate
+
+test:
+  script: ./repro.sh             # receives QFT_* (URLs, credentials, QGIS launcher…); 0 good, 125 skip, else bad
+  timeout: 900

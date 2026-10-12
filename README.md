@@ -53,7 +53,7 @@ artifact), `build:<path>` (built locally with the component's scripts); QGIS use
 ```sh
 qft bisect start examples/bisect-qfieldcloud.yaml   # fixed components + the one that varies + the test
 qft bisect run                                      # swaps revisions until the first bad one is found
-qft bisect status
+qft bisect status                                   # verdicts so far; the report names the first bad revision
 ```
 
 The test is a script (exit 0 = good, 125 = skip, anything else = bad — `git bisect run` semantics) receiving the

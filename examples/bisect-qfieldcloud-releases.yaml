@@ -1,0 +1,18 @@
+# A coarse, fast first pass over official QFieldCloud releases (published images, no build), to be refined
+# with a `source: git` scenario between the two releases it isolates.
+name: qfc-releases
+description: "Which QFieldCloud release broke the login of QFieldSync 4.22?"
+
+deployment:
+  qgis: { version: host }
+  qfieldsync: { version: release:v4.22.3 }
+
+bisect:
+  component: qfieldcloud
+  good: v26.10
+  bad: v26.28
+  candidates: tags:"v26.*"
+  source: release
+
+test:
+  manual: true                   # you are prompted good / bad / skip after each swap

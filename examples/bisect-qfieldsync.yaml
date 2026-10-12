@@ -1,0 +1,20 @@
+# Which QFieldSync commit introduced a bug against a fixed QFieldCloud? Each candidate is a plugin build from
+# the checkout (with its pinned libqfieldsync wheel), installed in the session's QGIS profile.
+name: qfs-regression
+description: "Project export produces an invalid GeoPackage since some QFieldSync change"
+
+deployment:
+  qfieldcloud: { version: release:v26.28 }
+  qgis: { version: host }
+
+bisect:
+  component: qfieldsync
+  good: v4.22.0
+  bad: v4.23.1
+  candidates: first-parent
+  source: git
+  reset: none                    # the plugin has no persistent data worth wiping
+
+test:
+  script: ./export-check.sh      # e.g. drives QGIS headless: "$QFT_QGIS_LAUNCHER" --nologo --code check.py
+  timeout: 600

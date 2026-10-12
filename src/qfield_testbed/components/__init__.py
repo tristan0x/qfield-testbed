@@ -17,3 +17,5 @@ __all__ = ["REGISTRY", "Component", "ComponentContext", "register"]
 
 # importing the component modules registers them (each module decorates its class with @register)
 from qfield_testbed.components import qfieldcloud as _qfieldcloud  # noqa: E402, F401
+from qfield_testbed.components import qfieldsync as _qfieldsync  # noqa: E402, F401
+from qfield_testbed.components import qgis as _qgis  # noqa: E402, F401

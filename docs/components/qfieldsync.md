@@ -18,7 +18,8 @@ A headless PyQGIS script seeds the profile once:
   username/password) in the profile's `qgis-auth.db`, unlocked by the master password stored next to it and
   passed through `QGIS_AUTH_PASSWORD_FILE`;
 - `QFieldSync/qfieldCloudServerUrl`, `qfieldCloudServerUrlsHistory`, `qfieldCloudAuthcfg`, `qfieldCloudAuthMethod`
-  (credentials) and `qfieldCloudRememberMe` in `QGIS3.ini`, plus `cloudDirectory` under the deployment;
+  (credentials) and `qfieldCloudRememberMe` in the profile's `QGIS/QGIS3.ini` or `QGIS4.ini`, plus `cloudDirectory`,
+  `exportDirectory` and `importDirectory` under the deployment;
 - `PythonPlugins/qfieldsync=true`.
 
 With `remember_me: true` the plugin logs in when QGIS starts. The server URL field of the login dialog is hidden;

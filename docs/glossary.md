@@ -16,7 +16,7 @@ gives the identifier that carries the concept in the code base.
 | **Cache** | The shared store of materializations, `~/.cache/qfield-testbed`, independent of deployments. | `Cache`, CLI noun `cache` |
 | **Slot** | The integer identifying a deployment's isolation unit: its port block and the names of its Docker resources. | `slot` |
 | **Port block** | The 100 contiguous host ports `port_base + 100 × slot` owned by a slot, with a fixed offset per service. | `PortBlock`, `PORT_OFFSETS` |
-| **Profile** | The isolated QGIS user profile created for a deployment (`<deployment>/qgis/profiles/testbed`), holding QFieldSync, its settings and the authentication database. | `profile` |
+| **Profile** | The isolated QGIS user profile created for a deployment (`<deployment>/qgis/profiles/default`, under the deployment's own profiles path), holding QFieldSync, its settings and the authentication database. | `ProfileLayout` |
 | **Test account** | The QFieldCloud user provisioned in every deployment, used by all clients; optionally owns a demo project. | `TestAccountSpec`, `Credentials` |
 | **Wiring** | The provisioning step that points a client at the deployment's QFieldCloud with the test account. | `Component.wire()` |
 | **Health** | A component's readiness check, awaited after start. | `Component.health()` |

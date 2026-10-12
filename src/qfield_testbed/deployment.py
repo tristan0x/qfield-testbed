@@ -193,7 +193,8 @@ class Deployment:
         component.start()
         component.health()
         component.wire()
-        component.state.facts = component.describe()
+        component.state.summary = component.describe()
+        component.state.facts.update(component.state.summary)
         component.state.status = Status.RUNNING
         component.state.initialized = True
         self.save()
@@ -270,7 +271,7 @@ class Deployment:
                 "status": component_state.status,
                 "version": str(getattr(self.spec.component(name), "version", "?")),
                 "revision": str(component_state.revision) if component_state.revision else None,
-                **component_state.facts,
+                **component_state.summary,
             }
         return info
 

@@ -157,6 +157,7 @@ def test_render_env_and_override(deployment, runner: FakeRunner, tmp_path: Path)
     assert json.loads(storages)["default"]["OPTIONS"]["endpoint_url"] == f"http://172.17.0.1:{base + 4}"
     assert env_value(blocks, "QFIELDCLOUD_QGIS3_IMAGE_NAME") == "ghcr.io/opengisch/qfieldcloud-qgis3:26.28"
     assert env_value(blocks, "SENTRY_RELEASE") == "v26.28"
+    assert env_value(blocks, "ENVIRONMENT") == "qft-demo"  # isolates the worker's container label
     assert env_value(blocks, "QFIELDCLOUD_WORKER_DEQUEUE_INTERVAL_S") == "1"
     assert env_value(blocks, "COMPOSE_FILE") is None
     assert env_value(blocks, "SECRET_KEY") != "change_me"

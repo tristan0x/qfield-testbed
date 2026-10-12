@@ -22,10 +22,10 @@ from qfield_testbed.components.base import Component
 from qfield_testbed.errors import TestbedError
 from qfield_testbed.provision import qfieldcloud_account
 from qfield_testbed.revisions import Revision
-from qfield_testbed.revisions.git import Mirror, worktree_head
+from qfield_testbed.revisions.git import Mirror, resolve_code_source
 from qfield_testbed.runtimes import docker
 from qfield_testbed.runtimes.http import wait_for_http
-from qfield_testbed.spec import GitSource, QFieldCloudSpec, ReleaseSource, WorktreeSource
+from qfield_testbed.spec import QFieldCloudSpec, ReleaseSource, WorktreeSource
 
 log = logging.getLogger(__name__)
 
@@ -239,22 +239,7 @@ class QFieldCloud(Component):
     # --- lifecycle --------------------------------------------------------------------------------------
 
     def resolve(self) -> Revision:
-        source = self.spec.version
-        if isinstance(source, ReleaseSource):
-            sha = self.mirror.rev_parse(source.tag)
-            return Revision(source=source, label=source.tag, sha=sha)
-        if isinstance(source, GitSource):
-            sha = self.mirror.rev_parse(source.ref)
-            label = (
-                source.ref
-                if sha.startswith(source.ref) or source.ref in self.mirror.tags()
-                else f"{source.ref}@{sha[:12]}"
-            )
-            return Revision(source=source, label=label, sha=sha)
-        if isinstance(source, WorktreeSource):
-            sha, dirty = worktree_head(self.ctx.runner, source.path)
-            return Revision(source=source, label=f"worktree@{sha[:12]}", sha=sha, dirty=dirty)
-        raise TestbedError(f"unsupported version source for qfieldcloud: {source}")
+        return resolve_code_source(self.ctx.runner, self.mirror, self.spec.version)
 
     def materialize(self, revision: Revision) -> Path:
         if isinstance(revision.source, WorktreeSource):
@@ -341,7 +326,11 @@ class QFieldCloud(Component):
             "SECRET_KEY": secrets.token_urlsafe(48),
             "SALT_KEY": secrets.token_urlsafe(48),
             "DEBUG": "1",
-            "ENVIRONMENT": "development",
+            # one ENVIRONMENT per deployment: the worker labels the QGIS containers it spawns with
+            # `app=<ENVIRONMENT>_worker` and kills every container carrying that label whose job it does not
+            # know — with a shared value, one deployment's worker would cancel the jobs of the others.
+            # (The only thing lost versus "development" is the Django Debug Toolbar.)
+            "ENVIRONMENT": f"qft-{self.ctx.name}",
             "SENTRY_RELEASE": revision.label,
             # the worker hands `/tmp/<job>` host paths to the QGIS containers it spawns (TMP_FILE is hardcoded
             # to /tmp in worker_wrapper/wrapper.py), so the host directory must be /tmp — shared by deployments

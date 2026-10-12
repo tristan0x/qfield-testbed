@@ -37,6 +37,11 @@ The slot is recorded in `$QFT_HOME/registry.json` and released by `remove`.
 Volumes inherit their compose project prefix, so `remove` (which runs `compose down -v`) never touches another
 deployment.
 
+Each deployment also gets its own `ENVIRONMENT` value (`qft-<name>`): QFieldCloud's worker labels the QGIS
+containers it spawns with `app=<ENVIRONMENT>_worker` and kills any container with that label whose job it does
+not know, so a shared value would let one deployment cancel another's jobs. The only side effect is that the
+Django Debug Toolbar, enabled upstream for `ENVIRONMENT=development`, stays off.
+
 One thing is shared on purpose: QFieldCloud's worker hands `/tmp/<job>` host paths to the QGIS containers it
 spawns through the Docker socket (`TMP_FILE` is hardcoded in `worker_wrapper/wrapper.py`), so `TMP_DIRECTORY`
 must be the host's `/tmp` for every deployment. Job directories are named randomly and removed after each job.

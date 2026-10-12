@@ -13,7 +13,9 @@ from pathlib import Path
 
 from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
 from qfield_testbed.paths import Paths
+from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import Runner
+from qfield_testbed.spec import GitSource, ReleaseSource, WorktreeSource
 
 log = logging.getLogger(__name__)
 
@@ -99,6 +101,18 @@ class Mirror:
         self.runner.run(
             ["git", "-C", str(self.path), "worktree", "remove", "--force", str(self.checkouts / sha)], check=False
         )
+
+
+def resolve_code_source(runner: Runner, mirror: Mirror, source: ReleaseSource | GitSource | WorktreeSource) -> Revision:
+    """Shared resolution for components built from a repository (QFieldCloud, QFieldSync)."""
+    if isinstance(source, ReleaseSource):
+        return Revision(source=source, label=source.tag, sha=mirror.rev_parse(source.tag))
+    if isinstance(source, GitSource):
+        sha = mirror.rev_parse(source.ref)
+        pinned = sha.startswith(source.ref) or source.ref in mirror.tags()
+        return Revision(source=source, label=source.ref if pinned else f"{source.ref}@{sha[:12]}", sha=sha)
+    sha, dirty = worktree_head(runner, source.path)
+    return Revision(source=source, label=f"worktree@{sha[:12]}", sha=sha, dirty=dirty)
 
 
 def worktree_head(runner: Runner, path: Path) -> tuple[str, bool]:

@@ -44,7 +44,8 @@ class ComponentState(BaseModel):
     revision: Revision | None = None
     initialized: bool = False
     status: Status = Status.CREATED
-    facts: dict[str, Any] = Field(default_factory=dict, description="URLs, paths, image tags… shown by `show`")
+    facts: dict[str, Any] = Field(default_factory=dict, description="Raw facts recorded by the component")
+    summary: dict[str, Any] = Field(default_factory=dict, description="What `describe()` returned; shown by `show`")
 
 
 class Credentials(BaseModel):

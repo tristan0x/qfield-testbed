@@ -104,11 +104,13 @@ def test_lifecycle(testbed: Testbed, fake_qgis: type[FakeQgis]) -> None:
         testbed.deployment("demo")
 
 
-def test_start_failure_marks_deployment_failed(testbed: Testbed, fake_qgis: type[FakeQgis]) -> None:
+def test_start_failure_marks_deployment_failed(
+    testbed: Testbed, fake_qgis: type[FakeQgis], monkeypatch: pytest.MonkeyPatch
+) -> None:
     def boom(self: FakeQgis) -> None:
         raise RuntimeError("no display")
 
-    fake_qgis.start = boom  # type: ignore[method-assign]
+    monkeypatch.setattr(fake_qgis, "start", boom)
     deployment = testbed.add(DeploymentSpec.from_yaml(SPEC))
     with pytest.raises(RuntimeError):
         deployment.start()

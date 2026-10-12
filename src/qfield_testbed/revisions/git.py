@@ -89,6 +89,8 @@ class Mirror:
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():  # half-created earlier
             self.runner.run(["git", "-C", str(self.path), "worktree", "remove", "--force", str(target)], check=False)
+        # a checkout removed by `qft cache prune` is still registered in the mirror until pruned
+        self.runner.run(["git", "-C", str(self.path), "worktree", "prune"], check=False)
         log.info("checking out %s", sha[:12])
         result = self.runner.run(
             ["git", "-C", str(self.path), "worktree", "add", "--detach", "--quiet", str(target), sha], check=False
@@ -109,7 +111,9 @@ def resolve_code_source(runner: Runner, mirror: Mirror, source: ReleaseSource | 
         return Revision(source=source, label=source.tag, sha=mirror.rev_parse(source.tag))
     if isinstance(source, GitSource):
         sha = mirror.rev_parse(source.ref)
-        pinned = sha.startswith(source.ref) or source.ref in mirror.tags()
+        if sha.startswith(source.ref):  # a sha, possibly abbreviated
+            return Revision(source=source, label=sha[:12], sha=sha)
+        pinned = source.ref in mirror.tags()
         return Revision(source=source, label=source.ref if pinned else f"{source.ref}@{sha[:12]}", sha=sha)
     sha, dirty = worktree_head(runner, source.path)
     return Revision(source=source, label=f"worktree@{sha[:12]}", sha=sha, dirty=dirty)

@@ -31,8 +31,8 @@ class Revision(BaseModel):
 
     @property
     def key(self) -> str:
-        base = self.short_sha or self.label
-        key = _UNSAFE.sub("-", base).strip("-")
+        """Filesystem- and Docker-tag-safe form of the label (``v26.28``, ``master-1a2b3c4d5e6f``, ``worktree-…-dirty``)."""
+        key = _UNSAFE.sub("-", self.label).strip("-")
         return f"{key}-dirty" if self.dirty else key
 
     def __str__(self) -> str:

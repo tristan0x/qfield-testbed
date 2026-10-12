@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -89,16 +89,23 @@ class SubprocessRunner:
         return shutil.which(program)
 
 
+Matcher = Callable[[tuple[str, ...]], bool]
+
+
 @dataclass
 class FakeRunner:
-    """Records commands; replies come from ``responses`` matched on a command prefix (first match wins)."""
+    """Records commands; replies come from ``responses`` matched on a command prefix or a predicate (first match wins)."""
 
-    responses: list[tuple[tuple[str, ...], Completed]] = field(default_factory=list)
+    responses: list[tuple[tuple[str, ...] | Matcher, Completed]] = field(default_factory=list)
     calls: list[Completed] = field(default_factory=list)
     available: set[str] = field(default_factory=lambda: {"docker", "git", "gh", "adb", "ssh", "qgis", "python3"})
 
     def reply(self, prefix: Sequence[str], stdout: str = "", returncode: int = 0, stderr: str = "") -> None:
         self.responses.append((tuple(prefix), Completed(tuple(prefix), returncode, stdout, stderr)))
+
+    def reply_when(self, matcher: Matcher, stdout: str = "", returncode: int = 0, stderr: str = "") -> None:
+        """Reply to any command the predicate accepts (e.g. ``lambda args: "--version" in args``)."""
+        self.responses.append((matcher, Completed((), returncode, stdout, stderr)))
 
     def run(
         self,
@@ -113,8 +120,9 @@ class FakeRunner:
     ) -> Completed:
         del cwd, env, capture, stdin, timeout
         args = tuple(cmd)
-        for prefix, response in self.responses:
-            if args[: len(prefix)] == prefix:
+        for matcher, response in self.responses:
+            matched = matcher(args) if callable(matcher) else args[: len(matcher)] == matcher
+            if matched:
                 completed = Completed(args, response.returncode, response.stdout, response.stderr)
                 break
         else:

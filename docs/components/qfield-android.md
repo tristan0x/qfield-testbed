@@ -24,10 +24,15 @@ Inside Android, `10.0.2.2` is the emulator host — here the container — so QF
 
 ## Wiring
 
-After boot, the APK is installed with `adb install -r`. With `seed_settings: true` the app is launched once,
-its `QField.conf` is edited (`[QFieldCloud] url=…`, `username=…`) via `adb root`, and the app is stopped. When
-seeding is impossible (non-rootable image, unexpected paths) the manual steps are printed: open QFieldCloud in
-QField, double-tap the logo, enter the URL, log in with the test account.
+After boot (`sys.boot_completed` and a focused launcher), the APK is installed with `adb install -r -g`; the
+same APK is not reinstalled on the next start. With `seed_settings: true` the app is launched once so its data
+directory exists, then `QField.conf` (QSettings, INI format, `OPENGIS.ch/QField.conf` under the app's private
+`files/.config`) gets `[QFieldCloud] url=…`, `username=…` written as root and chowned back to the app user. When
+seeding is impossible (no root, unexpected paths) the manual steps are printed: open QFieldCloud in QField,
+double-tap the logo, enter the URL, log in with the test account.
+
+Revisions are resolved through the GitHub API (`gh api repos/<repo>/commits/<ref>`) — the QField repository is
+never cloned for releases and artifacts.
 
 ## Using it
 

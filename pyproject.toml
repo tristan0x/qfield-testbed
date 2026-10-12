@@ -105,6 +105,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_classes = "Test[A-Z]*"  # `Testbed`, `TestbedError` are not test classes
 addopts = "-ra -m 'not docker and not kvm'"
 markers = [
   "docker: needs a Docker daemon and network access (set QFT_INTEGRATION=1)",

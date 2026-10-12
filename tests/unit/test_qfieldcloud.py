@@ -113,7 +113,7 @@ def test_resolve_release(deployment, runner: FakeRunner) -> None:
     revision = _component(deployment).resolve()
     assert revision.label == "v26.28"
     assert revision.sha == SHA
-    assert revision.key == SHA[:12]
+    assert revision.key == "v26.28"
     assert any("git clone --mirror" in cmd for cmd in runner.commands())
 
 
@@ -135,7 +135,7 @@ def test_release_images_and_pull(deployment, runner: FakeRunner, tmp_path: Path)
     assert set(images) == {"app", "worker_wrapper", "createbuckets", "qgis3", "qgis4"}
     pulled = [cmd for cmd in runner.commands() if cmd.startswith("docker pull")]
     assert len(pulled) == 5
-    assert deployment.testbed.cache.load().entries[f"qfieldcloud/images/{SHA[:12]}"].users == {"demo"}
+    assert deployment.testbed.cache.load().entries["qfieldcloud/images/v26.28"].users == {"demo"}
 
 
 def test_render_env_and_override(deployment, runner: FakeRunner, tmp_path: Path) -> None:

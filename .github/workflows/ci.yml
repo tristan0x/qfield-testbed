@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      integration:
+        description: Run the Docker integration tests
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * 1" # weekly integration run
+
+jobs:
+  lint:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+      - run: SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    name: unit tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv python install ${{ matrix.python }}
+      - run: uv sync --group dev --python ${{ matrix.python }}
+      - run: uv run pytest --cov --cov-report=term-missing
+
+  integration:
+    name: integration (docker)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+      - run: QFT_INTEGRATION=1 uv run pytest -m docker -o addopts=""
+        env:
+          GH_TOKEN: ${{ github.token }}

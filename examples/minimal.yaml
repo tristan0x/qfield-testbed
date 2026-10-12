@@ -1,0 +1,8 @@
+# The smallest useful deployment: an official QFieldCloud release, the host QGIS and the released QFieldSync.
+name: smoke
+qfieldcloud:
+  version: release:v26.28
+qgis:
+  version: host
+qfieldsync:
+  version: release:v4.23.1

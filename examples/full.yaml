@@ -1,0 +1,38 @@
+# Every component with every option. Trim what you do not need: an absent key is an omitted component.
+name: demo
+description: "QFieldSync fix #806 against QFieldCloud master"
+
+qfieldcloud:
+  version: worktree:~/src/github.com/opengisch/QFieldCloud   # or release:v26.28 | git:master | git:<sha>
+  tls: false                 # plain-HTTP Django port is the client endpoint; true also starts nginx + mkcert
+  worker_replicas: 1
+  test_account:
+    username: testbed
+    password: auto           # or a literal password
+    superuser: true
+    demo_project: true       # upload the bundled sample project
+
+qgis:
+  version: host              # or docker:4.2.3 | docker:3.44.15 | docker:ltr
+  plugins:
+    - zip: https://plugins.qgis.org/plugins/qgis_swiss_locator/version/4.0.3/download/
+    - path: ~/src/github.com/opengisch/qgis-swiss-locator/swiss_locator
+
+qfieldsync:
+  version: worktree:~/src/github.com/opengisch/qfieldsync-fix-cloud-rm-806   # or release:v4.23.1 | git:v4.22.3
+  remember_me: true
+
+qfield-android:
+  version: release:v4.3.5    # or artifact:<ref> (CI artifact on `repo`) | build:/path/to/QField
+  repo: opengisch/QField
+  image: budtmo/docker-android:emulator_14.0
+  device: "Samsung Galaxy S10"
+  seed_settings: true
+
+qfield-ios:
+  version: build:/Users/me/QField/build-ios-simulator   # simulator .app built on the Mac
+  host: mac-mini             # key in `ios_hosts` of ~/.config/qfield-testbed/config.yaml
+  device: "iPhone 16"
+
+qfield-desktop:
+  version: release:v4.3.5    # Linux AppImage

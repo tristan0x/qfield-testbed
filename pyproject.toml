@@ -1,0 +1,116 @@
+[project]
+name = "qfield-testbed"
+version = "0.1.0"
+description = "Generate sandboxed QGIS / QFieldSync / QFieldCloud / QField deployments and bisect regressions across them"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Tristan Carel" }]
+requires-python = ">=3.12"
+keywords = ["qfield", "qfieldcloud", "qfieldsync", "qgis", "testing", "bisect", "docker"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = [
+  "typer>=0.27",
+  "rich>=14",
+  "pydantic>=2.11",
+  "pyyaml>=6",
+  "jinja2>=3.1",
+  "filelock>=3.18",
+  "requests>=2.32",
+  "qfieldcloud-sdk>=0.17",
+]
+
+[project.urls]
+Homepage = "https://github.com/opengisch/qfield-testbed"
+Documentation = "https://github.com/opengisch/qfield-testbed/tree/master/docs"
+Changelog = "https://github.com/opengisch/qfield-testbed/blob/master/CHANGELOG.md"
+
+[project.scripts]
+qft = "qfield_testbed.cli:main"
+qfield-testbed = "qfield_testbed.cli:main"
+
+[dependency-groups]
+dev = [
+  "pre-commit>=4",
+  "pytest>=8.3",
+  "pytest-cov>=6",
+  "mypy>=1.15",
+  "types-PyYAML",
+  "types-requests",
+  "ruff>=0.17.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qfield_testbed"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "D1",      # missing docstrings: documented where it helps, not everywhere
+  "D203",    # one blank line before class docstring (conflicts with D211)
+  "D213",    # multi-line summary on second line (conflicts with D212)
+  "ANN401",  # Any is legitimate in a few boundaries (YAML, JSON)
+  "COM812",  # handled by the formatter
+  "FBT001", "FBT002",  # boolean positional arguments are fine for small internal helpers
+  "TRY003",  # messages in exceptions are the simplest form of context here
+  "EM101", "EM102",    # idem
+  "S603", "S607",      # the whole tool is about running docker/git/gh subprocesses
+  "PLR0913", # components legitimately take several configuration arguments
+  "TD", "FIX",         # TODO comments are tracked in issues, not linted
+  "CPY001",  # no per-file copyright headers; LICENSE covers the project
+  "TC001", "TC002", "TC003",  # pydantic needs runtime imports; TYPE_CHECKING blocks only where it matters
+  "RUF001", "RUF002", "RUF003",  # en dashes and arrows in user-facing text are intentional
+  "E501",    # the formatter owns line length; only long literals remain
+  "FBT003",  # positional booleans in small dataclass constructors are readable
+]
+mccabe.max-complexity = 12
+pydocstyle.convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S108", "PLR2004", "D", "ANN", "SLF001", "ARG", "RUF012"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["qfieldcloud_sdk.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not docker and not kvm'"
+markers = [
+  "docker: needs a Docker daemon and network access (set QFT_INTEGRATION=1)",
+  "kvm: needs /dev/kvm in addition to docker",
+]
+
+[tool.coverage.run]
+source = ["qfield_testbed"]
+branch = true

@@ -36,3 +36,9 @@ All notable changes to this project are documented here. The format follows
 - Deployment specs with version sources `release`, `git`, `worktree`, `artifact`, `build`, `host` and `docker`.
 - Slot allocation: each deployment owns a block of 100 host ports and a Docker network.
 - Glossary and documentation skeleton.
+
+### Fixed
+
+- `qgis: host` without a display (SSH session, CI): the launcher runs QGIS under `xvfb-run -a` when it is
+  installed, and otherwise stops with a hint instead of QGIS's own error, so scripted `--code` runs work
+  headless (#1).

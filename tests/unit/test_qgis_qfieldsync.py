@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
+from qfield_testbed.backends.qgis_host import QgisHostBackend
 from qfield_testbed.components.qfieldsync import (
     QFieldSync,
     compatibility_warnings,
@@ -146,6 +149,45 @@ def test_qgis_host_render_and_seed(testbed: Testbed, runner_with_qgis: FakeRunne
     )  # valid JSON literal
     assert "PythonPlugins/myplugin" in layout.seed_script.read_text()
     assert deployment.env()["QFT_QGIS_LAUNCHER"] == str(launcher)
+
+
+def _executable(path: Path, text: str) -> Path:
+    path.write_text(text)
+    path.chmod(0o755)
+    return path
+
+
+@pytest.mark.parametrize(
+    ("display", "with_xvfb", "expected"),
+    [
+        (":0", True, (0, "qgis --profiles-path {p} --profile default --code x.py\n", "")),
+        ("", True, (0, "xvfb-run -a\nqgis --profiles-path {p} --profile default --code x.py\n", "")),
+        ("", False, (1, "", "qft: no display")),
+    ],
+    ids=["display", "xvfb-run", "neither"],
+)
+def test_qgis_host_launcher_without_display(
+    tmp_path: Path, display: str, with_xvfb: bool, expected: tuple[int, str, str]
+) -> None:
+    returncode, stdout, stderr = expected
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    qgis = _executable(tmp_path / "qgis", '#!/bin/sh\necho qgis "$@"\n')
+    if with_xvfb:
+        _executable(bin_dir / "xvfb-run", '#!/bin/sh\necho xvfb-run "$1"\nshift\nexec "$@"\n')
+    profiles = tmp_path / "profiles"
+    backend = QgisHostBackend(runner=FakeRunner(), binary=qgis)
+    launcher = _executable(tmp_path / "launcher", "\n".join(backend.launcher_lines(profiles, {})) + "\n")
+    bash = shutil.which("bash")
+    assert bash
+    # PATH holds only the fake tools: a real xvfb-run on the machine must not leak into the "neither" case
+    env = {"PATH": str(bin_dir), "DISPLAY": display}
+    result = subprocess.run(
+        [bash, str(launcher), "--code", "x.py"], env=env, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == returncode
+    assert result.stdout == stdout.format(p=profiles)
+    assert stderr in result.stderr
 
 
 def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path) -> None:

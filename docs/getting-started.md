@@ -16,6 +16,8 @@ uv sync && alias qft="uv run qft"
 ✓  /dev/kvm               usable                     qfield-android
 ✓  gh                     authenticated              release and artifact sources
 ✓  qgis (host)            QGIS 4.2.3                 qgis: host
+✓  display                :0                         qgis, qfield-desktop
+✗  xvfb-run               missing: needed only …     qgis: host without a display (--code)
 ✗  ios hosts              none configured            qfield-ios
 ✓  free disk              34 GiB                     cache, builds
 ```

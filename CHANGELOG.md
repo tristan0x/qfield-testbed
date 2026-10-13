@@ -41,6 +41,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qgis: docker:<tag>`: killing the launcher (a `timeout`, Ctrl-C in a script) now stops QGIS instead of leaving
+  its container running (#3).
 - `qgis: docker:<tag>`: `--code` scripts now see the caller's `QFT_*` variables, plus those named in
   `QFT_FORWARD_ENV=FOO,BAR` (#2).
 - `qgis: docker:<tag>`: the directory of a `--code` script is mounted at its own path, so scripts kept outside

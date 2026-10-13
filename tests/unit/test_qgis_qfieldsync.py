@@ -233,6 +233,7 @@ def test_qgis_docker_launcher_forwards_qft_variables(tmp_path: Path) -> None:
     assert {"QFT_DEPLOYMENT", "QFT_FORWARD_ENV", "FOO", "BAR"} <= flags  # names only: docker copies the values
     assert "OTHER" not in flags
     assert argv.index("-e") < argv.index("qft-qgis:ltr") < argv.index("--nologo")
+    assert argv.index("--init") < argv.index("qft-qgis:ltr")  # an init process passes signals on to QGIS
 
 
 def test_qgis_docker_launcher_without_variables_to_forward(tmp_path: Path) -> None:
@@ -297,7 +298,7 @@ def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp
     # the seed script ran through the image, not the host interpreter
     seed = [c for c in commands if "python3" in c and "seed_profile.py" in c]
     assert seed
-    assert seed[0].startswith("docker run --rm --network host")
+    assert seed[0].startswith("docker run --rm --network host --init")
     assert deployment.testbed.cache.load().entries["qgis/image/ltr"].images == ["qft-qgis:ltr"]
 
 

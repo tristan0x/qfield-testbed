@@ -72,7 +72,8 @@ class QgisDockerBackend:
         return args
 
     def base_command(self, *, interactive: bool) -> list[str]:
-        cmd = ["docker", "run", "--rm", "--network", "host", *self._user_args(), *self._mount_args()]
+        # `--init`: QGIS as PID 1 would ignore the SIGTERM docker forwards when the caller is killed, and outlive it
+        cmd = ["docker", "run", "--rm", "--network", "host", "--init", *self._user_args(), *self._mount_args()]
         cmd += ["-e", f"PYTHONPATH={PYQGIS_PATH}"]
         if interactive:
             cmd += ["-it"]

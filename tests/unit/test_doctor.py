@@ -31,3 +31,25 @@ def test_doctor_reports_xvfb_run(
     check = _check(testbed, "xvfb-run")
     assert check.ok is ok
     assert detail in check.detail
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("wayland", True, True, "XWayland available"),
+        ("wayland", False, False, "no XWayland"),
+        ("x11", False, True, "x11"),
+        ("", False, False, "unknown"),
+    ],
+    ids=["wayland", "wayland-without-xwayland", "x11", "unknown"],
+)
+def test_doctor_reports_the_session(
+    testbed: Testbed, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch, case: tuple[str, bool, bool, str]
+) -> None:
+    session, with_xwayland, ok, detail = case
+    monkeypatch.setenv("XDG_SESSION_TYPE", session)
+    if with_xwayland:
+        runner.available.add("Xwayland")
+    check = _check(testbed, "session")
+    assert check.ok is ok
+    assert detail in check.detail

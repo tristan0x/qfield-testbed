@@ -190,9 +190,19 @@ class Deployment:
         materialized = component.materialize(revision)
         component.render(revision, materialized)
         log.info("[%s] starting", component.name)
-        component.start()
-        component.health()
-        component.wire()
+        try:
+            component.start()
+            component.health()
+        except Exception:
+            component.state.status = Status.FAILED
+            self.save()
+            raise
+        try:
+            component.wire()
+        except Exception:
+            component.state.status = Status.WIRING_FAILED
+            self.save()
+            raise
         component.state.summary = component.describe()
         component.state.facts.update(component.state.summary)
         component.state.status = Status.RUNNING

@@ -49,6 +49,8 @@ All notable changes to this project are documented here. The format follows
   connection or answers 502/503/504, instead of failing the start (#6).
 - A QFieldCloud wiring that still fails is reported in one line naming the step and `qft deployment start NAME`
   to retry, instead of a traceback (#6).
+- A component whose start, health check or wiring fails is now shown as `failed` or `wiring failed` in
+  `qft deployment list` instead of staying `starting` (#6).
 - `qgis: host`: QGIS started through `uv run qft` (launch, run, bisect scripts) no longer inherits the testbed's
   virtualenv, which disabled its Python (`No module named 'PyQt6'`) (#4).
 - `qgis: docker:<tag>`: killing the launcher (a `timeout`, Ctrl-C in a script) now stops QGIS instead of leaving

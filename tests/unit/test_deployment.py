@@ -118,6 +118,25 @@ def test_start_failure_marks_deployment_failed(
     assert testbed.deployment("demo").state.status is Status.FAILED
 
 
+@pytest.mark.parametrize(
+    ("step", "status"),
+    [("start", Status.FAILED), ("health", Status.FAILED), ("wire", Status.WIRING_FAILED)],
+)
+def test_start_failure_records_the_component_status(
+    testbed: Testbed, fake_qgis: type[FakeQgis], monkeypatch: pytest.MonkeyPatch, step: str, status: Status
+) -> None:
+    def boom(self: FakeQgis) -> None:
+        raise RuntimeError(f"{step} broke")
+
+    monkeypatch.setattr(fake_qgis, step, boom)
+    deployment = testbed.add(DeploymentSpec.from_yaml(SPEC))
+    with pytest.raises(RuntimeError, match=f"{step} broke"):
+        deployment.start()
+    reloaded = testbed.deployment("demo")
+    assert reloaded.state.status is Status.FAILED
+    assert reloaded.state.components["qgis"].status is status
+
+
 def _cloud_stub() -> type[Component]:
     class FakeCloud(FakeQgis):
         name = "qfieldcloud"

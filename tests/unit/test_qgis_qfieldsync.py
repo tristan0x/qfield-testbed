@@ -21,7 +21,7 @@ from qfield_testbed.components.qfieldsync import (
     libqfieldsync_pin,
     plugin_metadata,
 )
-from qfield_testbed.components.qgis import Qgis, _replace_with_symlink
+from qfield_testbed.components.qgis import Qgis, _replace_with_symlink, qt_platform
 from qfield_testbed.deployment import Deployment, Testbed
 from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
 from qfield_testbed.provision.qgis_profile import AuthConfig, ProfileLayout, parse_seed_report, render_seed_script
@@ -229,7 +229,7 @@ def test_qgis_host_launcher_keeps_path_without_virtualenv(tmp_path: Path) -> Non
     assert seen == {"VIRTUAL_ENV": "unset", "PYTHONHOME": "/from/spec", "PATH": "/usr/bin:/bin"}
 
 
-def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -> list[str]:
+def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str], platform: str = "session") -> list[str]:
     """Run the generated Docker launcher with a fake `docker` that prints the arguments it receives."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(parents=True)
@@ -238,7 +238,9 @@ def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -
     assert grep
     (bin_dir / "grep").symlink_to(grep)
     backend = QgisDockerBackend(runner=FakeRunner(), tag="ltr")
-    launcher = _executable(tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "profiles", {})) + "\n")
+    launcher = _executable(
+        tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "profiles", {}, platform)) + "\n"
+    )
     bash = shutil.which("bash")
     assert bash
     result = subprocess.run(
@@ -722,3 +724,62 @@ def test_qgis_docker_without_leftover_containers(testbed: Testbed, runner: FakeR
 def test_qgis_host_has_no_container_to_remove(testbed: Testbed, runner: FakeRunner) -> None:
     _qgis(testbed).remove()
     assert not any(cmd.startswith("docker") for cmd in runner.commands())
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("session", {}, "unset"),
+        ("xcb", {}, "xcb"),
+        ("offscreen", {}, "offscreen"),
+        ("xcb", {"QT_QPA_PLATFORM": "wayland"}, "wayland"),
+    ],
+    ids=["session", "xcb", "offscreen", "caller-wins"],
+)
+def test_qgis_host_launcher_platform(tmp_path: Path, case: tuple[str, dict[str, str], str]) -> None:
+    platform, caller_env, expected = case
+    qgis = _executable(tmp_path / "qgis", '#!/bin/sh\necho "${QT_QPA_PLATFORM-unset}"\n')
+    backend = QgisHostBackend(runner=FakeRunner(), binary=qgis)
+    launcher = _executable(
+        tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "p", {}, platform)) + "\n"
+    )
+    bash = shutil.which("bash")
+    assert bash
+    out = subprocess.run(
+        [bash, str(launcher)], env={"DISPLAY": ":0", **caller_env}, capture_output=True, text=True, check=True
+    )
+    assert out.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    "case",
+    [("session", {}, "xcb"), ("offscreen", {}, "offscreen"), ("xcb", {"QT_QPA_PLATFORM": "offscreen"}, "offscreen")],
+    ids=["session-is-x11", "offscreen", "caller-wins"],
+)
+def test_qgis_docker_launcher_platform(tmp_path: Path, case: tuple[str, dict[str, str], str]) -> None:
+    platform, caller_env, expected = case
+    argv = _run_docker_launcher(tmp_path, [], caller_env, platform)
+    assert f"QT_QPA_PLATFORM={expected}" in _env_flags(argv)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("{version: host}", {}, "session"),
+        ("{version: host}", {"XDG_SESSION_TYPE": "wayland"}, "session (wayland)"),
+        ("{version: host, platform: xcb}", {"XDG_SESSION_TYPE": "wayland"}, "xcb"),
+        ("{version: host, env: {QT_QPA_PLATFORM: wayland}}", {}, "wayland"),
+        ("{version: 'docker:ltr'}", {}, "xcb"),
+        ("{version: host, platform: xcb}", {"QT_QPA_PLATFORM": "offscreen"}, "offscreen (from QT_QPA_PLATFORM)"),
+    ],
+    ids=["session", "session-type", "spec", "spec-env", "docker", "caller"],
+)
+def test_qt_platform_reported(case: tuple[str, dict[str, str], str]) -> None:
+    qgis_yaml, environ, expected = case
+    spec = DeploymentSpec.from_yaml(f"name: p\nqgis: {qgis_yaml}\n").qgis
+    assert spec is not None
+    assert qt_platform(spec, environ) == expected
+
+
+def test_qgis_describe_reports_the_platform(testbed: Testbed) -> None:
+    assert _qgis(testbed, "name: q\nqgis: {version: host, platform: xcb}\n").describe()["platform"] == "xcb"

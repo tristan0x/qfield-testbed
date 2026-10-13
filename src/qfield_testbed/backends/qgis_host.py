@@ -60,8 +60,10 @@ class QgisHostBackend:
         merged = {**self.python_env(), **(env or {})}
         return self.runner.run([str(self.python), str(script), *args], env=merged, timeout=timeout).stdout
 
-    def launcher_lines(self, profiles_path: Path, env: dict[str, str]) -> list[str]:
+    def launcher_lines(self, profiles_path: Path, env: dict[str, str], platform: str = "session") -> list[str]:
         exports = [f"export {key}={_quote(value)}" for key, value in sorted(env.items())]
+        if platform != "session":  # a default only: `QT_QPA_PLATFORM=offscreen bin/qgis --code …` still wins
+            exports.insert(0, f"export QT_QPA_PLATFORM=${{QT_QPA_PLATFORM:-{platform}}}")
         qgis = f'{_quote(str(self.binary))} --profiles-path {_quote(str(profiles_path))} --profile {PROFILE_NAME} "$@"'
         return [
             "#!/usr/bin/env bash",

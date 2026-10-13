@@ -20,6 +20,7 @@ gives the identifier that carries the concept in the code base.
 | **Test account** | The QFieldCloud user provisioned in every deployment, used by all clients; optionally owns a demo project. | `TestAccountSpec`, `Credentials` |
 | **Wiring** | The provisioning step that points a client at the deployment's QFieldCloud with the test account. | `Component.wire()` |
 | **Health** | A component's readiness check, awaited after start. | `Component.health()` |
+| **Qt platform** | The Qt platform plugin QGIS starts with (`xcb` for X11, `wayland`, `offscreen`), chosen by `qgis.platform`; `session` follows the desktop session on the host and means X11 in Docker. | `QgisSpec.platform`, `qt_platform()` |
 | **Launcher** | The script in `<deployment>/bin/` that opens an interactive client (QGIS with the profile, the emulator UI…). | `Deployment.launcher()` |
 | **Scenario** | The YAML document describing a bisect: the fixed components, the one that varies with its range and candidate rule, and the test. | `BisectScenario` |
 | **Bisect session** | A resumable execution of a scenario, with its dedicated deployment, candidates, verdicts and log, in `$QFT_HOME/bisect/<session>/`. | `BisectSession`, CLI noun `bisect` |

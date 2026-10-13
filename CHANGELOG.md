@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
+  window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).
+- `qft deployment show` and `qft deployment launch NAME qgis` report the Qt platform QGIS uses (#5).
+- `qft doctor` shows the desktop session (X11 or Wayland) and, on Wayland, whether XWayland is available (#5).
 - `qft doctor` reports `xvfb-run`, which `qgis: host` needs to run without a display (SSH session, CI),
   and says what to install or use instead when it is missing (#1).
 - `qfield-ios` component: QField in the iOS Simulator of a remote macOS host driven over SSH (`ios_hosts` in

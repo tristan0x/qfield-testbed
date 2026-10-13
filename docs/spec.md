@@ -58,6 +58,7 @@ qgis:
     - zip: https://plugins.qgis.org/plugins/<name>/version/<v>/download/
     - path: ~/src/some-plugin/plugin_dir
   env: { QGIS_DEBUG: "0" }   # extra environment for the QGIS process
+  platform: session          # Qt platform: session | xcb | wayland | offscreen (see components/qgis.md)
 ```
 
 ### `qfieldsync`

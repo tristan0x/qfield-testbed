@@ -32,6 +32,23 @@ QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/
   `DISPLAY` nor `WAYLAND_DISPLAY` is set, the launcher runs QGIS under `xvfb-run -a` (package `xvfb`); without
   it, the launcher stops with a hint. `qft doctor` reports `xvfb-run`.
 
+## Qt platform
+
+`qgis.platform` sets the Qt platform plugin QGIS starts with — what decides between X11 and Wayland, and with them
+the behaviour of dialogs, focus, modality, `showEvent` and native file dialogs:
+
+| `platform` | `host` | `docker:<tag>` |
+|---|---|---|
+| `session` (default) | follows the desktop session (Wayland on recent GNOME and KDE) | `xcb` (the container only reaches X11) |
+| `xcb` | X11, through XWayland on a Wayland desktop | X11 |
+| `wayland` | Wayland | refused |
+| `offscreen` | no window, for scripts | no window, for scripts |
+
+It is the launcher's default `QT_QPA_PLATFORM`: the caller's own `QT_QPA_PLATFORM` still wins, so
+`QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --code …` keeps working. `qft deployment show` lists the
+platform, `qft deployment launch NAME qgis` prints it, and `qft doctor` shows the desktop session and whether
+XWayland is available. Setting both `platform` and `env.QT_QPA_PLATFORM` is refused.
+
 ## Launcher
 
 `qft deployment launch <name> qgis` runs `<deployment>/bin/qgis`, which sets `QGIS_AUTH_PASSWORD_FILE` (so the

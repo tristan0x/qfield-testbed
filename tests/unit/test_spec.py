@@ -132,3 +132,29 @@ def test_invalid_yaml_reports_spec_error(tmp_path: Path) -> None:
         DeploymentSpec.from_file(file)
     with pytest.raises(SpecError, match="cannot read"):
         DeploymentSpec.from_file(tmp_path / "missing.yaml")
+
+
+@pytest.mark.parametrize("platform", ["session", "xcb", "wayland", "offscreen"])
+def test_qgis_platform_values(platform: str) -> None:
+    spec = DeploymentSpec.from_yaml(f"name: p\nqgis: {{version: host, platform: {platform}}}\n")
+    assert spec.qgis is not None
+    assert spec.qgis.platform == platform
+
+
+@pytest.mark.parametrize(
+    ("yaml_text", "message"),
+    [
+        ("qgis: {version: 'docker:4.2.3', platform: wayland}", "needs `version: host`"),
+        ("qgis: {version: host, platform: xcb, env: {QT_QPA_PLATFORM: wayland}}", "not both"),
+        ("qgis: {version: host, platform: x11}", "platform"),
+    ],
+)
+def test_qgis_platform_refusals(yaml_text: str, message: str) -> None:
+    with pytest.raises(SpecError, match=message):
+        DeploymentSpec.from_yaml(f"name: p\n{yaml_text}\n")
+
+
+def test_qgis_platform_defaults_to_session_and_env_alone_is_fine() -> None:
+    spec = DeploymentSpec.from_yaml("name: p\nqgis: {version: host, env: {QT_QPA_PLATFORM: xcb}}\n")
+    assert spec.qgis is not None
+    assert spec.qgis.platform == "session"

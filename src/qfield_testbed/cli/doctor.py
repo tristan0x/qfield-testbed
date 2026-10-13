@@ -91,6 +91,17 @@ def run_checks(testbed: Testbed) -> list[Check]:
         xvfb_detail = f"missing: {NO_DISPLAY_HINT.removeprefix('qft: ')}"
     checks.append(Check("xvfb-run", xvfb is not None, xvfb_detail, "qgis: host without a display (--code)"))
 
+    # X11 and Wayland reproduce different window-manager bugs; `qgis.platform: xcb` on Wayland needs XWayland
+    session = os.environ.get("XDG_SESSION_TYPE", "")
+    if session == "wayland":
+        xwayland = runner.which("Xwayland") is not None
+        detail = "wayland, XWayland available" if xwayland else "wayland, no XWayland: `platform: xcb` cannot start"
+        checks.append(Check("session", xwayland, detail, "qgis: platform session / xcb"))
+    else:
+        checks.append(
+            Check("session", bool(session), session or "unknown (XDG_SESSION_TYPE unset)", "qgis: platform session")
+        )
+
     for name, host in testbed.config.ios_hosts.items():
         reachable = (
             runner.run(

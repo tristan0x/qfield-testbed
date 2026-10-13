@@ -28,3 +28,9 @@ def runner() -> FakeRunner:
 @pytest.fixture
 def testbed(config: GlobalConfig, runner: FakeRunner) -> Testbed:
     return Testbed(config, runner)
+
+
+@pytest.fixture
+def terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Let commands that ask for a confirmation believe stdin is a terminal (CliRunner's stdin is not one)."""
+    monkeypatch.setattr("qfield_testbed.cli._console.stdin_is_terminal", lambda: True)

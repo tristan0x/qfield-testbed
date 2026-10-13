@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import console, ok, print_json, styled_status, warn
+from qfield_testbed.cli._console import confirm, console, ok, print_json, styled_status, warn
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import TestbedError
@@ -149,7 +149,7 @@ def remove(
     deployment = Testbed().deployment(name)
     if deployment.summary().session and not force:
         warn(f"deployment '{name}' belongs to bisect session '{deployment.summary().session}'")
-    if not force and not typer.confirm(f"Remove deployment '{name}' and all its data?"):
+    if not force and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):
         raise typer.Abort
     deployment.remove()
     ok(f"deployment [bold]{name}[/] removed")

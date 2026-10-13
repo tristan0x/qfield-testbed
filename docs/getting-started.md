@@ -40,7 +40,7 @@ qft deployment show smoke        # URLs, ports, credentials, revisions
 qft deployment launch smoke qgis # QGIS with the profile; QFieldSync is already connected
 qft deployment stop smoke
 qft deployment start smoke
-qft deployment remove smoke
+qft deployment remove smoke     # asks for confirmation; from a script (no terminal), add --force
 ```
 
 ## Your own change

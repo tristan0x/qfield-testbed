@@ -232,6 +232,7 @@ def test_start_stop_restart(testbed: Testbed) -> None:
     assert testbed.deployment("demo").state.status is Status.RUNNING
 
 
+@pytest.mark.usefixtures("terminal")
 @pytest.mark.usefixtures("fake_components", "added")
 def test_remove_asks_for_confirmation(testbed: Testbed) -> None:
     declined = invoke(["deployment", "remove", "demo"], stdin="n\n")
@@ -342,3 +343,15 @@ def test_env_is_shell_quoted(testbed: Testbed) -> None:
         check=True,
     )
     assert evaluated.stdout == "it's"
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_remove_without_a_terminal_names_the_way_out(testbed: Testbed) -> None:
+    refused = invoke(["deployment", "remove", "demo"], stdin="")
+    assert refused.exit_code == 1
+    assert str(refused.exception) == (
+        "refusing to remove 'demo' without confirmation: stdin is not a terminal; pass --force"
+    )
+    assert [d.name for d in testbed.deployments()] == ["demo"]
+    assert invoke(["deployment", "remove", "demo", "--force"]).exit_code == 0
+    assert testbed.deployments() == []

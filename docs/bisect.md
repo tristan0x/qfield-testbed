@@ -48,7 +48,8 @@ The session name may be omitted when only one session exists. Scenario names are
 because they prefix the deployment name.
 
 For a manual test, `run` prepares a candidate, prints the deployment summary (`show`) and prompts; or step
-from another terminal while QGIS stays open: `qft bisect next`, then `qft bisect good|bad|skip`.
+from another terminal while QGIS stays open: `qft bisect next`, then `qft bisect good|bad|skip`. Without a terminal
+(a script, CI, an agent), `run` refuses a manual test before the first swap: use `next` and `good|bad|skip`.
 
 Sessions are resumable: every verdict is written to `$QFT_HOME/bisect/<session>/state.json` before the next
 swap, so `Ctrl-C` and `qft bisect run` again continues where it stopped.

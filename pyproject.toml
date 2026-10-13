@@ -107,6 +107,14 @@ plugins = ["pydantic.mypy"]
 module = ["qfieldcloud_sdk.*"]
 ignore_missing_imports = true
 
+[tool.pyright]
+# second type checker next to mypy: it infers differently and catches what decorators hide from mypy
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_classes = "Test[A-Z]*"  # `Testbed`, `TestbedError` are not test classes

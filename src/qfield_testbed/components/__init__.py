@@ -8,7 +8,8 @@ REGISTRY: dict[str, type[Component]] = {}
 """Component name → implementation. Populated by the component modules below as they land."""
 
 
-def register(cls: type[Component]) -> type[Component]:
+def register[C: type[Component]](cls: C) -> C:
+    """Class decorator; returns the class itself so its own type survives decoration."""
     REGISTRY[cls.name] = cls
     return cls
 

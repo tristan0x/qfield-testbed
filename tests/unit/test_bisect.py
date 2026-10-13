@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import stat
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ from tests.unit.test_deployment import FakeQgis
 # --- algorithm -------------------------------------------------------------------------------------------
 
 
-def oracle_search(size: int, first_bad: int, skips: set[int] = frozenset()) -> Search:
+def oracle_search(size: int, first_bad: int, skips: AbstractSet[int] = frozenset()) -> Search:
     """Drive a Search with a perfect oracle; returns the finished search."""
     search = Search(size=size)
     steps = 0

@@ -34,3 +34,12 @@ repos:
           - filelock
         pass_filenames: false
         args: [src]
+
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: uv run --frozen pyright
+        language: system
+        types: [python]
+        pass_filenames: false

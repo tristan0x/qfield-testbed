@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -46,7 +47,7 @@ class FakeQgis(Component):
 
 
 @pytest.fixture
-def fake_qgis() -> type[FakeQgis]:
+def fake_qgis() -> Iterator[type[FakeQgis]]:
     saved = dict(REGISTRY)
     REGISTRY.clear()
     register(FakeQgis)

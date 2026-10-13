@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from qfield_testbed.backends.qgis_docker import QgisDockerBackend
 from qfield_testbed.backends.qgis_host import QgisHostBackend
 from qfield_testbed.components.base import Component
 from qfield_testbed.components.qfieldsync import (
@@ -193,6 +194,75 @@ def test_qgis_host_launcher_without_display(
     assert result.returncode == returncode
     assert result.stdout == stdout.format(p=profiles)
     assert stderr in result.stderr
+
+
+def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -> list[str]:
+    """Run the generated Docker launcher with a fake `docker` that prints the arguments it receives."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    _executable(bin_dir / "docker", '#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    grep = shutil.which("grep")
+    assert grep
+    (bin_dir / "grep").symlink_to(grep)
+    backend = QgisDockerBackend(runner=FakeRunner(), tag="ltr")
+    launcher = _executable(tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "profiles", {})) + "\n")
+    bash = shutil.which("bash")
+    assert bash
+    result = subprocess.run(
+        [bash, str(launcher), *args],
+        env={"PATH": str(bin_dir), "HOME": str(tmp_path), **env},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.splitlines()
+
+
+def _env_flags(argv: list[str]) -> set[str]:
+    return {argv[i + 1] for i, arg in enumerate(argv[:-1]) if arg == "-e"}
+
+
+def test_qgis_docker_launcher_forwards_qft_variables(tmp_path: Path) -> None:
+    argv = _run_docker_launcher(
+        tmp_path,
+        ["--nologo"],
+        {"QFT_DEPLOYMENT": "demo", "QFT_FORWARD_ENV": "FOO,BAR", "FOO": "1", "OTHER": "2"},
+    )
+    flags = _env_flags(argv)
+    assert {"QFT_DEPLOYMENT", "QFT_FORWARD_ENV", "FOO", "BAR"} <= flags  # names only: docker copies the values
+    assert "OTHER" not in flags
+    assert argv.index("-e") < argv.index("qft-qgis:ltr") < argv.index("--nologo")
+
+
+def test_qgis_docker_launcher_without_variables_to_forward(tmp_path: Path) -> None:
+    argv = _run_docker_launcher(tmp_path, [], {})
+    assert not any(flag.startswith("QFT_") for flag in _env_flags(argv))
+    assert argv[-2:] == ["--profile", "default"]
+
+
+def _volumes(argv: list[str]) -> set[str]:
+    return {argv[i + 1] for i, arg in enumerate(argv[:-1]) if arg == "-v"}
+
+
+@pytest.mark.parametrize("relative", [False, True], ids=["absolute", "relative"])
+def test_qgis_docker_launcher_mounts_the_code_script_directory(tmp_path: Path, relative: bool) -> None:
+    scripts = tmp_path / "elsewhere" / "scripts"
+    scripts.mkdir(parents=True)
+    script = scripts / "check.py"
+    script.write_text("")
+    without = _volumes(_run_docker_launcher(tmp_path / "a", ["--nologo"], {}))
+    path = os.path.relpath(script) if relative else str(script)
+    with_code = _volumes(_run_docker_launcher(tmp_path / "b", ["--nologo", "--code", path], {}))
+    resolved = scripts.resolve()
+    assert with_code - without == {f"{resolved}:{resolved}"}
+
+
+def test_qgis_docker_launcher_leaves_a_missing_script_to_qgis(tmp_path: Path) -> None:
+    missing = str(tmp_path / "missing" / "x.py")
+    argv = _run_docker_launcher(tmp_path, ["--code", missing], {})
+    assert argv[-2:] == ["--code", missing]
+    assert not any("missing" in volume for volume in _volumes(argv))
 
 
 def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path) -> None:

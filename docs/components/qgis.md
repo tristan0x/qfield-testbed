@@ -20,7 +20,11 @@ Scripts drive QGIS with `--code`, from an SSH session or CI where there is no di
 QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/null
 ```
 
-- `docker:<tag>`: works as is; the launcher allocates a TTY only when it has one.
+- `docker:<tag>`: works as is; the launcher allocates a TTY only when it has one. The script sees the caller's
+  `QFT_*` variables (`qft deployment run` sets them) and those listed in `QFT_FORWARD_ENV=FOO,BAR`; other
+  variables stay outside the container. The container sees your home, the testbed home, the cache, the worktrees
+  and the directory of the `--code` script, each at its own path: write outputs there (next to the script, for
+  instance), not to another directory such as `/tmp`, which the container does not share.
 - `host`: QGIS Desktop refuses to start without a display, whatever `QT_QPA_PLATFORM` says. When neither
   `DISPLAY` nor `WAYLAND_DISPLAY` is set, the launcher runs QGIS under `xvfb-run -a` (package `xvfb`); without
   it, the launcher stops with a hint. `qft doctor` reports `xvfb-run`.

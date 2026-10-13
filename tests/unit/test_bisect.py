@@ -128,20 +128,15 @@ def test_scenario_keeps_varying_component_options(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("patch", "message"),
+    ("line", "replacement", "message"),
     [
-        ("test:\n  script: ./repro.sh\n", "either a `script` or `manual: true`"),  # both script and manual below
-        ("bisect:\n  component: qfieldcloud\n", "release` needs tag candidates"),
-        ("bisect:\n  component: qfieldcloud\n  good: a\n  bad: b\n", "only available for qfield-android"),
+        ("  script: ./repro.sh\n", "  script: ./repro.sh\n  manual: true\n", "either a `script` or `manual: true`"),
+        ("  bad: master\n", "  bad: master\n  source: release\n", "release` needs tag candidates"),
+        ("  bad: master\n", "  bad: master\n  source: artifact\n", "only available for qfield-android"),
     ],
 )
-def test_scenario_validation_errors(tmp_path: Path, patch: str, message: str) -> None:
-    if "manual" in message:
-        text = SCENARIO.replace("  script: ./repro.sh\n", "  script: ./repro.sh\n  manual: true\n")
-    elif "release" in message:
-        text = SCENARIO.replace("  bad: master\n", "  bad: master\n  source: release\n")
-    else:
-        text = SCENARIO.replace("  bad: master\n", "  bad: master\n  source: artifact\n")
+def test_scenario_validation_errors(tmp_path: Path, line: str, replacement: str, message: str) -> None:
+    text = SCENARIO.replace(line, replacement)
     file = tmp_path / "s.yaml"
     file.write_text(text)
     with pytest.raises(SpecError, match=message):
@@ -212,9 +207,8 @@ def _write_script(path: Path, first_bad: int) -> None:
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
 
 
-def test_session_runs_to_the_first_bad_candidate(
-    testbed: Testbed, runner: FakeRunner, tmp_path: Path, fake_components
-) -> None:
+@pytest.mark.usefixtures("fake_components")
+def test_session_runs_to_the_first_bad_candidate(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:
     testbed.paths.ensure()
     shas = [f"{i:040x}" for i in range(1, 11)]
     mirror = Mirror(runner, testbed.paths, "https://github.com/opengisch/QFieldCloud")
@@ -262,9 +256,8 @@ def test_session_runs_to_the_first_bad_candidate(
         testbed.deployment("bs-s")
 
 
-def test_manual_session_prompts_and_pauses(
-    testbed: Testbed, runner: FakeRunner, tmp_path: Path, fake_components
-) -> None:
+@pytest.mark.usefixtures("fake_components")
+def test_manual_session_prompts_and_pauses(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:
     testbed.paths.ensure()
     mirror = Mirror(runner, testbed.paths, "https://github.com/opengisch/QFieldCloud")
     git = ["git", "-C", str(mirror.path)]

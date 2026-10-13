@@ -75,8 +75,9 @@ def android_runner(runner: FakeRunner, tmp_path: Path, monkeypatch: pytest.Monke
     return runner
 
 
+@pytest.mark.usefixtures("cloud_stub")
 def test_release_apk_is_cached_installed_and_seeded(
-    testbed: Testbed, android_runner: FakeRunner, cloud_stub, monkeypatch: pytest.MonkeyPatch
+    testbed: Testbed, android_runner: FakeRunner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import qfield_testbed.provision.android_settings as mod  # noqa: PLC0415
 
@@ -132,9 +133,8 @@ def test_release_apk_is_cached_installed_and_seeded(
     assert len([c for c in android_runner.commands() if "adb install" in c]) == before
 
 
-def test_android_requires_kvm(
-    testbed: Testbed, runner: FakeRunner, cloud_stub, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_android_requires_kvm(testbed: Testbed, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     runner.reply(["docker", "info"])
     monkeypatch.setattr("qfield_testbed.components.qfield_android.KVM_DEVICE", Path("/nonexistent/kvm"))
     with pytest.raises(UnsupportedComponentError, match="kvm"):

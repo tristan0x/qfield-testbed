@@ -248,8 +248,9 @@ def cloud_stub():
         REGISTRY["qfieldcloud"] = saved
 
 
+@pytest.mark.usefixtures("cloud_stub")
 def test_qfieldsync_worktree_materialize_and_wire(
-    testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path, cloud_stub
+    testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path
 ) -> None:
     checkout = fake_qfieldsync_checkout(tmp_path)
     runner_with_qgis.reply(["git", "-C", str(checkout), "rev-parse", "HEAD"], stdout=SHA + "\n")
@@ -288,9 +289,8 @@ def test_qfieldsync_worktree_materialize_and_wire(
     assert deployment.env()["QFT_QFIELDSYNC_QFIELDCLOUD_URL"] == "http://127.0.0.1:30000/"
 
 
-def test_qfieldsync_release_uses_cached_extracted_zip(
-    testbed: Testbed, runner_with_qgis: FakeRunner, cloud_stub
-) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_qfieldsync_release_uses_cached_extracted_zip(testbed: Testbed, runner_with_qgis: FakeRunner) -> None:
     testbed.paths.ensure()
     extracted = testbed.paths.artifacts / "qfieldsync" / "v4.23.1" / "qfieldsync"
     extracted.mkdir(parents=True)

@@ -115,6 +115,13 @@ typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
 
+[tool.vulture]
+# dead code; frameworks call what is decorated, pydantic reads `model_config`
+paths = ["src", "tests", "vulture_whitelist.py"]
+min_confidence = 60
+ignore_decorators = ["@app.command", "@app.callback", "@field_validator", "@model_validator", "@register", "@pytest.fixture"]
+ignore_names = ["model_config"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_classes = "Test[A-Z]*"  # `Testbed`, `TestbedError` are not test classes

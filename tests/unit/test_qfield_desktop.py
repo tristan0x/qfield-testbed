@@ -28,7 +28,8 @@ def cloud_stub():
         REGISTRY["qfieldcloud"] = saved
 
 
-def test_desktop_launcher_and_settings(testbed: Testbed, runner: FakeRunner, cloud_stub) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_desktop_launcher_and_settings(testbed: Testbed, runner: FakeRunner) -> None:
     runner.reply(["docker", "info"])
     testbed.paths.ensure()
     appimage_dir = testbed.paths.artifacts / "qfield-desktop" / "v4.3.5"

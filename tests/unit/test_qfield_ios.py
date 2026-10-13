@@ -42,13 +42,15 @@ def cloud_stub():
         REGISTRY["qfieldcloud"] = saved
 
 
-def test_unconfigured_host_is_refused(testbed: Testbed, runner: FakeRunner, cloud_stub) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_unconfigured_host_is_refused(testbed: Testbed, runner: FakeRunner) -> None:
     runner.reply(["docker", "info"])
     with pytest.raises(UnsupportedComponentError, match="not configured"):
         testbed.add(DeploymentSpec.from_yaml(SPEC))
 
 
-def test_unreachable_host_is_refused(config: GlobalConfig, runner: FakeRunner, cloud_stub) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_unreachable_host_is_refused(config: GlobalConfig, runner: FakeRunner) -> None:
     config.ios_hosts["mac"] = IosHost(ssh="me@mac.local")
     runner.reply(["docker", "info"])
     runner.reply([*SSH, "true"], returncode=255)
@@ -56,9 +58,8 @@ def test_unreachable_host_is_refused(config: GlobalConfig, runner: FakeRunner, c
         Testbed(config, runner).add(DeploymentSpec.from_yaml(SPEC))
 
 
-def test_simulator_lifecycle(
-    config: GlobalConfig, runner: FakeRunner, cloud_stub, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.usefixtures("cloud_stub")
+def test_simulator_lifecycle(config: GlobalConfig, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch) -> None:
     config.ios_hosts["mac"] = IosHost(ssh="me@mac.local")
     runner.reply(["docker", "info"])
     runner.reply([*SSH, "git -C /Users/me/QField/build-sim rev-parse HEAD"], stdout="f" * 40 + "\n")
@@ -93,7 +94,7 @@ def test_simulator_lifecycle(
         [*SSH, "xcrun simctl get_app_container UDID-1 ch.opengis.qfield data"],
         stdout="/Users/me/Library/Developer/CoreSimulator/Devices/UDID-1/data/Containers/Data/Application/APP\n",
     )
-    monkeypatch.setattr("qfield_testbed.runtimes.ssh.Ssh.reverse_tunnel", lambda self, remote, local: 4242)
+    monkeypatch.setattr("qfield_testbed.runtimes.ssh.Ssh.reverse_tunnel", lambda *_: 4242)
     monkeypatch.setattr("qfield_testbed.components.qfield_ios.process_alive", lambda pid: pid == 4242)
     monkeypatch.setattr("qfield_testbed.components.qfield_ios.stop_process", lambda pid: None)
 

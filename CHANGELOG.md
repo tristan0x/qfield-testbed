@@ -41,6 +41,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qgis: host`: QGIS started through `uv run qft` (launch, run, bisect scripts) no longer inherits the testbed's
+  virtualenv, which disabled its Python (`No module named 'PyQt6'`) (#4).
 - `qgis: docker:<tag>`: killing the launcher (a `timeout`, Ctrl-C in a script) now stops QGIS instead of leaving
   its container running (#3).
 - `qft deployment stop|remove` also remove the QGIS containers a killed Docker launcher left behind; they are

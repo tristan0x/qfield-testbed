@@ -196,6 +196,39 @@ def test_qgis_host_launcher_without_display(
     assert stderr in result.stderr
 
 
+def _run_host_launcher(tmp_path: Path, env: dict[str, str], spec_env: dict[str, str]) -> dict[str, str]:
+    """Run the host launcher with a fake `qgis` that prints the Python-related variables it receives."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    qgis = _executable(
+        tmp_path / "qgis",
+        '#!/bin/sh\necho "VIRTUAL_ENV=${VIRTUAL_ENV-unset}"\necho "PYTHONHOME=${PYTHONHOME-unset}"\necho "PATH=$PATH"\n',
+    )
+    backend = QgisHostBackend(runner=FakeRunner(), binary=qgis)
+    launcher = _executable(tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "p", spec_env)) + "\n")
+    bash = shutil.which("bash")
+    assert bash
+    out = subprocess.run(
+        [bash, str(launcher)], env={"DISPLAY": ":0", **env}, capture_output=True, text=True, check=True
+    )
+    return dict(line.split("=", 1) for line in out.stdout.splitlines())
+
+
+def test_qgis_host_launcher_drops_the_callers_virtualenv(tmp_path: Path) -> None:
+    venv_bin = f"{tmp_path}/.venv/bin"
+    seen = _run_host_launcher(
+        tmp_path,
+        {"VIRTUAL_ENV": f"{tmp_path}/.venv", "PYTHONHOME": "/x", "PATH": f"{venv_bin}:/usr/bin:{venv_bin}:/bin"},
+        {},
+    )
+    assert seen == {"VIRTUAL_ENV": "unset", "PYTHONHOME": "unset", "PATH": "/usr/bin:/bin"}
+
+
+def test_qgis_host_launcher_keeps_path_without_virtualenv(tmp_path: Path) -> None:
+    seen = _run_host_launcher(tmp_path, {"PATH": "/usr/bin:/bin"}, {"PYTHONHOME": "/from/spec"})
+    assert seen == {"VIRTUAL_ENV": "unset", "PYTHONHOME": "/from/spec", "PATH": "/usr/bin:/bin"}
+
+
 def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -> list[str]:
     """Run the generated Docker launcher with a fake `docker` that prints the arguments it receives."""
     bin_dir = tmp_path / "bin"

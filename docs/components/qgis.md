@@ -35,7 +35,9 @@ QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/
 ## Launcher
 
 `qft deployment launch <name> qgis` runs `<deployment>/bin/qgis`, which sets `QGIS_AUTH_PASSWORD_FILE` (so the
-authentication database opens without a prompt) and the extra `env` from the spec.
+authentication database opens without a prompt) and the extra `env` from the spec. The host launcher first drops the
+caller's virtualenv (`VIRTUAL_ENV`, `PYTHONHOME`, the venv's `bin` on `PATH`), so QGIS keeps its system Python and
+PyQt when started through `uv run qft`.
 
 ## Extra plugins
 

@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
 from qfield_testbed.components import REGISTRY, register
+from qfield_testbed.components.qfield_ios import QFieldIos
 from qfield_testbed.config import GlobalConfig, IosHost
-from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import UnsupportedComponentError
+from qfield_testbed.deployment import Deployment, Testbed
+from qfield_testbed.errors import MaterializationUnavailableError, TestbedError, UnsupportedComponentError
+from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import FakeRunner
-from qfield_testbed.spec import DeploymentSpec
+from qfield_testbed.spec import BuildSource, DeploymentSpec, ReleaseSource
 from qfield_testbed.state import Credentials
 from tests.unit.test_deployment import FakeQgis
 
@@ -122,3 +125,121 @@ def test_simulator_lifecycle(config: GlobalConfig, runner: FakeRunner, monkeypat
     assert any("xcrun simctl shutdown UDID-1" in cmd for cmd in runner.commands())
     deployment.remove()
     assert any("xcrun simctl delete UDID-1" in cmd for cmd in runner.commands())
+
+
+# --- component steps, one at a time ----------------------------------------------------------------------
+
+APP = "/Users/me/QField/build-sim/Release-iphonesimulator/QField.app"
+
+
+def _ios(config: GlobalConfig, runner: FakeRunner) -> QFieldIos:
+    config.ios_hosts["mac"] = IosHost(ssh="me@mac.local")
+    testbed = Testbed(config, runner)
+    testbed.paths.ensure()
+    spec = DeploymentSpec.from_yaml(SPEC)
+    component = Deployment.probe(testbed, spec, "qfield-ios", spec.components()["qfield-ios"])
+    assert isinstance(component, QFieldIos)
+    return component
+
+
+def test_check_host_problems(config: GlobalConfig, runner: FakeRunner) -> None:
+    component = _ios(config, runner)
+    runner.reply([*SSH, "xcrun simctl list -j devices available"], returncode=1)
+    assert component.check_host() == [
+        "`xcrun simctl` fails on me@mac.local: is Xcode installed and selected (xcode-select)?"
+    ]
+    runner.available.discard("ssh")
+    assert component.check_host() == ["ssh client missing"]
+    config.ios_hosts.clear()
+    (problem,) = component.check_host()
+    assert "iOS host 'mac' is not configured" in problem
+    assert problem.endswith("configured: none")
+
+
+def test_resolve_without_git_and_unsupported_source(config: GlobalConfig, runner: FakeRunner) -> None:
+    component = _ios(config, runner)
+    runner.reply([*SSH, "git -C /Users/me/QField/build-sim rev-parse HEAD"], returncode=128)
+    revision = component.resolve()
+    assert (revision.label, revision.sha, revision.dirty) == ("build@build-sim", None, False)
+    assert not any("status --porcelain" in cmd for cmd in runner.commands())
+    component.spec = component.spec.model_copy(update={"version": ReleaseSource(tag="v4.3.5")})
+    with pytest.raises(TestbedError, match=r"unsupported version source for qfield-ios: release:v4.3.5"):
+        component.resolve()
+
+
+def test_resolve_dirty_checkout(config: GlobalConfig, runner: FakeRunner) -> None:
+    component = _ios(config, runner)
+    runner.reply([*SSH, "git -C /Users/me/QField/build-sim rev-parse HEAD"], stdout="e" * 40 + "\n")
+    runner.reply(
+        [*SSH, "git -C /Users/me/QField/build-sim status --porcelain --untracked-files=no"], stdout=" M src/x.cpp\n"
+    )
+    assert str(component.resolve()) == "build@eeeeeeeeeeee+dirty"
+
+
+def test_materialize_falls_back_to_any_app_then_fails(config: GlobalConfig, runner: FakeRunner) -> None:
+    component = _ios(config, runner)
+    revision = Revision(source=BuildSource(path=Path("/Users/me/QField/build-sim")), label="build@x")
+    with pytest.raises(MaterializationUnavailableError, match=r"no QField.app under /Users/me/QField/build-sim"):
+        component.materialize(revision)
+    runner.reply(
+        [*SSH, "find /Users/me/QField/build-sim -maxdepth 6 -name QField.app"],
+        stdout="/Users/me/QField/build-sim/b/QField.app\n/Users/me/QField/build-sim/a/QField.app\n",
+    )
+    assert component.materialize(revision) == Path("/Users/me/QField/build-sim/a/QField.app")
+
+
+def test_start_reuses_a_live_tunnel(config: GlobalConfig, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    component = _ios(config, runner)
+    runner.reply(
+        [*SSH, "xcrun simctl list -j devices available"],
+        stdout=json.dumps(
+            {
+                "devices": {
+                    "com.apple.CoreSimulator.SimRuntime.iOS-18-2": [{"udid": "U2", "name": "qft-i", "state": "Booted"}]
+                }
+            }
+        ),
+    )
+    monkeypatch.setattr("qfield_testbed.components.qfield_ios.process_alive", lambda pid: pid == 99)
+
+    def no_new_tunnel(*_: object) -> int:
+        raise AssertionError("a live tunnel must be reused")
+
+    monkeypatch.setattr("qfield_testbed.runtimes.ssh.Ssh.reverse_tunnel", no_new_tunnel)
+    component.state.facts.update({"app": APP, "tunnel_pid": 99})
+    component.start()
+    assert component.state.facts["udid"] == "U2"
+    assert component.state.facts["tunnel_pid"] == 99
+    assert component.state.facts["runtime"] == "com.apple.CoreSimulator.SimRuntime.iOS-18-2"
+    assert not any("simctl create" in cmd for cmd in runner.commands())
+
+
+def test_wire_skips_or_logs_manual_steps(
+    config: GlobalConfig, runner: FakeRunner, caplog: pytest.LogCaptureFixture
+) -> None:
+    component = _ios(config, runner)
+    component.ctx.state.credentials = Credentials(username="testbed", password="pw")
+    component.wire()  # not started: no simulator to configure
+    assert runner.calls == []
+    component.state.facts.update({"udid": "U1", "qfieldcloud_url": "http://localhost:30000/"})
+    component.wire()  # the app has no data container: nothing written
+    assert component.state.facts["settings_file"] is None
+    assert "http://localhost:30000/" in caplog.text
+
+
+def test_stop_reset_remove_without_simulator(
+    config: GlobalConfig, runner: FakeRunner, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    stopped: list[int | None] = []
+    monkeypatch.setattr("qfield_testbed.components.qfield_ios.stop_process", stopped.append)
+    component = _ios(config, runner)
+    component.state.facts["tunnel_pid"] = 7
+    component.reset()
+    assert stopped == [7]
+    assert "tunnel_pid" not in component.state.facts
+    assert runner.calls == []
+    # the Mac is gone from the config: removal still succeeds and only warns
+    component.state.facts["udid"] = "U1"
+    config.ios_hosts.clear()
+    component.remove()
+    assert "could not clean the simulator: iOS host 'mac' is not configured" in caplog.text

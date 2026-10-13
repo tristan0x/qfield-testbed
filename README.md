@@ -17,8 +17,8 @@ The vocabulary used in the docs, the CLI and the code is defined once in the [gl
 ## Quick start
 
 Requirements: Linux, Docker with Compose v2, `git`, the [`gh`](https://cli.github.com/) CLI logged in (for
-release and CI-artifact downloads), QGIS on the host (or Docker for `qgis: docker:<tag>`), `/dev/kvm` for the
-Android emulator.
+release and CI-artifact downloads), QGIS on the host (or Docker for `qgis: docker:<tag>`) with `xvfb-run` to
+script it without a display, `/dev/kvm` for the Android emulator.
 
 ```sh
 uv tool install git+https://github.com/opengisch/qfield-testbed      # or: uv sync && uv run qft …
@@ -75,7 +75,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 
 | Command | Purpose |
 |---|---|
-| `qft doctor` | Check Docker, KVM, `gh`, QGIS, display, iOS hosts, free disk |
+| `qft doctor` | Check Docker, KVM, `gh`, QGIS, display, `xvfb-run`, iOS hosts, free disk |
 | `qft spec example [--minimal]`, `qft spec validate FILE` | Help writing specs |
 | `qft deployment add SPEC [--name N] [--set k=v] [--start]` | Register a deployment and allocate its slot |
 | `qft deployment list \| show \| start \| stop \| restart \| remove \| logs NAME` | Lifecycle |

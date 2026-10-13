@@ -12,8 +12,18 @@ QFieldSync and extra plugins are installed and where the QFieldCloud connection 
 | `host` (default) | `qgis-host` | `/usr/bin/qgis --profiles-path <deployment>/qgis --profile default`. Profile seeding uses the system Python with `PYTHONPATH=/usr/share/qgis/python`. |
 | `docker:<tag>` | `qgis-docker` | `qft-qgis:<tag>`, built once from `qgis/qgis:<tag>` plus `libxcb-cursor0` (the published image targets CI and cannot open a display as is). The container shares the host network — so an SSH-forwarded `localhost:N.0` display and the deployment's QFieldCloud URL work unchanged — runs as your user, and mounts your home, the testbed home, the cache and any worktree at their own paths. |
 
-The Docker launcher allocates a TTY only when it has one, so scripts can drive it headless:
-`QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/null`.
+## Headless runs
+
+Scripts drive QGIS with `--code`, from an SSH session or CI where there is no display:
+
+```sh
+QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/null
+```
+
+- `docker:<tag>`: works as is; the launcher allocates a TTY only when it has one.
+- `host`: QGIS Desktop refuses to start without a display, whatever `QT_QPA_PLATFORM` says. When neither
+  `DISPLAY` nor `WAYLAND_DISPLAY` is set, the launcher runs QGIS under `xvfb-run -a` (package `xvfb`); without
+  it, the launcher stops with a hint. `qft doctor` reports `xvfb-run`.
 
 ## Launcher
 

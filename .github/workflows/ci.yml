@@ -13,9 +13,17 @@ on:
   schedule:
     - cron: "17 3 * * 1" # weekly integration run
 
+permissions:
+  contents: read
+
+# a new push to a pull request supersedes the run still going for the previous one
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
-    name: pre-commit
+    name: pre-commit (ruff, mypy, pyright, vulture, deptry)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -40,7 +48,13 @@ jobs:
           enable-cache: true
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --group dev --python ${{ matrix.python }}
+      # the coverage threshold is `fail_under` in pyproject.toml; Hypothesis explores more examples than locally
       - run: uv run pytest --cov --cov-report=term-missing
+        env:
+          HYPOTHESIS_PROFILE: ci
+      - name: Coverage summary
+        if: always() && matrix.python == '3.12'
+        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
   integration:
     name: integration (docker)

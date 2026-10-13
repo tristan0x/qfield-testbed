@@ -134,3 +134,9 @@ markers = [
 [tool.coverage.run]
 source = ["qfield_testbed"]
 branch = true
+
+[tool.coverage.report]
+# statements and branches together; CI fails below this
+fail_under = 85
+show_missing = true
+skip_covered = true

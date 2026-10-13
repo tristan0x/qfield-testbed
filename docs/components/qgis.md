@@ -25,6 +25,9 @@ QT_QPA_PLATFORM=offscreen <deployment>/bin/qgis --nologo --code check.py < /dev/
   variables stay outside the container. The container sees your home, the testbed home, the cache, the worktrees
   and the directory of the `--code` script, each at its own path: write outputs there (next to the script, for
   instance), not to another directory such as `/tmp`, which the container does not share.
+  QGIS runs behind an init process (`--init`), so killing the launcher (a `timeout`, Ctrl-C) stops it; its
+  containers carry the labels `qft.deployment=<name>` and `qft.component=qgis`, and `qft deployment stop|remove`
+  remove any that are left.
 - `host`: QGIS Desktop refuses to start without a display, whatever `QT_QPA_PLATFORM` says. When neither
   `DISPLAY` nor `WAYLAND_DISPLAY` is set, the launcher runs QGIS under `xvfb-run -a` (package `xvfb`); without
   it, the launcher stops with a hint. `qft doctor` reports `xvfb-run`.

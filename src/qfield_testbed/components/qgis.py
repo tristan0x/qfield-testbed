@@ -46,8 +46,11 @@ class Qgis(Component):
 
     def backend(self) -> QgisHostBackend | QgisDockerBackend:
         if isinstance(self.spec.version, DockerSource):
-            return QgisDockerBackend(self.ctx.runner, self.spec.version.tag, mounts=self.docker_mounts())
+            return self._docker_backend(self.spec.version)
         return QgisHostBackend.detect(self.ctx.runner)
+
+    def _docker_backend(self, source: DockerSource) -> QgisDockerBackend:
+        return QgisDockerBackend(self.ctx.runner, source.tag, mounts=self.docker_mounts(), deployment=self.ctx.name)
 
     def docker_mounts(self) -> list[Path]:
         """Host paths the container must see at the same place: testbed home, cache, worktrees and plugin folders."""
@@ -170,10 +173,19 @@ class Qgis(Component):
         return qgis_profile.parse_seed_report(stdout)
 
     def stop(self) -> None:
-        """Nothing to stop: QGIS is launched by the user."""
+        """QGIS is launched by the user; only remove containers a killed Docker launcher left behind."""
+        self._remove_leftover_containers()
 
     def remove(self) -> None:
-        """The profile lives in the deployment directory, removed with it."""
+        """The profile lives in the deployment directory, removed with it; leftover containers go too."""
+        self._remove_leftover_containers()
+
+    def _remove_leftover_containers(self) -> None:
+        if not isinstance(self.spec.version, DockerSource):
+            return
+        removed = docker.remove_labelled(self.ctx.runner, self._docker_backend(self.spec.version).labels)
+        if removed:
+            log.info("removed %d leftover QGIS container(s)", len(removed))
 
     def describe(self) -> dict[str, Any]:
         facts = self.state.facts

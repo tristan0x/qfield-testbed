@@ -55,6 +55,16 @@ def list_images(runner: Runner, reference: str) -> list[str]:
     return [line for line in result.stdout.splitlines() if line and not line.endswith(":<none>")]
 
 
+def remove_labelled(runner: Runner, labels: dict[str, str]) -> list[str]:
+    """Force-remove every container, running or not, carrying all ``labels``; returns the removed ids."""
+    filters = [arg for key, value in labels.items() for arg in ("--filter", f"label={key}={value}")]
+    result = runner.run(["docker", "ps", "-aq", *filters], check=False)
+    ids = result.stdout.split() if result.returncode == 0 else []
+    if ids:
+        runner.run(["docker", "rm", "-f", *ids], check=False)
+    return ids
+
+
 @dataclass
 class Compose:
     """A `docker compose` invocation bound to a project name, a set of files and an env file."""

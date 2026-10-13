@@ -61,6 +61,18 @@ qfieldsync:
 Several deployments can run at once — each has its own slot — so keep a `release` one next to your `worktree`
 one and compare.
 
+## Reproducing a bug
+
+Bugs that depend on the window manager — dialogs shown twice, focus, modality, native file dialogs — can appear
+under X11 and not under Wayland, or the reverse. opengisch/qfieldsync#753 (a folder picker opened twice) only
+reproduces under X11. When such a bug does not reproduce, try the other platform before concluding:
+
+```sh
+qft deployment add spec.yaml --name repro-x11 --set qgis.platform=xcb --start
+```
+
+`qft deployment launch repro-x11 qgis` prints the platform in use.
+
 ## Scripting
 
 `qft deployment run NAME -- CMD` runs a command with the deployment exposed as environment variables

@@ -227,6 +227,7 @@ def test_reset_forgets_verdicts_and_deployment(manual: BisectSession, testbed: T
     assert testbed.deployments() == []
 
 
+@pytest.mark.usefixtures("terminal")
 @pytest.mark.usefixtures("fake_components")
 def test_remove_session(manual: BisectSession, testbed: Testbed) -> None:
     invoke(["bisect", "next"])
@@ -240,3 +241,11 @@ def test_remove_session(manual: BisectSession, testbed: Testbed) -> None:
     assert "session m removed" in removed.output
     assert not manual.directory.exists()
     assert testbed.deployments() == []
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_remove_session_without_a_terminal(manual: BisectSession) -> None:
+    refused = invoke(["bisect", "remove", "m"])
+    assert refused.exit_code == 1
+    assert "refusing to remove session 'm' without confirmation" in str(refused.exception)
+    assert manual.directory.is_dir()

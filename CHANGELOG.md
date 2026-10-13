@@ -45,6 +45,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qft deployment remove` and `qft bisect remove` without a terminal fail at once with a message pointing to
+  `--force`, instead of a bare `aborted` (#7).
 - QFieldCloud wiring (token, demo project) retries for a minute when the freshly started server drops a
   connection or answers 502/503/504, instead of failing the start (#6).
 - A QFieldCloud wiring that still fails is reported in one line naming the step and `qft deployment start NAME`

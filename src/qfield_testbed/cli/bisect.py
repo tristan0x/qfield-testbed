@@ -12,7 +12,7 @@ from qfield_testbed.bisect.algorithm import Verdict
 from qfield_testbed.bisect.runner import BisectAbortError, Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
-from qfield_testbed.cli._console import console, ok, print_json, warn
+from qfield_testbed.cli._console import confirm, console, ok, print_json, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import TestbedError
 
@@ -268,7 +268,8 @@ def remove(
 ) -> None:
     """Delete a session and its deployment."""
     current = BisectSession(Testbed(), session)
-    if not force and not typer.confirm(f"Remove session '{session}' and deployment '{current.state.deployment_name}'?"):
+    question = f"Remove session '{session}' and deployment '{current.state.deployment_name}'?"
+    if not force and not confirm(question, action=f"remove session '{session}'"):
         raise typer.Abort
     current.remove()
     ok(f"session [bold]{session}[/] removed")

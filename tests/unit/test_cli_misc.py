@@ -73,6 +73,7 @@ def test_main_reports_testbed_errors_with_their_exit_code(
     assert "Traceback" not in captured.err
 
 
+@pytest.mark.usefixtures("terminal")
 @pytest.mark.usefixtures("fake_components")
 def test_main_reports_aborts(
     testbed: Testbed, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]

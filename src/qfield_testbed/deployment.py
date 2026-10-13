@@ -228,7 +228,8 @@ class Deployment:
             component_spec = self.spec.component(component_name)
             if component_spec is None:
                 raise TestbedError(f"deployment '{self.name}' has no component '{component_name}'")
-            component_spec.version = version
+            # each component spec narrows `version` to its own sources; the caller passes one valid for this component
+            component_spec.version = version  # pyright: ignore[reportAttributeAccessIssue]
             (self.directory / "spec.yaml").write_text(self.spec.to_yaml())
             component = self.components(component_name)[0]
             component.stop()

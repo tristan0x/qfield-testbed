@@ -29,11 +29,6 @@ class Ssh:
     def reachable(self) -> bool:
         return self.run("true", check=False, timeout=20).returncode == 0
 
-    def copy_to(self, local: str, remote: str) -> None:
-        self.runner.run(
-            ["rsync", "-a", "-e", f"ssh {shlex.join(_OPTIONS)}", local, f"{self.destination}:{remote}"], timeout=1800
-        )
-
     def reverse_tunnel(self, remote_port: int, local_port: int) -> int:
         """Start `ssh -N -R` in the background so the remote's ``localhost:<remote_port>`` reaches our ``local_port``."""
         cmd = ["ssh", *_OPTIONS, "-N", "-R", f"{remote_port}:127.0.0.1:{local_port}", self.destination]

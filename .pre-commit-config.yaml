@@ -34,3 +34,24 @@ repos:
           - filelock
         pass_filenames: false
         args: [src]
+
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: uv run --frozen pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: vulture
+        name: vulture (dead code)
+        entry: uv run --frozen vulture
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: deptry
+        name: deptry (dependencies)
+        entry: uv run --frozen deptry src
+        language: system
+        files: ^(src/.*\.py|pyproject\.toml|uv\.lock)$
+        pass_filenames: false

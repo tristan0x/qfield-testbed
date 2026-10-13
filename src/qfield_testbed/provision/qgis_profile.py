@@ -62,9 +62,6 @@ class ProfileLayout:
     def seed_script(self) -> Path:
         return self.profiles_path / "seed_profile.py"
 
-    def ini(self, qgis_version: str) -> Path:
-        return self.profile / "QGIS" / f"{settings_app_name(qgis_version)}.ini"
-
     def ensure(self) -> None:
         self.plugins.mkdir(parents=True, exist_ok=True)
         if not self.master_password_file.exists():

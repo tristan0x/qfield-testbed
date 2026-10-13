@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
+from hypothesis import settings
 
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.runtimes.shell import FakeRunner
+
+# CI explores more examples than a local run; select with HYPOTHESIS_PROFILE=ci
+settings.register_profile("ci", max_examples=500, deadline=None, print_blob=True)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
 
 
 @pytest.fixture

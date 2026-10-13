@@ -96,6 +96,3 @@ class IosSimulatorBackend:
     def app_container(self, udid: str, bundle: str) -> str | None:
         result = self.ssh.run("xcrun", "simctl", "get_app_container", udid, bundle, "data", check=False)
         return result.stdout.strip() or None if result.returncode == 0 else None
-
-    def open_simulator_app(self) -> None:
-        self.ssh.run("open", "-a", "Simulator", check=False)

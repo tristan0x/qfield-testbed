@@ -81,7 +81,3 @@ class AndroidEmulatorBackend:
 
     def down(self) -> None:
         self.compose().down(volumes=True)
-
-    def is_running(self) -> bool:
-        result = self.runner.run(["docker", "inspect", "--format", "{{.State.Running}}", self.container], check=False)
-        return result.returncode == 0 and result.stdout.strip() == "true"

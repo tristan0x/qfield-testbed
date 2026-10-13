@@ -58,6 +58,15 @@ def main() -> None:
         sys.exit(exc.exit_code)
     except typer.Exit as exc:
         sys.exit(exc.exit_code)
+    except typer.TyperException as exc:
+        # usage errors (missing argument, unknown option, no command) are re-raised outside standalone mode:
+        # print click's own usage message instead of a traceback
+        show = getattr(exc, "show", None)
+        if callable(show):
+            show()
+        else:
+            error(str(exc))
+        sys.exit(getattr(exc, "exit_code", 2))
     except typer.Abort:
         error("aborted")
         sys.exit(130)

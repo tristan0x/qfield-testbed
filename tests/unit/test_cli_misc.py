@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import typer
 import yaml
 
 from qfield_testbed import __version__
@@ -210,3 +211,31 @@ def test_main_exits_with_the_returned_code(
 ) -> None:
     monkeypatch.setattr("qfield_testbed.cli.app", lambda **_: returned)
     assert _main(monkeypatch, "doctor") == expected
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["deployment", "show"], "Missing argument 'name'"),
+        (["deployment", "--nope"], "No such option: --nope"),
+        ([], "Usage: qft"),
+    ],
+    ids=["missing-argument", "unknown-option", "no-command"],
+)
+def test_main_shows_usage_errors_without_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], args: list[str], message: str
+) -> None:
+    assert _main(monkeypatch, *args) == 2
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+    assert message in output
+    assert "Traceback" not in output
+
+
+def test_main_reports_other_typer_errors(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def failing(**_: Any) -> None:
+        raise typer.TyperException("bad parameter")
+
+    monkeypatch.setattr("qfield_testbed.cli.app", failing)
+    assert _main(monkeypatch, "doctor") == 1  # the exception's own exit code
+    assert "error: bad parameter" in capsys.readouterr().err

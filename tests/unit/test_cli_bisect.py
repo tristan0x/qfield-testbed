@@ -160,6 +160,7 @@ def test_several_sessions_need_a_name(tmp_path: Path) -> None:
     assert invoke(["bisect", "status", "b"]).exit_code == 0
 
 
+@pytest.mark.usefixtures("terminal")
 @pytest.mark.usefixtures("fake_components", "manual")
 def test_run_prompts_for_manual_verdicts() -> None:
     result = invoke(["bisect", "run"], stdin="what\nbad\ngood\n")
@@ -170,6 +171,7 @@ def test_run_prompts_for_manual_verdicts() -> None:
     assert "First bad qfieldcloud revision: c2" in result.output
 
 
+@pytest.mark.usefixtures("terminal")
 @pytest.mark.usefixtures("fake_components")
 def test_run_can_be_paused(manual: BisectSession, testbed: Testbed) -> None:
     result = invoke(["bisect", "run"], stdin="q\n")
@@ -249,3 +251,13 @@ def test_remove_session_without_a_terminal(manual: BisectSession) -> None:
     assert refused.exit_code == 1
     assert "refusing to remove session 'm' without confirmation" in str(refused.exception)
     assert manual.directory.is_dir()
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_manual_run_without_a_terminal_is_refused_before_any_swap(manual: BisectSession, testbed: Testbed) -> None:
+    result = invoke(["bisect", "run"])
+    assert result.exit_code == 1
+    assert "the scenario's test is manual and stdin is not a terminal" in str(result.exception)
+    reloaded = BisectSession(testbed, manual.name)
+    assert reloaded.state.outcomes == {}
+    assert reloaded.state.current is None

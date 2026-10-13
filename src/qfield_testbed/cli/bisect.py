@@ -12,6 +12,7 @@ from qfield_testbed.bisect.algorithm import Verdict
 from qfield_testbed.bisect.runner import BisectAbortError, Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
+from qfield_testbed.cli import _console
 from qfield_testbed.cli._console import confirm, console, ok, print_json, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import TestbedError
@@ -90,6 +91,12 @@ def start(
 def run(session: SessionArg = None) -> None:
     """Swap, test and record candidates until the first bad one is known (resumes where it stopped)."""
     current = _session(Testbed(), session)
+    if current.state.scenario.test.manual and not _console.stdin_is_terminal():
+        # checked before the first swap: the prompt would otherwise come after minutes of building and starting
+        raise TestbedError(
+            "the scenario's test is manual and stdin is not a terminal: run 'qft bisect run' in a terminal, "
+            "or use 'qft bisect next' and 'qft bisect good|bad|skip'"
+        )
     try:
         while True:
             search = current.search()

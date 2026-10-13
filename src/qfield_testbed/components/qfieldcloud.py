@@ -14,17 +14,19 @@ import secrets
 from pathlib import Path
 from typing import Any, ClassVar
 
+import requests
 import yaml
 from jinja2 import Environment, PackageLoader, StrictUndefined
+from qfieldcloud_sdk.interfaces import QfcException
 
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import TestbedError, WiringError
 from qfield_testbed.provision import qfieldcloud_account
 from qfield_testbed.revisions import Revision
 from qfield_testbed.revisions.git import Mirror, resolve_code_source
 from qfield_testbed.runtimes import docker
-from qfield_testbed.runtimes.http import wait_for_http
+from qfield_testbed.runtimes.http import STEP_NOTE, wait_for_http
 from qfield_testbed.spec import QFieldCloudSpec, ReleaseSource, WorktreeSource
 
 log = logging.getLogger(__name__)
@@ -423,13 +425,22 @@ class QFieldCloud(Component):
         credentials = self.ctx.state.credentials
         if credentials is None:
             return
-        credentials.token = qfieldcloud_account.login(self.url, credentials.username, credentials.password)
-        if self.spec.test_account.demo_project:
-            project_id, status = qfieldcloud_account.ensure_demo_project(
-                self.url, credentials.token, credentials.username
-            )
-            self.state.facts["demo_project_id"] = project_id
-            self.state.facts["demo_project_status"] = status
+        try:
+            credentials.token = qfieldcloud_account.login(self.url, credentials.username, credentials.password)
+            if self.spec.test_account.demo_project:
+                project_id, status = qfieldcloud_account.ensure_demo_project(
+                    self.url, credentials.token, credentials.username
+                )
+                self.state.facts["demo_project_id"] = project_id
+                self.state.facts["demo_project_status"] = status
+        except (requests.RequestException, QfcException, TestbedError) as exc:
+            # what the server or the SDK raised once the retries are spent: one line and the way out
+            name = self.ctx.name
+            reason = (str(exc).strip().splitlines() or [exc.__class__.__name__])[0][:160]
+            raise WiringError(
+                f"qfieldcloud of '{name}' is up but wiring failed ({_failed_step(exc)}: {reason}); "
+                f"run 'qft deployment start {name}' to retry"
+            ) from exc
 
     def stop(self) -> None:
         if "checkout" in self.state.facts:
@@ -471,3 +482,15 @@ class QFieldCloud(Component):
         variables = super().env()
         variables.pop("QFT_QFIELDCLOUD_IMAGES", None)
         return variables
+
+
+def _failed_step(exc: BaseException) -> str:
+    """The step :func:`~qfield_testbed.runtimes.http.retrying` noted on ``exc`` or on what it wraps."""
+    current: BaseException | None = exc
+    while current is not None:
+        notes: list[str] = getattr(current, "__notes__", [])
+        for note in notes:
+            if note.startswith(STEP_NOTE):
+                return note.removeprefix(STEP_NOTE)
+        current = current.__cause__
+    return "wiring"

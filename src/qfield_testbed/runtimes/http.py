@@ -13,6 +13,9 @@ from qfield_testbed.errors import HealthTimeoutError
 
 log = logging.getLogger(__name__)
 
+STEP_NOTE = "step: "
+"""Prefix of the note :func:`retrying` adds to the error it lets through, naming the step that failed."""
+
 TRANSIENT_STATUSES = frozenset({502, 503, 504})
 """Gateway and availability errors a server answers while its workers restart."""
 
@@ -57,6 +60,7 @@ def retrying[T](action: Callable[[], T], *, what: str, timeout: float = 60, inte
             return action()
         except Exception as exc:
             if not is_transient(exc) or time.monotonic() >= deadline:
+                exc.add_note(f"{STEP_NOTE}{what}")
                 raise
             log.info("%s: %s, retrying", what, exc.__class__.__name__)
         time.sleep(interval)

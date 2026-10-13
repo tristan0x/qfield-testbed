@@ -41,6 +41,10 @@ class MaterializationUnavailableError(TestbedError):
     exit_code = 125
 
 
+class WiringError(TestbedError):
+    """A component is up, but pointing clients at it (test account, demo project) failed."""
+
+
 class HealthTimeoutError(TestbedError):
     """A component did not become healthy in time."""
 

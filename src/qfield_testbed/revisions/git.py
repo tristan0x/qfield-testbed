@@ -99,11 +99,6 @@ class Mirror:
             raise MaterializationUnavailableError(f"cannot check out {sha[:12]}: {result.stderr.strip()}")
         return target
 
-    def drop_checkout(self, sha: str) -> None:
-        self.runner.run(
-            ["git", "-C", str(self.path), "worktree", "remove", "--force", str(self.checkouts / sha)], check=False
-        )
-
 
 def resolve_code_source(runner: Runner, mirror: Mirror, source: ReleaseSource | GitSource | WorktreeSource) -> Revision:
     """Shared resolution for components built from a repository (QFieldCloud, QFieldSync)."""

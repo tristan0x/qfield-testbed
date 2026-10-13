@@ -22,9 +22,6 @@ from qfield_testbed.spec import (
     QgisSpec,
 )
 
-BISECTABLE = ("qfieldcloud", "qfieldsync", "qfield-android")
-"""Components whose history can be searched (they have git-backed or artifact-backed revisions)."""
-
 _TAGS_RULE = re.compile(r"^tags:(.+)$")
 
 

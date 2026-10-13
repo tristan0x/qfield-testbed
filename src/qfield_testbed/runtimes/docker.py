@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -111,10 +110,6 @@ class Compose:
     def exec_run(self, service: str, *cmd: str, timeout: float | None = 900) -> Completed:
         """`compose run --rm <service> <cmd>` — for one-off management commands."""
         return self.run("run", "--rm", "--no-deps", service, *cmd, capture=False, timeout=timeout)
-
-    def ps(self) -> list[dict[str, object]]:
-        result = self.run("ps", "-a", "--format", "json", check=False)
-        return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
 
     def logs(self, *services: str, follow: bool = False, tail: str = "200") -> None:
         args = ["logs", "--tail", tail]

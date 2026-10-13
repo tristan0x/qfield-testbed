@@ -51,10 +51,6 @@ def release_download(runner: Runner, repo: str, tag: str, pattern: str, dest: Pa
     return files[0]
 
 
-def release_exists(runner: Runner, repo: str, tag: str) -> bool:
-    return runner.run(["gh", "release", "view", tag, "--repo", owner_repo(repo)], check=False).returncode == 0
-
-
 def workflow_run_id(runner: Runner, repo: str, workflow: str, sha: str) -> int | None:
     """Id of the latest successful run of ``workflow`` for ``sha``, or None."""
     result = runner.run(

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from rich.table import Table
 
+from qfield_testbed.backends.qgis_host import NO_DISPLAY_HINT
 from qfield_testbed.cli._console import console
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
@@ -79,6 +80,16 @@ def run_checks(testbed: Testbed) -> list[Check]:
 
     display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     checks.append(Check("display", bool(display), display or "no DISPLAY", "qgis, qfield-desktop"))
+
+    # QGIS refuses to start without a display, even with --code: the host launcher falls back to xvfb-run
+    xvfb = runner.which("xvfb-run")
+    if xvfb:
+        xvfb_detail = xvfb
+    elif display:
+        xvfb_detail = "missing: needed only without a display"
+    else:
+        xvfb_detail = f"missing: {NO_DISPLAY_HINT.removeprefix('qft: ')}"
+    checks.append(Check("xvfb-run", xvfb is not None, xvfb_detail, "qgis: host without a display (--code)"))
 
     for name, host in testbed.config.ios_hosts.items():
         reachable = (

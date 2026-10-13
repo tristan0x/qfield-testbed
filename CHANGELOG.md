@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `qft doctor` reports `xvfb-run`, which `qgis: host` needs to run without a display (SSH session, CI),
+  and says what to install or use instead when it is missing (#1).
 - `qfield-ios` component: QField in the iOS Simulator of a remote macOS host driven over SSH (`ios_hosts` in
   the global config), from a simulator build made on the Mac; QFieldCloud is reached through a reverse SSH
   tunnel and pre-filled in the app's preferences. Unconfigured or unreachable hosts are refused at `add`.

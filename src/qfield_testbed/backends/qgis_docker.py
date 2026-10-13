@@ -121,6 +121,15 @@ class QgisDockerBackend:
             "for name in $(compgen -e | grep -E '^QFT_' || true) ${FORWARD//,/ }; do",
             '  EXTRA_ARGS+=(-e "$name")',
             "done",
+            "# the directory of a `--code` script is mounted at its own path, wherever it lives",
+            'previous=""',
+            'for arg in "$@"; do',
+            '  if [ "$previous" = --code ]; then',
+            "    case $arg in */*) dir=${arg%/*} ;; *) dir=. ;; esac",
+            '    dir=$(cd "${dir:-/}" 2>/dev/null && pwd -P) && EXTRA_ARGS+=(-v "$dir:$dir")',
+            "  fi",
+            "  previous=$arg",
+            "done",
             "exec " + " ".join(_shell_token(part) for part in cmd) + ' "$@"',
         ]
 

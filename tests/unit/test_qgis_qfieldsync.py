@@ -199,7 +199,7 @@ def test_qgis_host_launcher_without_display(
 def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -> list[str]:
     """Run the generated Docker launcher with a fake `docker` that prints the arguments it receives."""
     bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
+    bin_dir.mkdir(parents=True)
     _executable(bin_dir / "docker", '#!/bin/sh\nprintf "%s\\n" "$@"\n')
     grep = shutil.which("grep")
     assert grep
@@ -239,6 +239,30 @@ def test_qgis_docker_launcher_without_variables_to_forward(tmp_path: Path) -> No
     argv = _run_docker_launcher(tmp_path, [], {})
     assert not any(flag.startswith("QFT_") for flag in _env_flags(argv))
     assert argv[-2:] == ["--profile", "default"]
+
+
+def _volumes(argv: list[str]) -> set[str]:
+    return {argv[i + 1] for i, arg in enumerate(argv[:-1]) if arg == "-v"}
+
+
+@pytest.mark.parametrize("relative", [False, True], ids=["absolute", "relative"])
+def test_qgis_docker_launcher_mounts_the_code_script_directory(tmp_path: Path, relative: bool) -> None:
+    scripts = tmp_path / "elsewhere" / "scripts"
+    scripts.mkdir(parents=True)
+    script = scripts / "check.py"
+    script.write_text("")
+    without = _volumes(_run_docker_launcher(tmp_path / "a", ["--nologo"], {}))
+    path = os.path.relpath(script) if relative else str(script)
+    with_code = _volumes(_run_docker_launcher(tmp_path / "b", ["--nologo", "--code", path], {}))
+    resolved = scripts.resolve()
+    assert with_code - without == {f"{resolved}:{resolved}"}
+
+
+def test_qgis_docker_launcher_leaves_a_missing_script_to_qgis(tmp_path: Path) -> None:
+    missing = str(tmp_path / "missing" / "x.py")
+    argv = _run_docker_launcher(tmp_path, ["--code", missing], {})
+    assert argv[-2:] == ["--code", missing]
+    assert not any("missing" in volume for volume in _volumes(argv))
 
 
 def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ import typer
 from rich.table import Table
 
 from qfield_testbed.cli._console import console, ok, print_json, styled_status, warn
+from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import TestbedError
 from qfield_testbed.spec import DeploymentSpec
@@ -187,7 +188,9 @@ def launch(
             f"no launcher '{target}' in deployment '{name}'"
             + (f"; available: {', '.join(available)}" if available else " (start it first)")
         )
-    console.print(f"launching {launcher}")
+    qgis = deployment.spec.qgis if target == "qgis" else None
+    suffix = f" (Qt platform: {qt_platform(qgis, os.environ)})" if qgis is not None else ""
+    console.print(f"launching {launcher}{suffix}")
     subprocess.run([str(launcher)], check=False)
 
 

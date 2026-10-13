@@ -298,6 +298,7 @@ def test_launch(testbed: Testbed, subprocess_calls: list[tuple[list[str], dict[s
     assert launched.exit_code == 0
     launcher = testbed.paths.deployment_dir("demo") / "bin" / "qgis"
     assert f"launching {launcher}" in launched.output
+    assert "(Qt platform: session" in " ".join(launched.output.split())
     assert subprocess_calls == [([str(launcher)], None)]
 
 

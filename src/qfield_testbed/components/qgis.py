@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import shutil
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -27,6 +28,25 @@ from qfield_testbed.runtimes import docker
 from qfield_testbed.spec import DockerSource, PluginSpec, QgisSpec, WorktreeSource
 
 log = logging.getLogger(__name__)
+
+
+def qt_platform(spec: QgisSpec, environ: Mapping[str, str] | None = None) -> str:
+    """The Qt platform QGIS will use, as shown to people.
+
+    The caller's ``QT_QPA_PLATFORM`` (when ``environ`` is given) wins over the spec; ``session`` names the desktop
+    session it follows.
+    """
+    environ = environ or {}
+    if environ.get("QT_QPA_PLATFORM"):
+        return f"{environ['QT_QPA_PLATFORM']} (from QT_QPA_PLATFORM)"
+    if "QT_QPA_PLATFORM" in spec.env:
+        return spec.env["QT_QPA_PLATFORM"]
+    if spec.platform != "session":
+        return spec.platform
+    if isinstance(spec.version, DockerSource):
+        return "xcb"  # the container only reaches X11
+    session = environ.get("XDG_SESSION_TYPE")
+    return f"session ({session})" if session else "session"
 
 
 @register
@@ -112,6 +132,7 @@ class Qgis(Component):
                 "profile": str(layout.profile),
                 "launcher": str(self.launcher),
                 "extra_plugin_ids": installed,
+                "platform": qt_platform(self.spec),
             }
         )
 
@@ -197,6 +218,7 @@ class Qgis(Component):
             "profiles_path": facts.get("profiles_path", str(self.layout.profiles_path)),
             "profile": facts.get("profile", str(self.layout.profile)),
             "profile_name": PROFILE_NAME,
+            "platform": facts.get("platform", qt_platform(self.spec)),
             "extra_plugins": ", ".join(facts.get("extra_plugin_ids", [])) or None,
         }
 

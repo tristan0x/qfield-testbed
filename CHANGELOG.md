@@ -41,6 +41,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qgis: docker:<tag>`: `--code` scripts now see the caller's `QFT_*` variables, plus those named in
+  `QFT_FORWARD_ENV=FOO,BAR` (#2).
 - `qgis: host` without a display (SSH session, CI): the launcher runs QGIS under `xvfb-run -a` when it is
   installed, and otherwise stops with a hint instead of QGIS's own error, so scripted `--code` runs work
   headless (#1).

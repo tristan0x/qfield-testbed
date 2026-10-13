@@ -9,7 +9,21 @@ uv run pytest                       # unit tests, no Docker needed
 QFT_INTEGRATION=1 uv run pytest -m docker -o addopts=""   # integration tests (pull images, start containers)
 ```
 
-`ruff` (lint + format) and `mypy --strict` run through pre-commit and in CI.
+pre-commit runs the static checks, and CI runs them again on every pull request:
+
+| Tool | Checks |
+|---|---|
+| `ruff` | lint (every rule set) and format |
+| `mypy --strict` | types in `src/` |
+| `pyright` | types in `src/` and `tests/`, as a second checker |
+| `vulture` | dead code; names read from outside the code go in `vulture_whitelist.py` with their reason |
+| `deptry` | dependencies declared in `pyproject.toml` match the imports |
+
+CI also runs the unit tests on Python 3.12–3.14 and fails under **85 %** statement and branch coverage
+(`fail_under` in `pyproject.toml`; `uv run pytest --cov` shows the uncovered lines). Invariants that hold for
+whole families of inputs — bisection, slot allocation, version shorthands, quoting — are property-based tests in
+`tests/unit/test_properties.py`, written with [Hypothesis](https://hypothesis.readthedocs.io/); CI runs them with
+more examples (`HYPOTHESIS_PROFILE=ci uv run pytest`).
 
 ## Vocabulary
 

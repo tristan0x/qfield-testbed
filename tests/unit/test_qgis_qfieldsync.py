@@ -229,7 +229,7 @@ def test_qgis_host_launcher_keeps_path_without_virtualenv(tmp_path: Path) -> Non
     assert seen == {"VIRTUAL_ENV": "unset", "PYTHONHOME": "/from/spec", "PATH": "/usr/bin:/bin"}
 
 
-def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -> list[str]:
+def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str], platform: str = "session") -> list[str]:
     """Run the generated Docker launcher with a fake `docker` that prints the arguments it receives."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(parents=True)
@@ -238,7 +238,9 @@ def _run_docker_launcher(tmp_path: Path, args: list[str], env: dict[str, str]) -
     assert grep
     (bin_dir / "grep").symlink_to(grep)
     backend = QgisDockerBackend(runner=FakeRunner(), tag="ltr")
-    launcher = _executable(tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "profiles", {})) + "\n")
+    launcher = _executable(
+        tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "profiles", {}, platform)) + "\n"
+    )
     bash = shutil.which("bash")
     assert bash
     result = subprocess.run(
@@ -722,3 +724,39 @@ def test_qgis_docker_without_leftover_containers(testbed: Testbed, runner: FakeR
 def test_qgis_host_has_no_container_to_remove(testbed: Testbed, runner: FakeRunner) -> None:
     _qgis(testbed).remove()
     assert not any(cmd.startswith("docker") for cmd in runner.commands())
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("session", {}, "unset"),
+        ("xcb", {}, "xcb"),
+        ("offscreen", {}, "offscreen"),
+        ("xcb", {"QT_QPA_PLATFORM": "wayland"}, "wayland"),
+    ],
+    ids=["session", "xcb", "offscreen", "caller-wins"],
+)
+def test_qgis_host_launcher_platform(tmp_path: Path, case: tuple[str, dict[str, str], str]) -> None:
+    platform, caller_env, expected = case
+    qgis = _executable(tmp_path / "qgis", '#!/bin/sh\necho "${QT_QPA_PLATFORM-unset}"\n')
+    backend = QgisHostBackend(runner=FakeRunner(), binary=qgis)
+    launcher = _executable(
+        tmp_path / "launcher", "\n".join(backend.launcher_lines(tmp_path / "p", {}, platform)) + "\n"
+    )
+    bash = shutil.which("bash")
+    assert bash
+    out = subprocess.run(
+        [bash, str(launcher)], env={"DISPLAY": ":0", **caller_env}, capture_output=True, text=True, check=True
+    )
+    assert out.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    "case",
+    [("session", {}, "xcb"), ("offscreen", {}, "offscreen"), ("xcb", {"QT_QPA_PLATFORM": "offscreen"}, "offscreen")],
+    ids=["session-is-x11", "offscreen", "caller-wins"],
+)
+def test_qgis_docker_launcher_platform(tmp_path: Path, case: tuple[str, dict[str, str], str]) -> None:
+    platform, caller_env, expected = case
+    argv = _run_docker_launcher(tmp_path, [], caller_env, platform)
+    assert f"QT_QPA_PLATFORM={expected}" in _env_flags(argv)

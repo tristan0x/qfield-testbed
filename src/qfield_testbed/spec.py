@@ -216,12 +216,27 @@ class PluginSpec(BaseModel):
         return self
 
 
+QtPlatform = Literal["session", "xcb", "wayland", "offscreen"]
+"""Qt platform plugin of QGIS: `session` follows the desktop session (host) or uses X11 (Docker)."""
+
+
 class QgisSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: QgisSource = HostSource()
     plugins: list[PluginSpec] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict, description="Extra environment for the QGIS process")
+    platform: QtPlatform = Field(
+        default="session", description="Qt platform: window-manager-dependent bugs differ between X11 and Wayland"
+    )
+
+    @model_validator(mode="after")
+    def _platform(self) -> QgisSpec:
+        if self.platform == "wayland" and isinstance(self.version, DockerSource):
+            raise ValueError("`platform: wayland` needs `version: host`; the Docker QGIS only reaches the X11 socket")
+        if self.platform != "session" and "QT_QPA_PLATFORM" in self.env:
+            raise ValueError("set the Qt platform with `platform` or with `env.QT_QPA_PLATFORM`, not both")
+        return self
 
 
 class QFieldSyncSpec(BaseModel):

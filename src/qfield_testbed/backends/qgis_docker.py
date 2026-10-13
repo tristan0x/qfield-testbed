@@ -105,11 +105,12 @@ class QgisDockerBackend:
         cmd += [self.image, "python3", str(script), *args]
         return self.runner.run(cmd, timeout=timeout).stdout
 
-    def launcher_lines(self, profiles_path: Path, env: dict[str, str]) -> list[str]:
+    def launcher_lines(self, profiles_path: Path, env: dict[str, str], platform: str = "session") -> list[str]:
+        default_platform = "xcb" if platform == "session" else platform  # the container only reaches X11
         display_env = {
             "DISPLAY": "${DISPLAY:-}",
             "XAUTHORITY": "${XAUTHORITY:-$HOME/.Xauthority}",
-            "QT_QPA_PLATFORM": "${QT_QPA_PLATFORM:-xcb}",  # `offscreen` for headless `--code` runs
+            "QT_QPA_PLATFORM": f"${{QT_QPA_PLATFORM:-{default_platform}}}",  # `offscreen` for headless `--code` runs
             "QT_X11_NO_MITSHM": "1",
             **env,
         }

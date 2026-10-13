@@ -100,7 +100,8 @@ class Qgis(Component):
         backend = self.backend()
         env = {**layout.launcher_env(), **self.spec.env}
         self.launcher.parent.mkdir(parents=True, exist_ok=True)
-        self.launcher.write_text("\n".join(backend.launcher_lines(layout.profiles_path, env)) + "\n")
+        lines = backend.launcher_lines(layout.profiles_path, env, platform=self.spec.platform)
+        self.launcher.write_text("\n".join(lines) + "\n")
         self.launcher.chmod(0o755)
         installed = [self.install_plugin(plugin, layout) for plugin in self.spec.plugins]
         self.state.facts.update(

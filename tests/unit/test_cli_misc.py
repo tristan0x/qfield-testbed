@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import runpy
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+import typer
 import yaml
 
 from qfield_testbed import __version__
@@ -202,3 +204,40 @@ def test_doctor_checks_ios_hosts(tmp_path: Path, testbed: Testbed, runner: FakeR
     assert "me@old.local: unreachable or no Xcode" in old
     assert "none configured" not in result.output
     assert testbed.config.ios_hosts == {}  # loaded before the file changed: the CLI reads it afresh
+
+
+@pytest.mark.parametrize(("returned", "expected"), [(7, 7), (0, 0), (None, 0)])
+def test_main_exits_with_the_returned_code(
+    monkeypatch: pytest.MonkeyPatch, returned: int | None, expected: int
+) -> None:
+    monkeypatch.setattr("qfield_testbed.cli.app", lambda **_: returned)
+    assert _main(monkeypatch, "doctor") == expected
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["deployment", "show"], "Missing argument 'name'"),
+        (["deployment", "--nope"], "No such option: --nope"),
+        ([], "Usage: qft"),
+    ],
+    ids=["missing-argument", "unknown-option", "no-command"],
+)
+def test_main_shows_usage_errors_without_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], args: list[str], message: str
+) -> None:
+    assert _main(monkeypatch, *args) == 2
+    captured = capsys.readouterr()
+    # rich colours the help when it detects CI (GITHUB_ACTIONS, FORCE_COLOR): compare the plain text
+    output = re.sub(r"\x1b\[[0-9;]*m", "", captured.out + captured.err)
+    assert message in output
+    assert "Traceback" not in output
+
+
+def test_main_reports_other_typer_errors(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def failing(**_: Any) -> None:
+        raise typer.TyperException("bad parameter")
+
+    monkeypatch.setattr("qfield_testbed.cli.app", failing)
+    assert _main(monkeypatch, "doctor") == 1  # the exception's own exit code
+    assert "error: bad parameter" in capsys.readouterr().err

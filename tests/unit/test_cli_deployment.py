@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any, ClassVar
@@ -10,7 +11,7 @@ import pytest
 from typer.testing import CliRunner, Result
 
 from qfield_testbed import deployment as deployment_module
-from qfield_testbed.cli import app
+from qfield_testbed.cli import app, main
 from qfield_testbed.components import REGISTRY, Component, register
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
@@ -355,3 +356,12 @@ def test_remove_without_a_terminal_names_the_way_out(testbed: Testbed) -> None:
     assert [d.name for d in testbed.deployments()] == ["demo"]
     assert invoke(["deployment", "remove", "demo", "--force"]).exit_code == 0
     assert testbed.deployments() == []
+
+
+@pytest.mark.usefixtures("fake_components", "added", "subprocess_calls")
+def test_installed_qft_exits_with_the_command_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Through `main()`, the console script, not CliRunner: click returns the code instead of raising it."""
+    monkeypatch.setattr(sys, "argv", ["qft", "deployment", "run", "demo", "--", "sh", "-c", "exit 3"])
+    with pytest.raises(SystemExit) as exited:
+        main()
+    assert exited.value.code == 3

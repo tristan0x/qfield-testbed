@@ -45,6 +45,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qft` now exits with the code the command chose: `qft deployment run NAME -- CMD` returns `CMD`'s status and an
+  aborted `qft bisect run` 130, where both exited 0 (#10).
+- Usage errors (missing argument, unknown option, `qft` alone) print the usage message and exit 2 instead of a
+  traceback (#10).
 - `qft deployment remove` and `qft bisect remove` without a terminal fail at once with a message pointing to
   `--force`, instead of a bare `aborted` (#7).
 - `qft bisect run` with a `manual: true` test and no terminal is refused before the first swap, pointing to

@@ -19,6 +19,7 @@ _STATUS_STYLE = {
     Status.STARTING: "cyan",
     Status.RUNNING: "green",
     Status.FAILED: "red",
+    Status.WIRING_FAILED: "red",
 }
 
 

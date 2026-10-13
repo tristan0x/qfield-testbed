@@ -569,3 +569,71 @@ def test_compose_commands_minimal() -> None:
     ]
     assert all(kwargs["env"] is None and kwargs["cwd"] is None for kwargs in runner.kwargs)
     assert [kwargs["check"] for kwargs in runner.kwargs] == [True, False, False, False, True, False, False]
+
+
+def _http_error(status: int) -> requests.HTTPError:
+    response = requests.Response()
+    response.status_code = status
+    return requests.HTTPError(str(status), response=response)
+
+
+@pytest.mark.parametrize(
+    ("exc", "transient"),
+    [
+        (requests.ConnectionError("reset"), True),
+        (requests.Timeout("slow"), True),
+        (_http_error(502), True),
+        (_http_error(503), True),
+        (_http_error(400), False),
+        (requests.HTTPError("no response"), False),
+        (ValueError("bug"), False),
+    ],
+    ids=["connection", "timeout", "502", "503", "400", "no-response", "other"],
+)
+def test_is_transient(exc: Exception, transient: bool) -> None:
+    assert http.is_transient(exc) is transient
+
+
+def test_is_transient_follows_the_cause() -> None:
+    wrapped = RuntimeError("wrapped by a client library")
+    wrapped.__cause__ = requests.ConnectionError("reset")
+    assert http.is_transient(wrapped)
+
+
+def test_retrying_until_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FakeClock()
+    monkeypatch.setattr(http, "time", clock)
+    calls: list[int] = []
+
+    def flaky() -> str:
+        calls.append(1)
+        if len(calls) < 3:
+            raise requests.ConnectionError("reset")
+        return "done"
+
+    assert http.retrying(flaky, what="x") == "done"
+    assert clock.sleeps == [2, 2]
+
+
+def test_retrying_gives_up_after_the_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FakeClock()
+    monkeypatch.setattr(http, "time", clock)
+
+    def down() -> None:
+        raise requests.ConnectionError("refused")
+
+    with pytest.raises(requests.ConnectionError):
+        http.retrying(down, what="x", timeout=10, interval=3)
+    assert clock.sleeps == [3, 3, 3, 3]
+
+
+def test_retrying_does_not_retry_other_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FakeClock()
+    monkeypatch.setattr(http, "time", clock)
+
+    def bad_request() -> None:
+        raise _http_error(400)
+
+    with pytest.raises(requests.HTTPError):
+        http.retrying(bad_request, what="x")
+    assert clock.sleeps == []

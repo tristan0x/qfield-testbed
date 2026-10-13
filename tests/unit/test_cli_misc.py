@@ -156,6 +156,7 @@ def test_spec_validate(tmp_path: Path) -> None:
         (Status.STARTING, "cyan"),
         (Status.RUNNING, "green"),
         (Status.FAILED, "red"),
+        (Status.WIRING_FAILED, "red"),
     ],
 )
 def test_styled_status(status: Status, style: str) -> None:

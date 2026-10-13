@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+import requests
 import yaml
 
 from qfield_testbed.components.qfieldcloud import (
@@ -17,10 +18,11 @@ from qfield_testbed.components.qfieldcloud import (
     storages_with_endpoint,
 )
 from qfield_testbed.deployment import Deployment, Testbed
-from qfield_testbed.errors import TestbedError, UnsupportedComponentError
+from qfield_testbed.errors import TestbedError, UnsupportedComponentError, WiringError
 from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import Completed, FakeRunner
 from qfield_testbed.spec import DeploymentSpec, GitSource, WorktreeSource
+from tests.unit.test_runtimes import FakeClock
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "qfieldcloud"
 SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -438,6 +440,40 @@ def test_wire_logs_in_and_uploads_demo_project(deployment, monkeypatch: pytest.M
     component.state.facts.clear()
     component.wire()  # nothing to log in with
     assert component.state.facts == {}
+
+
+def test_wire_failure_is_one_line_naming_the_step(deployment, monkeypatch: pytest.MonkeyPatch) -> None:
+    from qfield_testbed.provision import qfieldcloud_account  # noqa: PLC0415
+    from qfield_testbed.runtimes import http  # noqa: PLC0415
+
+    def upload() -> tuple[str, str]:
+        raise requests.ConnectionError("Remote end closed connection without response\nmore detail")
+
+    def ensure_demo_project(*_: object) -> tuple[str, str]:
+        return http.retrying(upload, what="demo project upload", timeout=0)
+
+    monkeypatch.setattr(http, "time", FakeClock())
+    monkeypatch.setattr(qfieldcloud_account, "login", lambda *_: "tok")
+    monkeypatch.setattr(qfieldcloud_account, "ensure_demo_project", ensure_demo_project)
+    name = deployment.name
+    with pytest.raises(WiringError) as caught:
+        _component(deployment).wire()
+    assert str(caught.value) == (
+        f"qfieldcloud of '{name}' is up but wiring failed "
+        "(demo project upload: Remote end closed connection without response); "
+        f"run 'qft deployment start {name}' to retry"
+    )
+
+
+def test_wire_failure_without_a_noted_step(deployment, monkeypatch: pytest.MonkeyPatch) -> None:
+    from qfield_testbed.provision import qfieldcloud_account  # noqa: PLC0415
+
+    def login(*_: object) -> str:
+        raise TestbedError("login of 'testbed' failed on http://x/: 400 Bad Request")
+
+    monkeypatch.setattr(qfieldcloud_account, "login", login)
+    with pytest.raises(WiringError, match=r"wiring failed \(wiring: login of 'testbed' failed"):
+        _component(deployment).wire()
 
 
 def test_stop_reset_remove_logs(deployment, runner: FakeRunner, tmp_path: Path) -> None:

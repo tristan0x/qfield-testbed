@@ -34,6 +34,7 @@ class Status(StrEnum):
     STARTING = "starting"
     RUNNING = "running"
     FAILED = "failed"
+    WIRING_FAILED = "wiring failed"  # up and healthy, but clients could not be pointed at it
 
 
 class ComponentState(BaseModel):

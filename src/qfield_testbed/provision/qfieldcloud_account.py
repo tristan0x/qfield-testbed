@@ -11,7 +11,7 @@ from typing import Any
 import requests
 
 from qfield_testbed.errors import TestbedError
-from qfield_testbed.runtimes.http import get_json, post_json
+from qfield_testbed.runtimes.http import get_json, post_json, retrying
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +25,9 @@ def api(url: str) -> str:
 def login(url: str, username: str, password: str) -> str:
     """``POST /api/v1/auth/token/`` → the token key."""
     try:
-        data = post_json(api(url) + "auth/token/", {"username": username, "password": password})
+        data = retrying(
+            lambda: post_json(api(url) + "auth/token/", {"username": username, "password": password}), what="login"
+        )
     except requests.RequestException as exc:
         raise TestbedError(f"login of '{username}' failed on {url}: {exc}") from exc
     token = data.get("token")
@@ -36,7 +38,7 @@ def login(url: str, username: str, password: str) -> str:
 
 def server_info(url: str) -> dict[str, Any]:
     try:
-        return dict(get_json(api(url) + "server/info/"))
+        return dict(retrying(lambda: get_json(api(url) + "server/info/"), what="server info"))
     except requests.RequestException as exc:
         raise TestbedError(f"cannot read server info from {url}: {exc}") from exc
 
@@ -57,30 +59,41 @@ def ensure_demo_project(
     from qfieldcloud_sdk import sdk  # noqa: PLC0415 - optional dependency, imported lazily
 
     client = sdk.Client(url=api(url), token=token)
-    projects = client.list_projects()
-    existing = next((p for p in projects if p["name"] == DEMO_PROJECT_NAME and p["owner"] == owner), None)
-    if existing:
-        project_id = str(existing["id"])
-    else:
+
+    # every step is retried as a whole when the server drops a connection, so each one is safe to repeat:
+    # the project is looked up again before creating it (a create whose response was lost must not run twice)
+    def find_or_create() -> str:
+        projects = client.list_projects()
+        existing = next((p for p in projects if p["name"] == DEMO_PROJECT_NAME and p["owner"] == owner), None)
+        if existing:
+            return str(existing["id"])
         created = client.create_project(
             name=DEMO_PROJECT_NAME, owner=owner, description="qfield-testbed sample project"
         )
-        project_id = str(created["id"])
-        log.info("created demo project %s (%s)", DEMO_PROJECT_NAME, project_id)
-    client.upload_files(
-        project_id,
-        upload_type=sdk.FileTransferType.PROJECT,
-        project_path=str(source or sample_project_dir()),
-        filter_glob="*",
-        throw_on_error=True,
+        log.info("created demo project %s (%s)", DEMO_PROJECT_NAME, created["id"])
+        return str(created["id"])
+
+    project_id = retrying(find_or_create, what="demo project creation")
+    retrying(
+        lambda: client.upload_files(
+            project_id,
+            upload_type=sdk.FileTransferType.PROJECT,
+            project_path=str(source or sample_project_dir()),
+            filter_glob="*",
+            throw_on_error=True,
+        ),
+        what="demo project upload",
     )
-    job = client.job_trigger(project_id, sdk.JobTypes.PROCESS_PROJECTFILE, force=True)
+    job = retrying(
+        lambda: client.job_trigger(project_id, sdk.JobTypes.PROCESS_PROJECTFILE, force=True),
+        what="demo project processing",
+    )
     deadline = time.monotonic() + job_timeout
     status = str(job.get("status", "pending"))
     while status not in ("finished", "failed", "stopped") and time.monotonic() < deadline:
         time.sleep(2)
-        status = str(client.job_status(job["id"]).get("status"))
+        status = str(retrying(lambda: client.job_status(job["id"]), what="job status").get("status"))
     if status != "finished":
-        feedback = client.job_status(job["id"]).get("feedback") or {}
+        feedback = retrying(lambda: client.job_status(job["id"]), what="job status").get("feedback") or {}
         log.warning("demo project processing ended with status '%s': %s", status, feedback.get("error", ""))
-    return project_id, str(client.get_project(project_id).get("status"))
+    return project_id, str(retrying(lambda: client.get_project(project_id), what="demo project status").get("status"))

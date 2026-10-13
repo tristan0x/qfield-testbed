@@ -49,6 +49,10 @@ dev = [
   "types-PyYAML",
   "types-requests",
   "ruff>=0.17.0",
+  "hypothesis>=6.169.0",
+  "pyright>=1.1.414",
+  "vulture>=2.16",
+  "deptry>=0.25.1",
 ]
 
 [build-system]

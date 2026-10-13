@@ -202,3 +202,11 @@ def test_doctor_checks_ios_hosts(tmp_path: Path, testbed: Testbed, runner: FakeR
     assert "me@old.local: unreachable or no Xcode" in old
     assert "none configured" not in result.output
     assert testbed.config.ios_hosts == {}  # loaded before the file changed: the CLI reads it afresh
+
+
+@pytest.mark.parametrize(("returned", "expected"), [(7, 7), (0, 0), (None, 0)])
+def test_main_exits_with_the_returned_code(
+    monkeypatch: pytest.MonkeyPatch, returned: int | None, expected: int
+) -> None:
+    monkeypatch.setattr("qfield_testbed.cli.app", lambda **_: returned)
+    assert _main(monkeypatch, "doctor") == expected

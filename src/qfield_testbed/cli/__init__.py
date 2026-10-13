@@ -51,7 +51,8 @@ def root(
 
 def main() -> None:
     try:
-        app(standalone_mode=False)
+        # outside standalone mode click *returns* the code of a `typer.Exit` raised by a command
+        code = app(standalone_mode=False)
     except TestbedError as exc:
         error(str(exc))
         sys.exit(exc.exit_code)
@@ -63,3 +64,5 @@ def main() -> None:
     except KeyboardInterrupt:
         error("interrupted")
         sys.exit(130)
+    if isinstance(code, int) and code:
+        sys.exit(code)

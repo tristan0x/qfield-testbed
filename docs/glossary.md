@@ -18,7 +18,7 @@ gives the identifier that carries the concept in the code base.
 | **Port block** | The 100 contiguous host ports `port_base + 100 × slot` owned by a slot, with a fixed offset per service. | `PortBlock`, `PORT_OFFSETS` |
 | **Profile** | The isolated QGIS user profile created for a deployment (`<deployment>/qgis/profiles/default`, under the deployment's own profiles path), holding QFieldSync, its settings and the authentication database. | `ProfileLayout` |
 | **Test account** | The QFieldCloud user provisioned in every deployment, used by all clients; optionally owns a demo project. | `TestAccountSpec`, `Credentials` |
-| **Wiring** | The provisioning step that points a client at the deployment's QFieldCloud with the test account. | `Component.wire()` |
+| **Wiring** | The provisioning step that points a client at the deployment's QFieldCloud with the test account. A component whose wiring failed is `wiring failed`. | `Component.wire()`, `WiringError` |
 | **Health** | A component's readiness check, awaited after start. | `Component.health()` |
 | **Qt platform** | The Qt platform plugin QGIS starts with (`xcb` for X11, `wayland`, `offscreen`), chosen by `qgis.platform`; `session` follows the desktop session on the host and means X11 in Docker. | `QgisSpec.platform`, `qt_platform()` |
 | **Launcher** | The script in `<deployment>/bin/` that opens an interactive client (QGIS with the profile, the emulator UI…). | `Deployment.launcher()` |

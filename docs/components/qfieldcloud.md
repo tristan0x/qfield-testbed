@@ -29,6 +29,11 @@ On the first start: `manage.py migrate`, `collectstatic`, then `manage.py create
 `QFT_QFIELDCLOUD_TOKEN`. With `demo_project: true`, the bundled sample project is created and uploaded through
 the API with `qfieldcloud-sdk`.
 
+This **wiring** runs right after `GET /api/v1/status/` answers, while workers may still restart: each call (token,
+project lookup or creation, upload, processing job) is retried for about a minute on a dropped connection, a
+timeout or a 502/503/504. If it still fails, the start stops with one line naming the step, the component is
+`wiring failed` in `qft deployment list`, and `qft deployment start NAME` retries it.
+
 `SENTRY_RELEASE` is set to the revision label; the testbed reads it back from the running `app` container (and
 from `GET /api/v1/server/info/` when the release exposes it) as the `version` fact — the bisect engine checks it
 after every swap.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import runpy
 import sys
 from pathlib import Path
@@ -227,7 +228,8 @@ def test_main_shows_usage_errors_without_traceback(
 ) -> None:
     assert _main(monkeypatch, *args) == 2
     captured = capsys.readouterr()
-    output = captured.out + captured.err
+    # rich colours the help when it detects CI (GITHUB_ACTIONS, FORCE_COLOR): compare the plain text
+    output = re.sub(r"\x1b\[[0-9;]*m", "", captured.out + captured.err)
     assert message in output
     assert "Traceback" not in output
 

@@ -43,6 +43,12 @@ class QgisDockerBackend:
     tag: str
     mounts: list[Path] = field(default_factory=list)
     """Host directories made available at the same path inside the container (read-write)."""
+    deployment: str = ""
+    """Labelled on every container, so the deployment can find and remove the ones a killed caller left behind."""
+
+    @property
+    def labels(self) -> dict[str, str]:
+        return {"qft.deployment": self.deployment, "qft.component": "qgis"}
 
     @property
     def base_image(self) -> str:
@@ -72,7 +78,10 @@ class QgisDockerBackend:
         return args
 
     def base_command(self, *, interactive: bool) -> list[str]:
-        cmd = ["docker", "run", "--rm", "--network", "host", *self._user_args(), *self._mount_args()]
+        # `--init`: QGIS as PID 1 would ignore the SIGTERM docker forwards when the caller is killed, and outlive it
+        cmd = ["docker", "run", "--rm", "--network", "host", "--init", *self._user_args(), *self._mount_args()]
+        if self.deployment:
+            cmd += [arg for key, value in self.labels.items() for arg in ("--label", f"{key}={value}")]
         cmd += ["-e", f"PYTHONPATH={PYQGIS_PATH}"]
         if interactive:
             cmd += ["-it"]

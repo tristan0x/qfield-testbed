@@ -233,6 +233,7 @@ def test_qgis_docker_launcher_forwards_qft_variables(tmp_path: Path) -> None:
     assert {"QFT_DEPLOYMENT", "QFT_FORWARD_ENV", "FOO", "BAR"} <= flags  # names only: docker copies the values
     assert "OTHER" not in flags
     assert argv.index("-e") < argv.index("qft-qgis:ltr") < argv.index("--nologo")
+    assert argv.index("--init") < argv.index("qft-qgis:ltr")  # an init process passes signals on to QGIS
 
 
 def test_qgis_docker_launcher_without_variables_to_forward(tmp_path: Path) -> None:
@@ -297,7 +298,9 @@ def test_qgis_docker_backend(testbed: Testbed, runner_with_qgis: FakeRunner, tmp
     # the seed script ran through the image, not the host interpreter
     seed = [c for c in commands if "python3" in c and "seed_profile.py" in c]
     assert seed
-    assert seed[0].startswith("docker run --rm --network host")
+    assert seed[0].startswith("docker run --rm --network host --init")
+    assert "--label qft.deployment=q --label qft.component=qgis" in seed[0]
+    assert "--label qft.deployment=q --label qft.component=qgis" in launcher
     assert deployment.testbed.cache.load().entries["qgis/image/ltr"].images == ["qft-qgis:ltr"]
 
 
@@ -664,3 +667,25 @@ def test_qfieldsync_wire_needs_a_provisioned_cloud(testbed: Testbed) -> None:
     sync.ctx.state.component("qfieldcloud").facts["url"] = "http://127.0.0.1:30000/"
     with pytest.raises(TestbedError, match="provisioned first"):
         sync.wire()  # still no credentials
+
+
+@pytest.mark.parametrize("method", ["stop", "remove"])
+def test_qgis_docker_removes_leftover_containers(testbed: Testbed, runner: FakeRunner, method: str) -> None:
+    qgis = _qgis(testbed, "name: q\nqgis: {version: docker:ltr}\n")
+    runner.reply(["docker", "ps", "-aq"], stdout="abc\ndef\n")
+    getattr(qgis, method)()
+    commands = runner.commands()
+    assert "docker ps -aq --filter label=qft.deployment=q --filter label=qft.component=qgis" in commands
+    assert "docker rm -f abc def" in commands
+
+
+def test_qgis_docker_without_leftover_containers(testbed: Testbed, runner: FakeRunner) -> None:
+    qgis = _qgis(testbed, "name: q\nqgis: {version: docker:ltr}\n")
+    runner.reply(["docker", "ps", "-aq"], stdout="")
+    qgis.stop()
+    assert not any(cmd.startswith("docker rm") for cmd in runner.commands())
+
+
+def test_qgis_host_has_no_container_to_remove(testbed: Testbed, runner: FakeRunner) -> None:
+    _qgis(testbed).remove()
+    assert not any(cmd.startswith("docker") for cmd in runner.commands())

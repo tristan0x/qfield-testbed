@@ -11,6 +11,7 @@ from qfield_testbed.backends.ios_simulator import IosSimulatorBackend
 from qfield_testbed.errors import TestbedError
 from qfield_testbed.provision import android_settings, ios_settings, qfieldcloud_account
 from qfield_testbed.runtimes import adb as adb_module
+from qfield_testbed.runtimes import http as http_module
 from qfield_testbed.runtimes.adb import Adb
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.runtimes.ssh import Ssh
@@ -66,12 +67,31 @@ def test_server_info(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_server_info_request_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = FakeClock()
+    monkeypatch.setattr(http_module, "time", clock)
+
     def get_json(*_: object) -> None:
         raise requests.ConnectionError("refused")
 
     monkeypatch.setattr(qfieldcloud_account, "get_json", get_json)
     with pytest.raises(TestbedError, match=r"cannot read server info from http://127\.0\.0\.1:30000/: refused"):
         qfieldcloud_account.server_info(URL)
+    assert clock.now >= 60  # retried for the whole window before giving up
+
+
+def test_login_survives_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(http_module, "time", FakeClock())
+    answers: list[Exception | dict[str, Any]] = [requests.ConnectionError("reset"), {"token": "t"}]
+
+    def post_json(*_: object) -> dict[str, Any]:
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(qfieldcloud_account, "post_json", post_json)
+    assert qfieldcloud_account.login(URL, "testbed", "pw") == "t"
+    assert answers == []
 
 
 def test_sample_project_dir_ships_the_project() -> None:
@@ -118,6 +138,7 @@ def fake_sdk(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
     clock = FakeClock()
     monkeypatch.setattr(sdk, "Client", FakeClient)
     monkeypatch.setattr(qfieldcloud_account, "time", clock)
+    monkeypatch.setattr(http_module, "time", clock)
     monkeypatch.setattr(FakeClient, "instances", [])
     return clock
 
@@ -167,6 +188,43 @@ def test_ensure_demo_project_gives_up_after_timeout(fake_sdk: FakeClock, monkeyp
     monkeypatch.setattr(FakeClient, "statuses", [{"status": "started"}])
     qfieldcloud_account.ensure_demo_project(URL, "tok", "testbed", job_timeout=5)
     assert fake_sdk.sleeps == [2, 2, 2]
+
+
+class DroppingClient(FakeClient):
+    """Creates the project, then loses the response once; uploads fail once with a 503."""
+
+    created: list[str] = []
+    upload_failures = 1
+
+    def list_projects(self) -> list[dict[str, Any]]:
+        return [{"name": "testbed-demo", "owner": "testbed", "id": i} for i in self.created]
+
+    def create_project(self, name: str, owner: str, description: str) -> dict[str, Any]:
+        super().create_project(name, owner, description)
+        DroppingClient.created.append("made-once")
+        raise requests.ConnectionError("Remote end closed connection without response")
+
+    def upload_files(self, project_id: str, **kwargs: Any) -> None:
+        if DroppingClient.upload_failures:
+            DroppingClient.upload_failures -= 1
+            response = requests.Response()
+            response.status_code = 503
+            raise requests.HTTPError("503", response=response)
+        super().upload_files(project_id, **kwargs)
+
+
+def test_ensure_demo_project_rides_out_dropped_connections(
+    fake_sdk: FakeClock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sdk, "Client", DroppingClient)
+    monkeypatch.setattr(DroppingClient, "created", [])
+    monkeypatch.setattr(FakeClient, "statuses", [{"status": "finished"}])
+    project_id, status = qfieldcloud_account.ensure_demo_project(URL, "tok", "testbed")
+    assert (project_id, status) == ("made-once", "ok")
+    log = FakeClient.instances[0].log
+    assert [entry[0] for entry in log].count("create") == 1  # the lost response did not create a second project
+    assert [entry[0] for entry in log].count("upload") == 1
+    assert len(fake_sdk.sleeps) >= 2
 
 
 # --- android settings -------------------------------------------------------------------------------------

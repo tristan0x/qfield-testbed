@@ -45,6 +45,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- QFieldCloud wiring (token, demo project) retries for a minute when the freshly started server drops a
+  connection or answers 502/503/504, instead of failing the start (#6).
 - `qgis: host`: QGIS started through `uv run qft` (launch, run, bisect scripts) no longer inherits the testbed's
   virtualenv, which disabled its Python (`No module named 'PyQt6'`) (#4).
 - `qgis: docker:<tag>`: killing the launcher (a `timeout`, Ctrl-C in a script) now stops QGIS instead of leaving

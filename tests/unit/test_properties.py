@@ -13,6 +13,7 @@ from hypothesis import strategies as st
 from qfield_testbed.backends.qgis_docker import mount_roots
 from qfield_testbed.backends.qgis_host import _quote
 from qfield_testbed.bisect.algorithm import Search, Verdict
+from qfield_testbed.components.qgis import plugin_zip_name
 from qfield_testbed.ports import BLOCK_SIZE, PORT_OFFSETS, PortBlock, find_free_slot
 from qfield_testbed.revisions.github import owner_repo
 from qfield_testbed.spec import (
@@ -192,3 +193,19 @@ def test_launcher_quoting_survives_bash(value: str) -> None:
     assert BASH is not None
     out = subprocess.run([BASH, "-c", f"printf %s {_quote(value)}"], capture_output=True, check=True)
     assert out.stdout.decode("utf-8", "surrogateescape") == value
+
+
+plugin_ids = st.text(st.sampled_from("abcxyz019_"), min_size=1, max_size=10)
+versions = st.text(st.sampled_from("0123456789."), min_size=1, max_size=8)
+
+
+@given(st.lists(st.tuples(plugin_ids, versions), min_size=2, max_size=6, unique=True))
+def test_plugin_zip_names_of_distinct_plugins_differ(plugins: list[tuple[str, str]]) -> None:
+    urls = [f"https://plugins.qgis.org/plugins/{p}/version/{v}/download/" for p, v in plugins]
+    assert len({plugin_zip_name(url) for url in urls}) == len(urls)
+
+
+@given(st.lists(st.text(st.sampled_from("abc/-_.z9"), min_size=1, max_size=20), min_size=2, max_size=6, unique=True))
+def test_plugin_zip_names_of_distinct_urls_differ(paths: list[str]) -> None:
+    urls = {f"https://example.com/{p}".rstrip("/") for p in paths}
+    assert len({plugin_zip_name(url) for url in urls}) == len(urls)

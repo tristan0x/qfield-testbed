@@ -21,7 +21,7 @@ from qfield_testbed.components.qfieldsync import (
     libqfieldsync_pin,
     plugin_metadata,
 )
-from qfield_testbed.components.qgis import Qgis, _replace_with_symlink, qt_platform
+from qfield_testbed.components.qgis import Qgis, _replace_with_symlink, plugin_zip_name, qt_platform
 from qfield_testbed.deployment import Deployment, Testbed
 from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
 from qfield_testbed.provision.qgis_profile import AuthConfig, ProfileLayout, parse_seed_report, render_seed_script
@@ -783,3 +783,34 @@ def test_qt_platform_reported(case: tuple[str, dict[str, str], str]) -> None:
 
 def test_qgis_describe_reports_the_platform(testbed: Testbed) -> None:
     assert _qgis(testbed, "name: q\nqgis: {version: host, platform: xcb}\n").describe()["platform"] == "xcb"
+
+
+def test_qgis_plugins_at_the_same_version_get_their_own_zip(
+    testbed: Testbed, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    zips = {
+        name: _plugin_zip(tmp_path / f"{name}.zip", f"{name}/metadata.txt").read_bytes() for name in ("alpha", "beta")
+    }
+    downloads: list[str] = []
+
+    def get(url: str, timeout: float) -> _Response:
+        assert timeout > 0
+        downloads.append(url)
+        return _Response(zips[url.split("/plugins/")[1].split("/", maxsplit=1)[0]])
+
+    monkeypatch.setattr("qfield_testbed.components.qgis.requests.get", get)
+    qgis = _qgis(testbed)
+    alpha = "https://plugins.qgis.org/plugins/alpha/version/1.0/download/"
+    beta = "https://plugins.qgis.org/plugins/beta/version/1.0/download/"
+    assert qgis.install_plugin(PluginSpec(zip=alpha), qgis.layout) == "alpha"
+    assert qgis.install_plugin(PluginSpec(zip=beta), qgis.layout) == "beta"
+    assert qgis.fetch_plugin_zip(alpha.rstrip("/")).name == "alpha-1.0.zip"  # same plugin, no new download
+    assert downloads == [alpha, beta]
+    assert {"qgis/plugin/alpha-1.0", "qgis/plugin/beta-1.0"} <= set(testbed.cache.load().entries)
+
+
+def test_plugin_zip_name_of_other_urls() -> None:
+    name = plugin_zip_name("https://example.com/files/my plugin.zip/")
+    assert name.startswith("my_plugin-")
+    assert len(name.split("-")[-1]) == 12
+    assert plugin_zip_name("https://example.com/").startswith("example.com-")

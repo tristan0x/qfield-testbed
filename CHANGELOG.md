@@ -45,6 +45,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Two QGIS plugins at the same version no longer share one cached zip (the second deployment installed the first
+  plugin); cached plugin zips are named after the plugin and version, or a hash of their URL (#11).
 - `qft` now exits with the code the command chose: `qft deployment run NAME -- CMD` returns `CMD`'s status and an
   aborted `qft bisect run` 130, where both exited 0 (#10).
 - Usage errors (missing argument, unknown option, `qft` alone) print the usage message and exit 2 instead of a

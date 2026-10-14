@@ -7,7 +7,9 @@ headless (settings, authentication database) and extra plugins are installed int
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 import shutil
 import zipfile
 from collections.abc import Mapping
@@ -28,6 +30,19 @@ from qfield_testbed.runtimes import docker
 from qfield_testbed.spec import DockerSource, PluginSpec, QgisSpec, WorktreeSource
 
 log = logging.getLogger(__name__)
+
+_PLUGINS_QGIS_ORG = re.compile(r"^https?://plugins\.qgis\.org/plugins/([^/]+)/version/([^/]+)/download/?$")
+
+
+def plugin_zip_name(url: str) -> str:
+    """A cache name unique to ``url``: ``<plugin>-<version>`` for plugins.qgis.org links, else a readable hash."""
+    match = _PLUGINS_QGIS_ORG.match(url)
+    if match:
+        return f"{match[1]}-{match[2]}"
+    normalized = url.rstrip("/")
+    stem = normalized.rsplit("/", 1)[-1].removesuffix(".zip") or "plugin"
+    stem = re.sub(r"[^A-Za-z0-9._-]", "_", stem)[:40]
+    return f"{stem}-{hashlib.sha256(normalized.encode()).hexdigest()[:12]}"
 
 
 def qt_platform(spec: QgisSpec, environ: Mapping[str, str] | None = None) -> str:
@@ -163,8 +178,7 @@ class Qgis(Component):
             if not path.is_file():
                 raise TestbedError(f"plugin zip not found: {source}")
             return path
-        key = source.rstrip("/").rsplit("/", 2)
-        name = "-".join(part for part in key[-2:] if part) or "plugin"
+        name = plugin_zip_name(source)
         target = self.ctx.paths.artifacts / "qgis-plugins" / f"{name}.zip"
         if not target.exists():
             target.parent.mkdir(parents=True, exist_ok=True)

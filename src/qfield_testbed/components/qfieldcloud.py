@@ -371,9 +371,20 @@ class QFieldCloud(Component):
                     ", ".join(to_build),
                 )
                 compose.run("build", *to_build, capture=False, timeout=7200)
+            self._record_built_images(images)
         compose.up()
         if not self.state.initialized:
             self.initialize(compose)
+
+    def _record_built_images(self, images: dict[str, str]) -> None:
+        """Make the locally built image set visible to `qft cache list|prune` and to bisect trimming."""
+        revision = self.state.revision
+        if revision is None or "checkout" not in self.state.facts:
+            return
+        built = sorted({image for image in images.values() if image.startswith("qft-")})
+        self.ctx.cache.touch(
+            f"qfieldcloud/images/{revision.key}", Path(self.state.facts["checkout"]), user=self.ctx.name, images=built
+        )
 
     def initialize(self, compose: docker.Compose) -> None:
         account = self.spec.test_account

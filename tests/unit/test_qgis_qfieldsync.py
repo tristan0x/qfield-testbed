@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tarfile
 import zipfile
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -659,7 +660,23 @@ def test_qfieldsync_git_ref_builds_wheel_and_drops_stale_ones(
     assert build.endswith(f"libqfieldsync-{LIB_SHA}")
     entries = testbed.cache.load().entries
     assert entries[f"qfieldsync/checkout/{SHA[:12]}"].users == {"s"}
-    assert f"libqfieldsync/wheel/{LIB_SHA[:12]}" in entries
+    assert entries[f"libqfieldsync/wheel/{LIB_SHA[:12]}"].users == {"s"}
+
+
+def test_qfieldsync_reused_wheel_records_each_deployment(testbed: Testbed, tmp_path: Path) -> None:
+    wheel = testbed.paths.wheels / f"libqfieldsync_{LIB_SHA[:12]}.whl"
+    wheel.parent.mkdir(parents=True, exist_ok=True)
+    wheel.write_bytes(b"built by an earlier deployment")
+    checkout = fake_qfieldsync_checkout(tmp_path)
+    for name in ("s", "t"):
+        text = f"name: {name}\nqfieldcloud: {{version: release:v26.28}}\nqgis: {{version: host}}\nqfieldsync: {{version: 'git:main'}}\n"
+        sync = _probe(testbed, text, "qfieldsync")
+        assert isinstance(sync, QFieldSync)
+        assert sync.libqfieldsync_wheel(checkout) == wheel  # no download, no build: requests is not even stubbed
+    key = f"libqfieldsync/wheel/{LIB_SHA[:12]}"
+    assert testbed.cache.load().entries[key].users == {"s", "t"}
+    assert key not in testbed.cache.prunable(older_than=timedelta(0), live_users={"t"})
+    assert key in testbed.cache.prunable(older_than=timedelta(0), live_users=set())
 
 
 def test_qfieldsync_wheel_with_pip_and_build_failure(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:

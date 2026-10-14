@@ -47,6 +47,8 @@ All notable changes to this project are documented here. The format follows
 
 - A libqfieldsync archive that does not unpack to one project folder is reported with its URL and contents
   instead of an internal `ValueError` (#12).
+- The libqfieldsync wheel's cache entry lists every deployment that uses it, built or reused, so
+  `qft cache prune` no longer deletes it under running deployments (#12).
 - Two QGIS plugins at the same version no longer share one cached zip (the second deployment installed the first
   plugin); cached plugin zips are named after the plugin and version, or a hash of their URL (#11).
 - `qft` now exits with the code the command chose: `qft deployment run NAME -- CMD` returns `CMD`'s status and an

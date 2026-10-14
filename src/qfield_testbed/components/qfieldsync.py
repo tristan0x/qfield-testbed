@@ -142,7 +142,10 @@ class QFieldSync(Component):
         """Build (once) the libqfieldsync wheel pinned by the checkout; cached by sha."""
         url, sha = libqfieldsync_pin((checkout / "requirements.txt").read_text())
         wheel = self.ctx.paths.wheels / f"libqfieldsync_{sha[:12]}.whl"
+        cache_key = f"libqfieldsync/wheel/{sha[:12]}"
         if wheel.exists():
+            # reused, not rebuilt: still a user, so `qft cache prune` keeps it while this deployment exists
+            self.ctx.cache.touch(cache_key, wheel, user=self.ctx.name)
             return wheel
         workdir = self.ctx.paths.artifacts / "libqfieldsync" / sha[:12]
         source_dir = workdir / "src"
@@ -174,7 +177,7 @@ class QFieldSync(Component):
             raise TestbedError(f"no wheel produced in {out_dir}")
         wheel.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(built[-1], wheel)
-        self.ctx.cache.touch(f"libqfieldsync/wheel/{sha[:12]}", wheel)
+        self.ctx.cache.touch(cache_key, wheel, user=self.ctx.name)
         return wheel
 
     def render(self, revision: Revision, materialized: Path) -> None:

@@ -8,7 +8,7 @@ import pytest
 
 from qfield_testbed.bisect.algorithm import Search, Verdict
 from qfield_testbed.bisect.scenario import BisectScenario
-from qfield_testbed.bisect.session import BisectSession, SessionStatus, resolve_candidates
+from qfield_testbed.bisect.session import BisectSession, SessionStatus, repository_url, resolve_candidates
 from qfield_testbed.components import REGISTRY, register
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import SpecError, TestbedError
@@ -335,3 +335,18 @@ def test_manual_session_prompts_and_pauses(testbed: Testbed, runner: FakeRunner,
     session.reset()
     with pytest.raises(TestbedError, match="interactively"):
         session.step(prompt=None)
+
+
+def test_repository_url_of_qfield_follows_the_configuration(testbed: Testbed) -> None:
+    # built directly: `from_file` checks the deployment with a `git:` version, which qfield-android does not accept
+    scenario = BisectScenario.model_validate(
+        {
+            "name": "q",
+            "deployment": {"qfieldcloud": {"version": "release:v26.28"}},
+            "bisect": {"component": "qfield-android", "good": "a", "bad": "b", "source": "artifact"},
+            "test": {"manual": True},
+        }
+    )
+    assert repository_url(testbed, scenario) == "https://github.com/opengisch/QField"
+    testbed.config.repositories.qfield = "me/QField"
+    assert repository_url(testbed, scenario) == "https://github.com/me/QField"

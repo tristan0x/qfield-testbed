@@ -97,7 +97,7 @@ def repository_url(testbed: Testbed, scenario: BisectScenario) -> str:
         return str(fixed.get("repo") or testbed.config.repositories.qfieldcloud)
     if component == "qfieldsync":
         return str(fixed.get("repo") or testbed.config.repositories.qfieldsync)
-    slug = str(fixed.get("repo") or "opengisch/QField")
+    slug = str(fixed.get("repo") or testbed.config.repositories.qfield)
     return slug if slug.startswith("http") else f"https://github.com/{slug}"
 
 

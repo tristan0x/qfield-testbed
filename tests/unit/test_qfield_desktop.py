@@ -113,3 +113,9 @@ def test_wire_needs_cloud_and_keeps_other_settings(testbed: Testbed) -> None:
     assert "url=http://127.0.0.1:30000/" in text
     assert component.describe()["settings_file"] == str(conf)
     assert component.describe()["appimage"] is None
+
+
+def test_desktop_repo_defaults_to_the_configured_repository(testbed: Testbed) -> None:
+    assert _desktop(testbed).repo == "opengisch/QField"
+    testbed.config.repositories.qfield = "me/QField"
+    assert _desktop(testbed).repo == "me/QField"

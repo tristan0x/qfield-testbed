@@ -41,7 +41,7 @@ class QFieldAndroid(Component):
 
     @property
     def repo(self) -> str:
-        return owner_repo(self.spec.repo)
+        return owner_repo(self.spec.repo or self.ctx.config.repositories.qfield)
 
     def backend(self) -> AndroidEmulatorBackend:
         return AndroidEmulatorBackend(

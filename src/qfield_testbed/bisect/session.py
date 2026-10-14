@@ -25,6 +25,9 @@ from qfield_testbed.spec import VersionSource
 
 log = logging.getLogger(__name__)
 
+IMAGE_SETS = "qfieldcloud/images/"
+"""Cache key prefix of QFieldCloud image sets (one per revision)."""
+
 _VERSION = TypeAdapter(VersionSource)
 _SHA = re.compile(r"^[0-9a-f]{7,40}$")
 
@@ -221,7 +224,21 @@ class BisectSession:
             return None
         self.state.current = index
         self.save()
+        if scenario.bisect.component == "qfieldcloud":
+            self.trim_image_sets(deployment)
         return deployment
+
+    def trim_image_sets(self, deployment: Deployment) -> None:
+        """Keep at most ``cache.max_image_sets`` built QFieldCloud image sets: each revision builds its own."""
+        revision = deployment.state.components["qfieldcloud"].revision
+        protect = {f"{IMAGE_SETS}{revision.key}"} if revision else set()
+        cache = self.testbed.cache
+        dropped = cache.trim(IMAGE_SETS, keep=self.testbed.config.cache.max_image_sets, protect=protect)
+        # sets share images when a build context did not change between revisions: keep what a kept set uses
+        still_used = {image for entry in cache.load().entries.values() for image in entry.images}
+        for image in sorted({image for entry in dropped.values() for image in entry.images} - still_used):
+            log.info("removing image %s (beyond cache.max_image_sets)", image)
+            self.testbed.runner.run(["docker", "image", "rm", image], check=False)
 
     def environment(self, index: int, deployment: Deployment) -> dict[str, str]:
         candidate = self.candidate(index)

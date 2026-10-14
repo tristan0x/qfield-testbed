@@ -47,6 +47,8 @@ All notable changes to this project are documented here. The format follows
 
 - QFieldCloud images built for `git:` and `worktree:` sources are recorded in the cache, so `qft cache list`
   shows them and `qft cache prune` removes them (#13).
+- A bisect over QFieldCloud keeps at most `cache.max_image_sets` built image sets, as documented: older sets
+  lose their images after each swap, except images a kept set still uses (#13).
 - A libqfieldsync archive that does not unpack to one project folder is reported with its URL and contents
   instead of an internal `ValueError` (#12).
 - The libqfieldsync wheel's cache entry lists every deployment that uses it, built or reused, so

@@ -256,6 +256,66 @@ def test_session_runs_to_the_first_bad_candidate(testbed: Testbed, runner: FakeR
         testbed.deployment("bs-s")
 
 
+class FakeBuildingCloud(FakeVaryingCloud):
+    """Records one built image set per revision, like `QFieldCloud.start()`; the worker image never changes."""
+
+    def resolve(self):
+        from qfield_testbed.revisions import Revision  # noqa: PLC0415
+
+        ref = self.spec.version.ref  # type: ignore[union-attr]
+        return Revision(source=self.spec.version, label=ref[-12:], sha=ref)  # the test shas differ at the end
+
+    def start(self) -> None:
+        revision = self.state.revision
+        assert revision is not None
+        self.ctx.cache.touch(
+            f"qfieldcloud/images/{revision.key}",
+            self.directory,
+            user=self.ctx.name,
+            images=[f"qft-qfieldcloud-app:{revision.key}", "qft-qfieldcloud-worker:shared"],
+        )
+
+
+def test_session_keeps_at_most_max_image_sets(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:
+    saved = dict(REGISTRY)
+    REGISTRY.clear()
+    register(FakeQgis)
+    register(FakeBuildingCloud)
+    try:
+        testbed.config.cache.max_image_sets = 2
+        testbed.paths.ensure()
+        shas = [f"{i:040x}" for i in range(1, 11)]
+        mirror = Mirror(runner, testbed.paths, "https://github.com/opengisch/QFieldCloud")
+        git = ["git", "-C", str(mirror.path)]
+        runner.reply([*git, "rev-list"], stdout="\n".join(shas) + "\n")
+        for sha in shas:
+            runner.reply([*git, "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"], stdout=sha + "\n")
+            runner.reply([*git, "log", "-1", "--format=%s", sha], stdout=f"commit {sha[-1]}\n")
+        runner.reply([*git, "log"], stdout="2026-01-01\n")
+        _write_script(tmp_path / "repro.sh", first_bad=7)
+        scenario_file = tmp_path / "s.yaml"
+        scenario_file.write_text(
+            "name: s\ndeployment:\n  qgis: {version: host}\nbisect:\n  component: qfieldcloud\n  good: v1\n  bad: v2\n"
+            "test:\n  script: ./repro.sh\n"
+        )
+        session = BisectSession.create(testbed, BisectScenario.from_file(scenario_file))
+        result = session.run()
+        assert result.tested >= 3  # enough swaps to go past the limit
+        sets = [key for key in testbed.cache.load().entries if key.startswith("qfieldcloud/images/")]
+        assert len(sets) == 2
+        current = testbed.deployment("bs-s").state.components["qfieldcloud"].revision
+        assert current is not None
+        assert f"qfieldcloud/images/{current.key}" in sets  # the running revision is never trimmed
+        removed = [
+            cmd.removeprefix("docker image rm ") for cmd in runner.commands() if cmd.startswith("docker image rm")
+        ]
+        assert len(removed) == result.tested - 2
+        assert all(image.startswith("qft-qfieldcloud-app:") for image in removed)  # the shared image stays
+    finally:
+        REGISTRY.clear()
+        REGISTRY.update(saved)
+
+
 @pytest.mark.usefixtures("fake_components")
 def test_manual_session_prompts_and_pauses(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:
     testbed.paths.ensure()

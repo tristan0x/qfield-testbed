@@ -13,7 +13,9 @@ from hypothesis import strategies as st
 from qfield_testbed.backends.qgis_docker import mount_roots
 from qfield_testbed.backends.qgis_host import _quote
 from qfield_testbed.bisect.algorithm import Search, Verdict
+from qfield_testbed.cache import Cache
 from qfield_testbed.components.qgis import plugin_zip_name
+from qfield_testbed.paths import Paths
 from qfield_testbed.ports import BLOCK_SIZE, PORT_OFFSETS, PortBlock, find_free_slot
 from qfield_testbed.revisions.github import owner_repo
 from qfield_testbed.spec import (
@@ -209,3 +211,23 @@ def test_plugin_zip_names_of_distinct_plugins_differ(plugins: list[tuple[str, st
 def test_plugin_zip_names_of_distinct_urls_differ(paths: list[str]) -> None:
     urls = {f"https://example.com/{p}".rstrip("/") for p in paths}
     assert len({plugin_zip_name(url) for url in urls}) == len(urls)
+
+
+@settings(max_examples=60, deadline=None)
+@given(
+    count=st.integers(min_value=0, max_value=8),
+    keep=st.integers(min_value=1, max_value=5),
+    protected=st.sets(st.integers(min_value=0, max_value=8), max_size=3),
+)
+def test_trim_keeps_at_most_keep_sets_and_every_protected_one(
+    tmp_path_factory: pytest.TempPathFactory, count: int, keep: int, protected: set[int]
+) -> None:
+    root = tmp_path_factory.mktemp("cache")
+    cache = Cache(Paths(home=root / "home", cache=root / "cache"))
+    for i in range(count):
+        cache.touch(f"qfieldcloud/images/{i}", root, images=[f"qft-qfieldcloud-app:{i}"])
+    protect = {f"qfieldcloud/images/{i}" for i in protected}
+    cache.trim("qfieldcloud/images/", keep=keep, protect=protect)
+    left = {key for key in cache.load().entries if key.startswith("qfieldcloud/images/")}
+    assert protect & {f"qfieldcloud/images/{i}" for i in range(count)} <= left
+    assert len(left) <= max(keep, len(protect & left))

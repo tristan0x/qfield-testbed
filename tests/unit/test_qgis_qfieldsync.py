@@ -672,6 +672,19 @@ def test_qfieldsync_wheel_with_pip_and_build_failure(testbed: Testbed, runner: F
     assert runner.calls[-1].args[:5] == ("python3", "-m", "pip", "wheel", "--no-deps")
 
 
+@pytest.mark.parametrize(("folders", "found"), [([], "none"), (["a", "b"], "a, b")], ids=["empty", "two"])
+def test_qfieldsync_wheel_from_an_odd_archive(testbed: Testbed, tmp_path: Path, folders: list[str], found: str) -> None:
+    sync = _sync(testbed, "git:main")
+    source = testbed.paths.artifacts / "libqfieldsync" / LIB_SHA[:12] / "src"
+    source.mkdir(parents=True)  # already downloaded and extracted, but not to one project folder
+    for folder in folders:
+        (source / folder).mkdir()
+    url = f"https://github.com/opengisch/libqfieldsync/archive/{LIB_SHA}.tar.gz"
+    with pytest.raises(TestbedError) as caught:
+        sync.libqfieldsync_wheel(fake_qfieldsync_checkout(tmp_path))
+    assert str(caught.value) == f"libqfieldsync archive {url} should unpack to one project folder, found {found}"
+
+
 def test_qfieldsync_rejects_non_checkouts(testbed: Testbed, tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()

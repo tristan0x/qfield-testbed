@@ -155,7 +155,11 @@ class QFieldSync(Component):
             tarball.write_bytes(response.content)
             with tarfile.open(tarball) as tf:
                 tf.extractall(source_dir, filter="data")
-        (project_dir,) = [p for p in source_dir.iterdir() if p.is_dir()]
+        folders = sorted(p for p in source_dir.iterdir() if p.is_dir())
+        if len(folders) != 1:
+            found = ", ".join(p.name for p in folders) or "none"
+            raise TestbedError(f"libqfieldsync archive {url} should unpack to one project folder, found {found}")
+        project_dir = folders[0]
         out_dir = workdir / "dist"
         out_dir.mkdir(exist_ok=True)
         log.info("building libqfieldsync wheel %s", sha[:12])

@@ -374,6 +374,24 @@ def test_start_builds_local_images_and_skips_initialized(deployment, runner: Fak
     assert build.endswith(" build app qgis3")
     assert any(" up -d " in cmd for cmd in commands)
     assert not any("manage.py" in cmd for cmd in commands)
+    assert component.ctx.cache.load().entries == {}  # no revision recorded: nothing to key the image set by
+
+
+def test_start_records_built_images_in_the_cache(deployment, runner: FakeRunner, tmp_path: Path) -> None:
+    component = _component(deployment)
+    component.state.revision = Revision(source=GitSource(ref="master"), label="master-1a2b3c4d5e6f", sha=SHA)
+    component.state.facts.update(
+        {
+            "checkout": str(tmp_path),
+            "images": {"app": "qft-qfieldcloud-app:feedfacefeed", "qgis3": "ghcr.io/opengisch/qfieldcloud-qgis3:26.28"},
+        }
+    )
+    component.state.initialized = True
+    component.start()
+    entry = component.ctx.cache.load().entries["qfieldcloud/images/master-1a2b3c4d5e6f"]
+    assert entry.images == ["qft-qfieldcloud-app:feedfacefeed"]  # built images only, not pulled ones
+    assert entry.users == {deployment.name}
+    assert entry.path == tmp_path
 
 
 def test_initialize_needs_credentials_and_honours_superuser(testbed: Testbed, runner: FakeRunner) -> None:

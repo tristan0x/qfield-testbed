@@ -251,7 +251,10 @@ class QFieldAndroidSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: AppSource
-    repo: str = Field(default="opengisch/QField", description="GitHub `owner/name` used for releases and artifacts")
+    repo: str | None = Field(
+        default=None,
+        description="GitHub `owner/name` or URL for releases and artifacts; defaults to repositories.qfield",
+    )
     image: str = "budtmo/docker-android:emulator_14.0"
     device: str = Field(default="Samsung Galaxy S10", description="Emulator device profile (EMULATOR_DEVICE)")
     seed_settings: bool = Field(default=True, description="Pre-fill the QFieldCloud URL in the app settings")
@@ -270,7 +273,7 @@ class QFieldDesktopSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: AppImageSource
-    repo: str = "opengisch/QField"
+    repo: str | None = Field(default=None, description="GitHub `owner/name` or URL; defaults to repositories.qfield")
 
 
 ComponentSpec = QFieldCloudSpec | QgisSpec | QFieldSyncSpec | QFieldAndroidSpec | QFieldIosSpec | QFieldDesktopSpec

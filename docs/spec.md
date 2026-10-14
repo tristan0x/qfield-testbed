@@ -75,7 +75,7 @@ qfieldsync:
 ```yaml
 qfield-android:
   version: release:v4.3.5    # artifact:<ref> | build:/path/to/QField
-  repo: opengisch/QField     # owner/name for releases and CI artifacts (a fork after pushing a branch)
+  repo: opengisch/QField     # owner/name or URL for releases and CI artifacts; defaults to repositories.qfield
   image: budtmo/docker-android:emulator_14.0
   device: "Samsung Galaxy S10"   # EMULATOR_DEVICE of the image
   seed_settings: true        # pre-fill the QFieldCloud URL and username in the app

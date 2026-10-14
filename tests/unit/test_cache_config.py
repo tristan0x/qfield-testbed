@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -162,3 +162,22 @@ def test_load_rejects_invalid_config(tmp_path: Path, content: str) -> None:
     file.write_text(content)
     with pytest.raises(ValidationError):
         GlobalConfig.load(file)
+
+
+def test_trim_forgets_the_oldest_built_sets(cache: Cache, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = iter(range(10))
+    monkeypatch.setattr(cache_module, "_now", lambda: datetime(2026, 1, 1, tzinfo=UTC) + timedelta(minutes=next(clock)))
+    for name in ("a", "b", "c", "d"):
+        cache.touch(f"qfieldcloud/images/{name}", tmp_path, images=[f"qft-qfieldcloud-app:{name}"])
+    cache.touch("qfieldcloud/images/release", tmp_path, images=["ghcr.io/opengisch/qfieldcloud-app:26.28"])
+    cache.touch("qfieldcloud/checkout/x", tmp_path)
+    dropped = cache.trim("qfieldcloud/images/", keep=2, protect={"qfieldcloud/images/a"})
+    assert sorted(dropped) == ["qfieldcloud/images/b", "qfieldcloud/images/c"]  # a protected, d newest
+    remaining = set(cache.load().entries)
+    assert {"qfieldcloud/images/a", "qfieldcloud/images/d", "qfieldcloud/images/release"} <= remaining
+    assert tmp_path.is_dir()  # only index entries go: the checkout they point at stays
+
+
+def test_trim_with_nothing_to_drop(cache: Cache, tmp_path: Path) -> None:
+    cache.touch("qfieldcloud/images/a", tmp_path, images=["qft-qfieldcloud-app:a"])
+    assert cache.trim("qfieldcloud/images/", keep=1, protect={"qfieldcloud/images/a", "qfieldcloud/images/b"}) == {}

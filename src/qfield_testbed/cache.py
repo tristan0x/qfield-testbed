@@ -83,6 +83,23 @@ class Cache:
             if not (entry.users & live_users) and entry.last_used < cutoff
         }
 
+    def trim(self, prefix: str, *, keep: int, protect: set[str]) -> dict[str, CacheEntry]:
+        """Forget the least recently used entries under ``prefix`` holding built (``qft-``) images, beyond ``keep``.
+
+        ``protect`` keys always stay (and count towards ``keep``). Only index entries go: their files are shared
+        (an image set points at its QFieldCloud checkout), so the caller removes the images it no longer needs.
+        """
+        with self.locked() as index:
+            built = [
+                key
+                for key, entry in index.entries.items()
+                if key.startswith(prefix) and any(image.startswith("qft-") for image in entry.images)
+            ]
+            newest_first = sorted(built, key=lambda key: index.entries[key].last_used, reverse=True)
+            room = max(keep - sum(1 for key in newest_first if key in protect), 0)
+            candidates = [key for key in newest_first if key not in protect]
+            return {key: index.entries.pop(key) for key in candidates[room:]}
+
     def drop(self, key: str) -> CacheEntry | None:
         with self.locked() as index:
             entry = index.entries.pop(key, None)

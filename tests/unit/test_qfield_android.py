@@ -385,3 +385,10 @@ def test_describe_defaults_before_start(testbed: Testbed) -> None:
     assert info["adb"] == f"docker exec {CONTAINER} adb"
     assert info["apk"] is None
     assert info["image"] == "budtmo/docker-android:emulator_14.0"
+
+
+def test_qfield_repo_defaults_to_the_configured_repository(testbed: Testbed) -> None:
+    assert _android(testbed, "release:v4.3.5").repo == "opengisch/QField"
+    testbed.config.repositories.qfield = "https://github.com/me/QField.git"  # a fork, as a URL
+    assert _android(testbed, "release:v4.3.5").repo == "me/QField"
+    assert _android(testbed, "release:v4.3.5", "  repo: other/QField\n").repo == "other/QField"  # the spec wins

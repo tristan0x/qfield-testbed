@@ -68,4 +68,7 @@ entries no existing deployment references and that were not used recently, toget
 `--docker-build-cache` also runs `docker builder prune`.
 
 Disk guards: `qft doctor` warns under 10 GiB free; `build:` sources are refused under 15 GiB; a bisect keeps at
-most `cache.max_image_sets` (default 4) sets of built QFieldCloud images.
+most `cache.max_image_sets` (default 4) sets of built QFieldCloud images. Built sets are cache entries
+(`qfieldcloud/images/<revision>`); after each swap the bisect forgets the least recently used ones beyond the limit,
+never the running revision's, and removes their images except those a kept set still uses (an unchanged build
+context shares one image across revisions).

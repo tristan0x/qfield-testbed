@@ -120,7 +120,7 @@ venv = ".venv"
 paths = ["src", "tests", "vulture_whitelist.py"]
 min_confidence = 60
 ignore_decorators = ["@app.command", "@app.callback", "@field_validator", "@model_validator", "@register", "@pytest.fixture"]
-ignore_names = ["model_config"]
+ignore_names = ["model_config", "pytestmark", "pytest_*"]  # pytest reads the module marks and its hooks by name
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

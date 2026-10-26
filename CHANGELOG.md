@@ -45,6 +45,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `QFT_QFIELDCLOUD_TOKEN` stays valid when a script logs in to QFieldCloud as the test account: the testbed
+  now logs in as a `cli` client, whereas QFieldCloud keeps a single token for clients it does not recognise.
 - QFieldCloud images built for `git:` and `worktree:` sources are recorded in the cache, so `qft cache list`
   shows them and `qft cache prune` removes them (#13).
 - A bisect over QFieldCloud keeps at most `cache.max_image_sets` built image sets, as documented: older sets

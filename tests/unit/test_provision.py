@@ -28,25 +28,28 @@ def test_api_normalizes_trailing_slash() -> None:
 
 
 def test_login_returns_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    posted: list[tuple[str, dict[str, Any]]] = []
+    posted: list[tuple[str, dict[str, Any], dict[str, str]]] = []
 
-    def post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
-        posted.append((url, payload))
+    def post_json(url: str, payload: dict[str, Any], *, headers: dict[str, str]) -> dict[str, Any]:
+        posted.append((url, payload, headers))
         return {"token": 1234}
 
     monkeypatch.setattr(qfieldcloud_account, "post_json", post_json)
     assert qfieldcloud_account.login(URL, "testbed", "pw") == "1234"
-    assert posted == [(f"{URL}api/v1/auth/token/", {"username": "testbed", "password": "pw"})]
+    [(url, payload, headers)] = posted
+    assert (url, payload) == (f"{URL}api/v1/auth/token/", {"username": "testbed", "password": "pw"})
+    # a `cli|` agent gets a token of its own, which later logins of unknown clients do not expire
+    assert headers["User-Agent"].startswith("cli|qfield-testbed/")
 
 
 def test_login_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(qfieldcloud_account, "post_json", lambda *_: {"detail": "nope"})
+    monkeypatch.setattr(qfieldcloud_account, "post_json", lambda *_, **__: {"detail": "nope"})
     with pytest.raises(TestbedError, match=r"login of 'testbed' on .* returned no token: \{'detail': 'nope'\}"):
         qfieldcloud_account.login(URL, "testbed", "pw")
 
 
 def test_login_request_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    def post_json(*_: object) -> None:
+    def post_json(*_: object, **__: object) -> None:
         raise requests.HTTPError("400 Bad Request")
 
     monkeypatch.setattr(qfieldcloud_account, "post_json", post_json)
@@ -83,7 +86,7 @@ def test_login_survives_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(http_module, "time", FakeClock())
     answers: list[Exception | dict[str, Any]] = [requests.ConnectionError("reset"), {"token": "t"}]
 
-    def post_json(*_: object) -> dict[str, Any]:
+    def post_json(*_: object, **__: object) -> dict[str, Any]:
         answer = answers.pop(0)
         if isinstance(answer, Exception):
             raise answer

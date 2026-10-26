@@ -10,12 +10,17 @@ from typing import Any
 
 import requests
 
+from qfield_testbed import __version__
 from qfield_testbed.errors import TestbedError
 from qfield_testbed.runtimes.http import get_json, post_json, retrying
 
 log = logging.getLogger(__name__)
 
 DEMO_PROJECT_NAME = "testbed-demo"
+
+USER_AGENT = f"cli|qfield-testbed/{__version__}"
+"""Makes QFieldCloud file the token as a `cli` one: it keeps a single token per user for unknown clients (any
+other User-Agent), so the next script logging in with `requests` or `curl` would expire ``QFT_QFIELDCLOUD_TOKEN``."""
 
 
 def api(url: str) -> str:
@@ -26,7 +31,12 @@ def login(url: str, username: str, password: str) -> str:
     """``POST /api/v1/auth/token/`` → the token key."""
     try:
         data = retrying(
-            lambda: post_json(api(url) + "auth/token/", {"username": username, "password": password}), what="login"
+            lambda: post_json(
+                api(url) + "auth/token/",
+                {"username": username, "password": password},
+                headers={"User-Agent": USER_AGENT},
+            ),
+            what="login",
         )
     except requests.RequestException as exc:
         raise TestbedError(f"login of '{username}' failed on {url}: {exc}") from exc

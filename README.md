@@ -92,7 +92,8 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 - [Deployment spec](docs/spec.md)
 - [Bisect](docs/bisect.md)
 - [Isolation: slots, ports, names, cache](docs/isolation.md)
-- [Machine interface: JSON output, error and exit codes](docs/adr/0001-agent-interface.md)
+- [Machine interface: JSON output, error and exit codes](docs/adr/0001-agent-interface.md), and
+  [the JSON data of each command](docs/json-output.md)
 - Components: [QFieldCloud](docs/components/qfieldcloud.md), [QGIS](docs/components/qgis.md),
   [QFieldSync](docs/components/qfieldsync.md), [QField on Android](docs/components/qfield-android.md),
   [QField on iOS](docs/components/qfield-ios.md), [QField desktop](docs/components/qfield-desktop.md)

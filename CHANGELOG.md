@@ -12,6 +12,12 @@ All notable changes to this project are documented here. The format follows
 - Errors carry a stable code (`NOT_FOUND`, `PREREQ_MISSING`, `TIMEOUT`…), a hint printed after the message and
   a documentation topic; [docs/adr/0001-agent-interface.md](docs/adr/0001-agent-interface.md) records the
   contract (#26).
+- With `--json`, every command returns its result as `data`: deployment info and summaries, environment
+  variables, bisect session summaries, cache entries, configuration and doctor checks, listed in
+  [docs/json-output.md](docs/json-output.md) (#27).
+- `qft --non-interactive` (or `QFT_NONINTERACTIVE=1`) never prompts: confirmations are refused (exit 8) and a
+  manual bisect test answers `NEEDS_HUMAN` (exit 3); JSON mode implies it (#27).
+- `--yes` on `qft deployment remove` and `qft bisect remove` skips the confirmation (#27).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).
@@ -56,6 +62,10 @@ All notable changes to this project are documented here. The format follows
   exit 130) (#26).
 - Breaking: `qft deployment show --json` and `qft bisect status --json` wrap their data in the JSON envelope;
   read `.data` (#26).
+
+### Deprecated
+
+- `--force` to skip a confirmation: use `--yes`. `--force` will only override ownership checks (#27).
 
 ### Fixed
 

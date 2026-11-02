@@ -8,9 +8,19 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, styled_status, warn
+from qfield_testbed.cli._console import (
+    OUTPUT,
+    confirm,
+    console,
+    deprecated_force,
+    emit,
+    ok,
+    set_json_output,
+    styled_status,
+    warn,
+)
 from qfield_testbed.components.qgis import qt_platform
-from qfield_testbed.deployment import Testbed
+from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
 from qfield_testbed.errors import NotFoundError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
@@ -56,9 +66,10 @@ def add(
     if start:
         deployment.start()
         ok(f"deployment [bold]{spec.name}[/] is running")
-        _print_show(deployment.describe())
+        info = deployment.info()
+        emit(info, human=lambda: _print_show(info))
     else:
-        console.print(f"Next: [bold]qft deployment start {spec.name}[/]")
+        emit(deployment.info(), human=lambda: console.print(f"Next: [bold]qft deployment start {spec.name}[/]"))
 
 
 @app.command("list")
@@ -66,7 +77,12 @@ def list_() -> None:
     """List deployments with their slot, status and components."""
     testbed = Testbed()
     deployments = testbed.deployments()
-    if not deployments:
+    summaries = [deployment.summary() for deployment in deployments]
+    emit({"deployments": summaries}, human=lambda: _print_list(summaries))
+
+
+def _print_list(summaries: list[DeploymentSummary]) -> None:
+    if not summaries:
         console.print("No deployment yet. Try: [bold]qft deployment add examples/minimal.yaml --start[/]")
         return
     table = Table(box=None, header_style="bold", pad_edge=False)
@@ -76,13 +92,12 @@ def list_() -> None:
     table.add_column("STATUS")
     table.add_column("COMPONENTS")
     table.add_column("SESSION")
-    for deployment in deployments:
-        summary = deployment.summary()
+    for summary in summaries:
         components = "  ".join(f"{name} {styled_status(status)}" for name, status in summary.components.items())
         table.add_row(
             summary.name,
             str(summary.slot),
-            f"{summary.ports.base}–{summary.ports.base + 99}",
+            f"{summary.port_base}–{summary.port_last}",
             styled_status(summary.status),
             components,
             summary.session or "",
@@ -90,17 +105,14 @@ def list_() -> None:
     console.print(table)
 
 
-def _print_show(info: dict[str, object]) -> None:
-    console.print(
-        f"[bold]{info['name']}[/]  {styled_status(info['status'])}  slot {info['slot']}  "  # type: ignore[arg-type]
-        f"network {info['network']}"
-    )
-    console.print(f"  directory: {info['directory']}")
-    if account := info.get("test_account"):
-        console.print(f"  test account: {account['username']} / {account['password']}")  # type: ignore[index]
-    for name, facts in info["components"].items():  # type: ignore[attr-defined]
-        console.print(f"\n[bold]{name}[/]  {styled_status(facts.pop('status'))}")
-        for key, value in facts.items():
+def _print_show(info: DeploymentInfo) -> None:
+    console.print(f"[bold]{info.name}[/]  {styled_status(info.status)}  slot {info.slot}  network {info.network}")
+    console.print(f"  directory: {info.directory}")
+    if account := info.test_account:
+        console.print(f"  test account: {account.username} / {account.password}")
+    for name, component in info.components.items():
+        console.print(f"\n[bold]{name}[/]  {styled_status(component.status)}")
+        for key, value in component.model_dump(exclude={"status"}).items():
             if value is not None:
                 console.print(f"  {key}: {value}")
 
@@ -110,7 +122,7 @@ def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same
     """Show URLs, ports, credentials, revisions and status of a deployment."""
     if json_:
         set_json_output(True)
-    info = Testbed().deployment(name).describe()
+    info = Testbed().deployment(name).info()
     emit(info, human=lambda: _print_show(info))
 
 
@@ -120,14 +132,17 @@ def start(name: NameArg, component: ComponentOpt = None) -> None:
     deployment = Testbed().deployment(name)
     deployment.start(component)
     ok(f"deployment [bold]{name}[/] is running")
-    _print_show(deployment.describe())
+    info = deployment.info()
+    emit(info, human=lambda: _print_show(info))
 
 
 @app.command()
 def stop(name: NameArg, component: ComponentOpt = None) -> None:
     """Stop the components; data and containers are kept for the next start."""
-    Testbed().deployment(name).stop(component)
+    deployment = Testbed().deployment(name)
+    deployment.stop(component)
     ok(f"deployment [bold]{name}[/] stopped")
+    emit(deployment.info(), human=lambda: None)
 
 
 @app.command()
@@ -137,21 +152,27 @@ def restart(name: NameArg, component: ComponentOpt = None) -> None:
     deployment.stop(component)
     deployment.start(component)
     ok(f"deployment [bold]{name}[/] restarted")
+    emit(deployment.info(), human=lambda: None)
 
 
 @app.command()
 def remove(
     name: NameArg,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Do not ask for confirmation")] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation")] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Deprecated: use --yes")] = False,
 ) -> None:
     """Tear down containers, volumes and files of a deployment and free its slot (the cache is kept)."""
     deployment = Testbed().deployment(name)
-    if deployment.summary().session and not force:
+    if force:
+        deprecated_force()
+    confirmed = yes or force
+    if deployment.summary().session and not confirmed:
         warn(f"deployment '{name}' belongs to bisect session '{deployment.summary().session}'")
-    if not force and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):
+    if not confirmed and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):
         raise typer.Abort
     deployment.remove()
     ok(f"deployment [bold]{name}[/] removed")
+    emit({"name": name, "removed": True}, human=lambda: None)
 
 
 @app.command()
@@ -161,6 +182,7 @@ def logs(
     follow: Annotated[bool, typer.Option("--follow", "-f")] = False,
 ) -> None:
     """Show container logs of the deployment."""
+    _not_in_json_mode("deployment logs")
     deployment = Testbed().deployment(name)
     for comp in deployment.components(component):
         show_logs = getattr(comp, "logs", None)
@@ -190,12 +212,14 @@ def launch(
     qgis = deployment.spec.qgis if target == "qgis" else None
     suffix = f" (Qt platform: {qt_platform(qgis, os.environ)})" if qgis is not None else ""
     console.print(f"launching {launcher}{suffix}")
-    subprocess.run([str(launcher)], check=False)
+    completed = subprocess.run([str(launcher)], check=False)
+    emit({"launcher": str(launcher), "exit_code": completed.returncode}, human=lambda: None)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def run(ctx: typer.Context, name: NameArg) -> None:
     """Run a command with the deployment's QFT_* environment (URLs, credentials, launchers)."""
+    _not_in_json_mode("deployment run")
     cmd = list(ctx.args)
     if cmd and cmd[0] == "--":
         cmd = cmd[1:]
@@ -209,8 +233,18 @@ def run(ctx: typer.Context, name: NameArg) -> None:
 @app.command()
 def env(name: NameArg) -> None:
     """Print the QFT_* environment of a deployment, ready for `eval "$(qft deployment env NAME)"`."""
-    for key, value in sorted(Testbed().deployment(name).env().items()):
+    variables = dict(sorted(Testbed().deployment(name).env().items()))
+    emit({"variables": variables}, human=lambda: _print_exports(variables))
+
+
+def _print_exports(variables: dict[str, str]) -> None:
+    for key, value in variables.items():
         print(f"export {key}={_shell_quote(value)}")  # noqa: T201 - plain stdout, meant for `eval`
+
+
+def _not_in_json_mode(command: str) -> None:
+    if OUTPUT.json:
+        raise UsageError(f"`qft {command}` does not support --json yet", hint="run it without --json")
 
 
 def _shell_quote(value: str) -> str:

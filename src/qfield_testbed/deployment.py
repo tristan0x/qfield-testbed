@@ -11,18 +11,18 @@ import secrets
 import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from filelock import FileLock
+from pydantic import BaseModel, ConfigDict, Field
 
 from qfield_testbed.cache import Cache
 from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.errors import NotFoundError, UnknownDeploymentError, UnsupportedComponentError
 from qfield_testbed.paths import Paths
-from qfield_testbed.ports import PortBlock, make_prober
+from qfield_testbed.ports import BLOCK_SIZE, PortBlock, make_prober
 from qfield_testbed.runtimes import docker
 from qfield_testbed.runtimes.shell import Runner, SubprocessRunner
 from qfield_testbed.spec import DeploymentSpec, VersionSource
@@ -93,14 +93,39 @@ class Testbed:
             raise UnsupportedComponentError("cannot run this spec on this host:\n  - " + "\n  - ".join(problems))
 
 
-@dataclass
-class Summary:
+class DeploymentSummary(BaseModel):
+    """One line of `qft deployment list`; never carries credentials."""
+
     name: str
     slot: int
     status: Status
+    port_base: int
+    port_last: int
     components: dict[str, Status]
-    ports: PortBlock
-    session: str | None
+    session: str | None = Field(description="Bisect session owning this deployment, if any")
+
+
+class ComponentInfo(BaseModel):
+    """A component as `qft deployment show` reports it; the facts it described about itself are extra fields."""
+
+    model_config = ConfigDict(extra="allow")
+
+    status: Status
+    version: str
+    revision: str | None
+
+
+class DeploymentInfo(BaseModel):
+    """Everything needed to talk to a deployment: URLs, ports, credentials, revisions and status."""
+
+    name: str
+    status: Status
+    slot: int
+    directory: Path
+    network: str
+    ports: dict[str, int]
+    test_account: Credentials | None
+    components: dict[str, ComponentInfo]
 
 
 class Deployment:
@@ -253,38 +278,45 @@ class Deployment:
 
     # --- introspection ----------------------------------------------------------------------------------
 
-    def summary(self) -> Summary:
+    def summary(self) -> DeploymentSummary:
         entry = self.testbed.registry.load().deployments[self.name]
-        return Summary(
+        return DeploymentSummary(
             name=self.name,
             slot=self.state.slot,
             status=self.state.status,
+            port_base=self.ports.base,
+            port_last=self.ports.base + BLOCK_SIZE - 1,
             components={name: self.state.component(name).status for name in self.spec.components()},
-            ports=self.ports,
             session=entry.session,
         )
 
-    def describe(self) -> dict[str, Any]:
-        info: dict[str, Any] = {
-            "name": self.name,
-            "status": self.state.status,
-            "slot": self.state.slot,
-            "directory": str(self.directory),
-            "network": self.context().network,
-            "ports": self.ports.all_ports(),
-            "components": {},
-        }
-        if self.state.credentials:
-            info["test_account"] = self.state.credentials.model_dump()
+    def info(self) -> DeploymentInfo:
+        components: dict[str, ComponentInfo] = {}
         for name in self.spec.components():
             component_state = self.state.component(name)
-            info["components"][name] = {
-                "status": component_state.status,
-                "version": str(getattr(self.spec.component(name), "version", "?")),
-                "revision": str(component_state.revision) if component_state.revision else None,
-                **component_state.summary,
-            }
-        return info
+            # the component's own facts win, as `version` (the QGIS version of `qgis: host`, for example)
+            components[name] = ComponentInfo.model_validate(
+                {
+                    "status": component_state.status,
+                    "version": str(getattr(self.spec.component(name), "version", "?")),
+                    "revision": str(component_state.revision) if component_state.revision else None,
+                    **component_state.summary,
+                }
+            )
+        return DeploymentInfo(
+            name=self.name,
+            status=self.state.status,
+            slot=self.state.slot,
+            directory=self.directory,
+            network=self.context().network,
+            ports=self.ports.all_ports(),
+            test_account=self.state.credentials,
+            components=components,
+        )
+
+    def describe(self) -> dict[str, Any]:
+        """:meth:`info` as plain data."""
+        return self.info().model_dump()
 
     def env(self) -> dict[str, str]:
         """The ``QFT_*`` environment for `deployment run` and bisect scripts."""

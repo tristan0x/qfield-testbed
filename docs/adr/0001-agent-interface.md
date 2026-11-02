@@ -24,7 +24,8 @@ logs / run helpers of `qft deployment`.
 
 `qft --json …` or `QFT_OUTPUT=json` switches to JSON mode, for every command. Stdout then carries **exactly one
 JSON document**; progress, `✓` lines, log records and warnings for humans go to stderr. `deployment show --json`
-and `bisect status --json` are aliases of the global flag.
+and `bisect status --json` are aliases of the global flag. [docs/json-output.md](../json-output.md) lists
+`data` for each command.
 
 ```json
 {"schema_version": 1, "ok": true, "data": {}, "warnings": []}
@@ -45,7 +46,7 @@ Raising `TestbedError` itself is forbidden (a unit test enforces it).
 | Exit | Meaning | Codes |
 |---|---|---|
 | 0 | success | |
-| 1 | unexpected error; bisect session stopped by its test or paused by the user | `ERROR`, `ABORTED` |
+| 1 | unexpected error | `ERROR` |
 | 2 | usage error, invalid spec or scenario, name already taken | `USAGE`, `INVALID_SPEC`, `ALREADY_EXISTS` |
 | 3 | prerequisite missing (host, configuration, previous step), or a human must act | `PREREQ_MISSING`, `NEEDS_HUMAN` |
 | 4 | resource exhausted: no free slot, port or disk | `RESOURCE_EXHAUSTED` |
@@ -53,7 +54,7 @@ Raising `TestbedError` itself is forbidden (a unit test enforces it).
 | 6 | timeout: something did not become ready in time | `TIMEOUT` |
 | 7 | component failure: container unhealthy, wiring, build, external command | `COMPONENT_FAILED` |
 | 8 | refused: confirmation or authorization missing, confirmation declined | `REFUSED` |
-| 130 | interrupted (Ctrl-C) | `INTERRUPTED` |
+| 130 | interrupted (Ctrl-C), or bisect session stopped by its test or paused by the user | `INTERRUPTED`, `ABORTED` |
 
 `125` is **not** a `qft` exit code: it stays the `git bisect run` convention for bisect *test scripts* ("skip
 this candidate"). A revision that cannot be materialized is caught inside the bisect session and recorded as a
@@ -67,7 +68,8 @@ Recorded here so every sub-issue applies the same rules.
 
 - **Confirmation and override**: `--yes` skips a confirmation; `--force` overrides ownership guards. Until
   ownership exists, `--force` keeps its current meaning (skip the confirmation) with a deprecation warning.
-  Without a terminal, a command needing confirmation refuses (exit 8) instead of waiting on stdin.
+  Without a terminal, in JSON mode or with `--non-interactive` / `QFT_NONINTERACTIVE=1`, a command needing
+  a confirmation refuses (exit 8) instead of waiting on stdin, and a manual bisect test answers `NEEDS_HUMAN`.
 - **Readiness**: `start`, `restart` and `add --start` return only when the deployment is ready (this is already
   the case); a `--timeout` bounds them. No `--wait` flag.
 - **Ownership and TTL**: every deployment records an owner (`human`, `agent`, `bisect`) and, for agents, a

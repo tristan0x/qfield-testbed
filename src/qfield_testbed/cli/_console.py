@@ -31,6 +31,7 @@ SCHEMA_VERSION = 1
 class OutputMode:
     json: bool = False
     requested: bool = False  # JSON asked for on the command line or in the environment, seen by `main()`
+    non_interactive: bool = False  # --non-interactive / QFT_NONINTERACTIVE: never prompt
     warnings: list[str] = field(default_factory=list)
     emitted: bool = False
 
@@ -70,11 +71,25 @@ def stdin_is_terminal() -> bool:
     return sys.stdin.isatty()
 
 
+def non_interactive_requested() -> bool:
+    return os.environ.get("QFT_NONINTERACTIVE", "").lower() in {"1", "true", "yes"}
+
+
+def is_interactive() -> bool:
+    """Whether a person can answer a prompt: a terminal on stdin, not in JSON or non-interactive mode."""
+    return stdin_is_terminal() and not OUTPUT.json and not OUTPUT.non_interactive
+
+
 def confirm(question: str, *, action: str) -> bool:
-    """Ask ``question``; without a terminal to answer it, fail at once and name the way out instead."""
-    if not stdin_is_terminal():
-        raise RefusedError(f"refusing to {action} without confirmation: stdin is not a terminal", hint="pass --force")
+    """Ask ``question``; when nobody can answer, fail at once and name the way out instead."""
+    if not is_interactive():
+        reason = "stdin is not a terminal" if not stdin_is_terminal() else "running non-interactively"
+        raise RefusedError(f"refusing to {action} without confirmation: {reason}", hint="pass --yes")
     return typer.confirm(question)
+
+
+def deprecated_force() -> None:
+    warn("--force to skip the confirmation is deprecated and will only override ownership checks; use --yes")
 
 
 def error(message: str) -> None:

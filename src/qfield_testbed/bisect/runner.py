@@ -17,6 +17,7 @@ class BisectAbortError(TestbedError):
     """The test asked to stop the whole session (exit code >= 128), or the user paused it."""
 
     code = "ABORTED"
+    exit_code = 130  # stopped on request, like an interrupt; the session resumes where it stopped
 
 
 @dataclass

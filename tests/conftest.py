@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from hypothesis import settings
 
+from qfield_testbed.cli._console import OUTPUT, set_json_output
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.runtimes.shell import FakeRunner
@@ -34,3 +36,11 @@ def testbed(config: GlobalConfig, runner: FakeRunner) -> Testbed:
 def terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     """Let commands that ask for a confirmation believe stdin is a terminal (CliRunner's stdin is not one)."""
     monkeypatch.setattr("qfield_testbed.cli._console.stdin_is_terminal", lambda: True)
+
+
+@pytest.fixture(autouse=True)
+def human_output() -> Iterator[None]:
+    """The output mode is process-wide state: every test starts and ends in human mode, as a fresh `qft` does."""
+    yield
+    OUTPUT.requested = False
+    set_json_output(False)

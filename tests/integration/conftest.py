@@ -32,4 +32,4 @@ def qft(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Qft]:
     tool = Qft(root)
     yield tool
     for name in tool.names():
-        tool("deployment", "remove", name, "--force", check=False)
+        tool("deployment", "remove", name, "--yes", check=False)

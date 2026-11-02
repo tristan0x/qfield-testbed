@@ -52,7 +52,9 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     spec_file = tmp_path / "demo.yaml"
     spec_file.write_text(SPEC)
 
-    assert set(_json("doctor")) == {"checks", "home", "cache", "config"}
+    doctor = _json("doctor")
+    assert set(doctor) == {"checks", "capabilities", "host"}
+    assert doctor["host"]["slots"] == {"used": 0, "max": 5}
     assert set(_json("config", "show")) >= {"home", "port_base", "max_slots"}
     assert _json("config", "path")["exists"] is True
     assert "name:" in _json("spec", "example")["yaml"]

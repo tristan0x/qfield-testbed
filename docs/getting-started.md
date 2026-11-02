@@ -11,18 +11,28 @@ uv sync && alias qft="uv run qft"
 `qft doctor` tells you what this host can run:
 
 ```
-✓  docker                 daemon reachable           all
+✓  docker                 daemon reachable           qfieldcloud, qfield-android, qgis:docker
 ✓  docker compose         5.6.0                      qfieldcloud, qfield-android
 ✓  /dev/kvm               usable                     qfield-android
-✓  gh                     authenticated              release and artifact sources
-✓  qgis (host)            QGIS 4.2.3                 qgis: host
-✓  display                :0                         qgis, qfield-desktop
-✗  xvfb-run               missing: needed only …     qgis: host without a display (--code)
+✓  gh                     authenticated              source:release, source:artifact, qfield-desktop
+✓  qgis (host)            QGIS 4.2.3                 qgis:host
+✓  display                :0                         qgis:gui, qfield-desktop
+✗  xvfb-run               missing: needed only …     qgis:headless
 ✗  ios hosts              none configured            qfield-ios
-✓  free disk              34 GiB                     cache, builds
+✓  free disk for builds   34 GiB                     source:build
+
+Can run: qfieldcloud, qgis:host, qgis:docker, qgis:gui, qfieldsync, qfield-android, qfield-desktop, …
+Cannot run:
+  qgis:headless: missing xvfb-run → install xvfb (it provides xvfb-run)
+  qfield-ios: missing ios hosts → configure `ios_hosts` in the config, …
 ```
 
-Only the rows needed by the components you use have to be green.
+Only the rows needed by the components you use have to be green. The last part is the *capability matrix*:
+each capability is a component (`qfieldcloud`, `qfield-android`…), a QGIS mode (`qgis:host`, `qgis:docker`,
+`qgis:gui`, `qgis:headless`) or a version source (`source:release`, `source:artifact`, `source:git`,
+`source:worktree`, `source:build`), with the checks it is missing and how to fix them. A script can require
+the capabilities it needs — `qft doctor --require qfield-android --require source:build` exits 3 when one is
+missing — and `qft --json doctor` returns the whole matrix.
 
 ## First deployment
 

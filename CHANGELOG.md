@@ -18,6 +18,9 @@ All notable changes to this project are documented here. The format follows
 - `qft --non-interactive` (or `QFT_NONINTERACTIVE=1`) never prompts: confirmations are refused (exit 8) and a
   manual bisect test answers `NEEDS_HUMAN` (exit 3); JSON mode implies it (#27).
 - `--yes` on `qft deployment remove` and `qft bisect remove` skips the confirmation (#27).
+- `qft doctor` ends with a capability matrix — which components, QGIS modes and version sources this host can
+  run, what each one is missing and how to fix it — and `qft doctor --require KEY` exits 3 when a capability
+  is missing; `--json` returns the matrix and the slots in use (#28).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

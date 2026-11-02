@@ -53,6 +53,7 @@ class GlobalConfig(BaseModel):
     repositories: Repositories = Repositories()
     ios_hosts: dict[str, IosHost] = Field(default_factory=dict)
     cache: CacheConfig = CacheConfig()
+    gc_on_start: bool = Field(default=False, description="Remove expired deployments at every qft invocation")
     max_agent_deployments: int = Field(default=10, ge=1, description="Deployments agent sessions may own in all")
     agent_ttl: str = Field(
         default="24h", description="TTL of deployments an agent session creates (sliding; `none` for no expiry)"

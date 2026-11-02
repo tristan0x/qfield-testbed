@@ -65,6 +65,21 @@ An agent session may only stop, restart, remove or keep **its own** deployments:
 session or another agent session owns is refused (exit 8) unless `--force`. People are never restricted.
 Agent sessions own at most `max_agent_deployments` deployments in all (10 by default; exit 4 beyond).
 
+## Cleaning up: `qft gc`
+
+`qft gc` removes what nobody uses any more; `--dry-run` shows it first, and it asks before removing unless
+`--yes`:
+
+- `--expired`: deployments whose TTL ran out since their last use;
+- `--agent-session ID`: every deployment of one agent session (from another agent session: `--force`);
+- `--orphaned`: what a killed or crashed `qft` left behind — compose projects `qft-<name>-qfc` /
+  `qft-<name>-tb`, networks `qft-<name>`, containers labelled `qft.deployment=<name>`, deployment directories
+  without a registry entry, and registry entries whose directory is gone (their slot is freed).
+
+Without option it does `--expired --orphaned`. A resource is orphaned only when no registered deployment has its
+exact name; nothing outside `qft-*` is ever touched. A deployment in use (being started, for example) is skipped.
+With `gc_on_start: true` in the config, every `qft` invocation first removes expired deployments.
+
 ## Locks
 
 Registry mutations and slot allocation take `$QFT_HOME/registry.lock`; `start`, `stop`, `remove` and `swap` take

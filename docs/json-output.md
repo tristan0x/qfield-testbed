@@ -60,6 +60,12 @@ or `COMPONENT_FAILED` (exit 7), and `error.details` says where:
 | `log_tail` | the component's last log lines, when it has logs |
 | `probe`, `last` | for health timeouts: what was polled and its last answer |
 
+## Clean-up
+
+| Command | `data` |
+|---|---|
+| `gc [--expired] [--orphaned] [--agent-session S] [--dry-run]` | `{dry_run, plan: {expired, orphaned_projects, orphaned_containers, orphaned_networks, orphaned_directories, stale_entries}, report: {removed, skipped, failed}}` (`report` once applied) |
+
 ## Bisect
 
 **Session summary** — returned by `bisect start`, `run`, `good`, `bad`, `skip`, `status` and `reset`:

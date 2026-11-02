@@ -17,6 +17,7 @@ from qfield_testbed.components import REGISTRY, Component, register
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import (
+    HealthTimeoutError,
     MaterializationUnavailableError,
     RefusedError,
     TestbedError,
@@ -435,3 +436,25 @@ def test_start_and_restart_take_a_timeout(testbed: Testbed) -> None:
     assert testbed.deployment("demo").state.status is Status.RUNNING
     bogus = invoke(["deployment", "start", "demo", "--timeout", "soon"])
     assert "invalid duration 'soon'" in str(bogus.exception)
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_failed_start_answers_with_details_in_json(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def unhealthy(self: Component, timeout: float = 180) -> None:
+        raise HealthTimeoutError("http://127.0.0.1:1/ not healthy after 1s", details={"probe": "http://127.0.0.1:1/"})
+
+    monkeypatch.setattr(CliQgis, "health", unhealthy)
+    monkeypatch.setattr(sys, "argv", ["qft", "--json", "deployment", "start", "demo", "--timeout", "10m"])
+    with pytest.raises(SystemExit) as exited:
+        main()
+    assert exited.value.code == 6
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert error["code"] == "TIMEOUT"
+    assert error["message"] == "qgis: http://127.0.0.1:1/ not healthy after 1s"
+    assert {key: error["details"][key] for key in ("component", "step", "probe")} == {
+        "component": "qgis",
+        "step": "health",
+        "probe": "http://127.0.0.1:1/",
+    }

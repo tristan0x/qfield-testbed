@@ -33,7 +33,7 @@ def wait_for_http(url: str, *, timeout: float, interval: float = 2.0, expect: in
         except requests.RequestException as exc:
             last = exc.__class__.__name__
         time.sleep(interval)
-    raise HealthTimeoutError(f"{url} not healthy after {timeout:.0f}s ({last})")
+    raise HealthTimeoutError(f"{url} not healthy after {timeout:.0f}s ({last})", details={"probe": url, "last": last})
 
 
 def is_transient(exc: BaseException) -> bool:

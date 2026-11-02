@@ -25,6 +25,7 @@ from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.errors import (
     NotFoundError,
+    TestbedError,
     TimeoutExceededError,
     UnknownDeploymentError,
     UnsupportedComponentError,
@@ -103,23 +104,59 @@ class Testbed:
 
 @dataclass
 class Deadline:
-    """The time budget of a start: what is left of ``timeout`` seconds, or a timeout error naming the step."""
+    """The time budget of a start: what is left of ``timeout`` seconds (None: no bound), measured from ``started``."""
 
-    timeout: float
+    timeout: float | None = None
     started: float = field(default_factory=lambda: time.monotonic())  # noqa: PLW0108 - looked up at call time, so tests can move the clock
 
     def elapsed(self) -> float:
-        return time.monotonic() - self.started
+        return round(time.monotonic() - self.started, 1)
 
-    def remaining(self, component: str, step: str) -> float:
-        left = self.timeout - self.elapsed()
+    def remaining(self, component: str, step: str) -> float | None:
+        """Seconds left before ``step`` of ``component``; a timeout error naming them once none is left."""
+        if self.timeout is None:
+            return None
+        left = self.timeout - (time.monotonic() - self.started)
         if left <= 0:
             raise TimeoutExceededError(
                 f"{component} was not ready within {self.timeout:.0f}s (before its {step} step)",
                 hint="raise --timeout; a first start builds or pulls images and can take long",
-                details={"component": component, "step": step, "elapsed_s": round(self.elapsed(), 1)},
+                details={"component": component, "step": step, "elapsed_s": self.elapsed()},
             )
         return left
+
+
+LOG_TAIL_LINES = 30
+
+
+@contextmanager
+def _step(component: Component, step: str, deadline: Deadline) -> Iterator[float | None]:
+    """Run one step of bringing ``component`` up: within the deadline, and failures say where they happened.
+
+    Yields the seconds left (None without a timeout). A :class:`TestbedError` gets the component, the step, the
+    time spent and the component's last log lines in its ``details``, and the component name in its message.
+    """
+    remaining = deadline.remaining(component.name, step)
+    try:
+        yield remaining
+    except TestbedError as exc:
+        exc.details.setdefault("component", component.name)
+        exc.details.setdefault("step", step)
+        exc.details.setdefault("elapsed_s", deadline.elapsed())
+        if "log_tail" not in exc.details and (tail := _log_tail(component)):
+            exc.details["log_tail"] = tail
+        if not exc.message.startswith(component.name):
+            exc.message = f"{component.name}: {exc.message}"
+            exc.args = (exc.message, *exc.args[1:])
+        raise
+
+
+def _log_tail(component: Component) -> str | None:
+    try:
+        return component.logs(tail=LOG_TAIL_LINES, capture=True) or None
+    except Exception:
+        log.debug("[%s] no logs to attach", component.name, exc_info=True)
+        return None
 
 
 class DeploymentSummary(BaseModel):
@@ -225,7 +262,7 @@ class Deployment:
         Returns once every component is ready. ``timeout`` bounds the whole start: it is checked between steps
         and given to the health checks; a build in progress is not interrupted.
         """
-        deadline = Deadline(timeout) if timeout is not None else None
+        deadline = Deadline(timeout)
         with self.locked():
             self.state.status = Status.STARTING
             self.save()
@@ -240,35 +277,34 @@ class Deployment:
             self.save()
 
     def _bring_up(self, component: Component, deadline: Deadline | None = None) -> None:
-        def budget(step: str) -> float | None:
-            return deadline.remaining(component.name, step) if deadline else None
-
-        budget("resolve")
-        log.info("[%s] resolving %s", component.name, getattr(component.spec, "version", "?"))
-        revision = component.resolve()
+        deadline = deadline or Deadline()
+        with _step(component, "resolve", deadline):
+            log.info("[%s] resolving %s", component.name, getattr(component.spec, "version", "?"))
+            revision = component.resolve()
         component.state.revision = revision
         component.state.status = Status.STARTING
         self.save()
-        budget("materialize")
-        log.info("[%s] materializing %s", component.name, revision)
-        materialized = component.materialize(revision)
-        component.render(revision, materialized)
-        log.info("[%s] starting", component.name)
+        with _step(component, "materialize", deadline):
+            log.info("[%s] materializing %s", component.name, revision)
+            materialized = component.materialize(revision)
+        with _step(component, "render", deadline):
+            component.render(revision, materialized)
         try:
-            budget("start")
-            component.start()
-            remaining = budget("health")
-            if remaining is None:
-                component.health()
-            else:
-                component.health(timeout=remaining)
+            with _step(component, "start", deadline):
+                log.info("[%s] starting", component.name)
+                component.start()
+            with _step(component, "health", deadline) as remaining:
+                if remaining is None:
+                    component.health()
+                else:
+                    component.health(timeout=remaining)
         except Exception:
             component.state.status = Status.FAILED
             self.save()
             raise
         try:
-            budget("wire")
-            component.wire()
+            with _step(component, "wire", deadline):
+                component.wire()
         except Exception:
             component.state.status = Status.WIRING_FAILED
             self.save()

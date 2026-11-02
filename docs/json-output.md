@@ -35,6 +35,28 @@ appear in any release; removing or renaming one bumps `schema_version`.
 | `deployment logs NAME [--tail N] [--since T] [--service S]` | `{components: {name: text}}` for the components that have logs; `--follow` is refused |
 | `deployment run NAME [--timeout T] [--tail-lines N] -- CMD` | `{exit_code, duration_s, timed_out, stdout_tail, stderr_tail}`: `ok` is true whenever the command ran, its own failure is `exit_code`; past `--timeout` the whole process group is killed and the answer is a `TIMEOUT` error (exit 6) carrying the same fields in `details` |
 
+### Readiness and failed starts
+
+`deployment start`, `restart` and `add --start` return only once every component is ready:
+
+| Component | Ready when |
+|---|---|
+| `qfieldcloud` | `api/v1/status/` answers 200, the test account logs in (its token is in `test_account`), the demo project exists |
+| `qgis`, `qfieldsync` | the profile is seeded with QFieldSync, its settings and the test account |
+| `qfield-android` | the emulator has booted; app settings are seeded (or a warning gives the manual steps) |
+| `qfield-ios`, `qfield-desktop` | the app is installed and its settings point at the deployment's QFieldCloud |
+
+`--timeout 10m` bounds the whole start. A start that fails answers with `TIMEOUT` (exit 6, not ready in time)
+or `COMPONENT_FAILED` (exit 7), and `error.details` says where:
+
+| Field | Content |
+|---|---|
+| `component` | the component that failed |
+| `step` | `resolve`, `materialize`, `render`, `start`, `health` or `wire` |
+| `elapsed_s` | seconds since the start began |
+| `log_tail` | the component's last log lines, when it has logs |
+| `probe`, `last` | for health timeouts: what was polled and its last answer |
+
 ## Bisect
 
 **Session summary** — returned by `bisect start`, `run`, `good`, `bad`, `skip`, `status` and `reset`:

@@ -46,7 +46,10 @@ class Adb:
             else:
                 last = (result.stdout + result.stderr).strip()[-80:] or "not booted yet"
             time.sleep(5)
-        raise HealthTimeoutError(f"Android emulator in {self.container} not ready after {timeout:.0f}s ({last})")
+        raise HealthTimeoutError(
+            f"Android emulator in {self.container} not ready after {timeout:.0f}s ({last})",
+            details={"probe": "adb getprop sys.boot_completed", "container": self.container, "last": last},
+        )
 
     def copy_in(self, source: Path, dest: str) -> None:
         self.runner.run(["docker", "cp", str(source), f"{self.container}:{dest}"], timeout=600)

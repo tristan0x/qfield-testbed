@@ -31,9 +31,12 @@ def schema(
 
 
 @app.command()
-def validate(spec_file: Annotated[Path, typer.Argument(show_default=False)]) -> None:
-    """Validate a spec without registering a deployment."""
-    spec = DeploymentSpec.from_file(spec_file)
+def validate(
+    spec_file: Annotated[Path, typer.Argument(help="Spec (YAML); `-` reads stdin", show_default=False)],
+) -> None:
+    """Validate a spec without registering a deployment; errors give the path and line of each problem."""
+    from_stdin = str(spec_file) == "-"
+    spec = DeploymentSpec.from_yaml(sys.stdin.read()) if from_stdin else DeploymentSpec.from_file(spec_file)
     components = list(spec.components())
     emit(
         {"name": spec.name, "components": components},

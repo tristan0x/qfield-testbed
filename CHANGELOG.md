@@ -33,6 +33,8 @@ All notable changes to this project are documented here. The format follows
   `wire`…), the time spent, the component's last log lines and, for health timeouts, the probe (#30).
 - `qft spec schema [--scenario]` prints the JSON Schema of deployment specs (or bisect scenarios), shorthands
   such as `release:v26.28` included, for editors and agents (#31).
+- Spec and scenario errors give the YAML line of each problem, and `--json` lists them as
+  `{path, message, line, column}`; `qft spec validate -` reads stdin (#31).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

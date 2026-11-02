@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from qfield_testbed.cli.doctor import Check, run_checks
 from qfield_testbed.deployment import Testbed
+from qfield_testbed.doctor import Check, run_checks
 from qfield_testbed.runtimes.shell import FakeRunner
 
 

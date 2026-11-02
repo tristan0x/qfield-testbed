@@ -38,7 +38,7 @@ def _qft(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         (["deployment", "show"], 2, "Missing argument 'name'"),
         (["spec", "validate", "missing.yaml"], 2, "cannot read spec"),
         (["deployment", "show", "nothing"], 5, "No deployment named 'nothing'"),
-        (["deployment", "remove", "nothing", "--force"], 5, "hint: run `qft deployment list`"),
+        (["deployment", "remove", "nothing", "--yes"], 5, "hint: run `qft deployment list`"),
         (["--version"], 0, "qfield-testbed"),
     ],
     ids=["usage-error", "spec-error", "not-found", "hint", "version"],

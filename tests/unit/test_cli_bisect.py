@@ -10,7 +10,7 @@ import yaml
 from qfield_testbed.bisect.runner import BisectAbortError
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import NeedsHumanError, TestbedError
 from qfield_testbed.runtimes.shell import FakeRunner
 from tests.unit.test_cli_deployment import fake_components, invoke, isolate  # noqa: F401
 
@@ -258,8 +258,28 @@ def test_remove_session_without_a_terminal(manual: BisectSession) -> None:
 @pytest.mark.usefixtures("fake_components")
 def test_manual_run_without_a_terminal_is_refused_before_any_swap(manual: BisectSession, testbed: Testbed) -> None:
     result = invoke(["bisect", "run"])
-    assert result.exit_code == 1
-    assert "the scenario's test is manual and stdin is not a terminal" in str(result.exception)
+    assert isinstance(result.exception, NeedsHumanError)
+    assert "the scenario's test is manual and nobody can answer" in str(result.exception)
     reloaded = BisectSession(testbed, manual.name)
     assert reloaded.state.outcomes == {}
     assert reloaded.state.current is None
+
+
+@pytest.mark.usefixtures("fake_components", "terminal")
+def test_manual_run_is_refused_in_non_interactive_mode(manual: BisectSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert isinstance(invoke(["--non-interactive", "bisect", "run"]).exception, NeedsHumanError)
+    monkeypatch.setenv("QFT_NONINTERACTIVE", "1")
+    assert isinstance(invoke(["bisect", "run"]).exception, NeedsHumanError)
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_remove_session_with_yes_or_deprecated_force(manual: BisectSession, testbed: Testbed, tmp_path: Path) -> None:
+    refused = invoke(["bisect", "remove", "m"])
+    assert refused.exception is not None
+    assert getattr(refused.exception, "hint", None) == "pass --yes"
+    assert invoke(["bisect", "remove", "m", "--yes"]).exit_code == 0
+    assert BisectSession.names(testbed) == []
+    invoke(["bisect", "start", str(_write(tmp_path, _scenario("m", MANUAL)))])
+    forced = invoke(["bisect", "remove", "m", "--force"])
+    assert forced.exit_code == 0
+    assert "--force to skip the confirmation is deprecated" in forced.stderr

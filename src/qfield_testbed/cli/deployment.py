@@ -8,7 +8,17 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import OUTPUT, confirm, console, emit, ok, set_json_output, styled_status, warn
+from qfield_testbed.cli._console import (
+    OUTPUT,
+    confirm,
+    console,
+    deprecated_force,
+    emit,
+    ok,
+    set_json_output,
+    styled_status,
+    warn,
+)
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
 from qfield_testbed.errors import NotFoundError, UsageError
@@ -148,13 +158,17 @@ def restart(name: NameArg, component: ComponentOpt = None) -> None:
 @app.command()
 def remove(
     name: NameArg,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Do not ask for confirmation")] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation")] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Deprecated: use --yes")] = False,
 ) -> None:
     """Tear down containers, volumes and files of a deployment and free its slot (the cache is kept)."""
     deployment = Testbed().deployment(name)
-    if deployment.summary().session and not force:
+    if force:
+        deprecated_force()
+    confirmed = yes or force
+    if deployment.summary().session and not confirmed:
         warn(f"deployment '{name}' belongs to bisect session '{deployment.summary().session}'")
-    if not force and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):
+    if not confirmed and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):
         raise typer.Abort
     deployment.remove()
     ok(f"deployment [bold]{name}[/] removed")

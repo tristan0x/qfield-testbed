@@ -258,9 +258,9 @@ def test_remove_warns_about_bisect_session(testbed: Testbed) -> None:
     result = invoke(["deployment", "remove", "demo"], stdin="n\n")
     assert result.exit_code == 1
     assert "belongs to bisect session 'hunt'" in result.stderr
-    forced = invoke(["deployment", "remove", "demo", "--force"])
-    assert forced.exit_code == 0
-    assert "bisect session" not in forced.stderr
+    confirmed = invoke(["deployment", "remove", "demo", "--yes"])
+    assert confirmed.exit_code == 0
+    assert "bisect session" not in confirmed.stderr
     assert testbed.deployments() == []
 
 
@@ -354,9 +354,28 @@ def test_remove_without_a_terminal_names_the_way_out(testbed: Testbed) -> None:
     refused = invoke(["deployment", "remove", "demo"], stdin="")
     assert isinstance(refused.exception, RefusedError)
     assert str(refused.exception) == "refusing to remove 'demo' without confirmation: stdin is not a terminal"
-    assert refused.exception.hint == "pass --force"
+    assert refused.exception.hint == "pass --yes"
     assert [d.name for d in testbed.deployments()] == ["demo"]
-    assert invoke(["deployment", "remove", "demo", "--force"]).exit_code == 0
+    assert invoke(["deployment", "remove", "demo", "--yes"]).exit_code == 0
+    assert testbed.deployments() == []
+
+
+@pytest.mark.usefixtures("fake_components", "added", "terminal")
+def test_non_interactive_mode_refuses_even_with_a_terminal(testbed: Testbed, monkeypatch: pytest.MonkeyPatch) -> None:
+    for args in (["--non-interactive", "deployment", "remove", "demo"], ["--json", "deployment", "remove", "demo"]):
+        refused = invoke(args, stdin="y\n")
+        assert isinstance(refused.exception, RefusedError), args
+        assert "running non-interactively" in str(refused.exception)
+    monkeypatch.setenv("QFT_NONINTERACTIVE", "true")
+    assert isinstance(invoke(["deployment", "remove", "demo"], stdin="y\n").exception, RefusedError)
+    assert [d.name for d in testbed.deployments()] == ["demo"]
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_deprecated_force_still_removes_with_a_warning(testbed: Testbed) -> None:
+    result = invoke(["deployment", "remove", "demo", "--force"])
+    assert result.exit_code == 0
+    assert "use --yes" in result.stderr
     assert testbed.deployments() == []
 
 

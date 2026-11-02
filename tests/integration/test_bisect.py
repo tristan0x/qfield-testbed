@@ -77,6 +77,6 @@ def test_bisect_names_the_first_bad_release(qft: Qft) -> None:
     compose_project = deployment["components"]["qfieldcloud"]["compose_project"]
     assert deployment["components"]["qfieldcloud"]["revision"].startswith(QFIELDCLOUD_RELEASE)
 
-    qft("bisect", "remove", SESSION, "--force")
+    qft("bisect", "remove", SESSION, "--yes")
     assert info["deployment"] not in qft.names()
     assert compose_containers(compose_project) == []

@@ -24,7 +24,8 @@ logs / run helpers of `qft deployment`.
 
 `qft --json …` or `QFT_OUTPUT=json` switches to JSON mode, for every command. Stdout then carries **exactly one
 JSON document**; progress, `✓` lines, log records and warnings for humans go to stderr. `deployment show --json`
-and `bisect status --json` are aliases of the global flag.
+and `bisect status --json` are aliases of the global flag. [docs/json-output.md](../json-output.md) lists
+`data` for each command.
 
 ```json
 {"schema_version": 1, "ok": true, "data": {}, "warnings": []}
@@ -67,7 +68,8 @@ Recorded here so every sub-issue applies the same rules.
 
 - **Confirmation and override**: `--yes` skips a confirmation; `--force` overrides ownership guards. Until
   ownership exists, `--force` keeps its current meaning (skip the confirmation) with a deprecation warning.
-  Without a terminal, a command needing confirmation refuses (exit 8) instead of waiting on stdin.
+  Without a terminal, in JSON mode or with `--non-interactive` / `QFT_NONINTERACTIVE=1`, a command needing
+  a confirmation refuses (exit 8) instead of waiting on stdin, and a manual bisect test answers `NEEDS_HUMAN`.
 - **Readiness**: `start`, `restart` and `add --start` return only when the deployment is ready (this is already
   the case); a `--timeout` bounds them. No `--wait` flag.
 - **Ownership and TTL**: every deployment records an owner (`human`, `agent`, `bisect`) and, for agents, a

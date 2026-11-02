@@ -14,7 +14,7 @@ from qfield_testbed.bisect.runner import Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
-from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, warn
+from qfield_testbed.cli._console import confirm, console, deprecated_force, emit, ok, set_json_output, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import NeedsHumanError, NotFoundError, UsageError
 
@@ -92,10 +92,10 @@ def start(
 def run(session: SessionArg = None) -> None:
     """Swap, test and record candidates until the first bad one is known (resumes where it stopped)."""
     current = _session(Testbed(), session)
-    if current.state.scenario.test.manual and not _console.stdin_is_terminal():
+    if current.state.scenario.test.manual and not _console.is_interactive():
         # checked before the first swap: the prompt would otherwise come after minutes of building and starting
         raise NeedsHumanError(
-            "the scenario's test is manual and stdin is not a terminal",
+            "the scenario's test is manual and nobody can answer (no terminal, --json or --non-interactive)",
             hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
             docs="bisect",
         )
@@ -304,12 +304,15 @@ def reset(
 @app.command()
 def remove(
     session: Annotated[str, typer.Argument(show_default=False)],
-    force: Annotated[bool, typer.Option("--force", "-f")] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation")] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Deprecated: use --yes")] = False,
 ) -> None:
     """Delete a session and its deployment."""
+    if force:
+        deprecated_force()
     current = BisectSession(Testbed(), session)
     question = f"Remove session '{session}' and deployment '{current.state.deployment_name}'?"
-    if not force and not confirm(question, action=f"remove session '{session}'"):
+    if not (yes or force) and not confirm(question, action=f"remove session '{session}'"):
         raise typer.Abort
     current.remove()
     ok(f"session [bold]{session}[/] removed")

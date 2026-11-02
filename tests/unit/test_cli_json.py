@@ -70,7 +70,7 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     assert _json("deployment", "launch", "demo", "qgis")["exit_code"] == 0
     assert _json("deployment", "stop", "demo")["status"] == "stopped"
     assert _json("deployment", "restart", "demo")["status"] == "running"
-    assert _json("deployment", "remove", "demo", "--force") == {"name": "demo", "removed": True}
+    assert _json("deployment", "remove", "demo", "--yes") == {"name": "demo", "removed": True}
 
     cache = _json("cache", "list")
     assert set(cache) == {"cache_dir", "entries", "total_bytes"}
@@ -100,7 +100,7 @@ def test_every_bisect_command_answers_in_json(tmp_path: Path) -> None:
     assert _json("bisect", "reset")["tested"] == 0
     _json("bisect", "next")
     assert _json("bisect", "skip")["skipped"] == 1
-    assert _json("bisect", "remove", "m", "--force") == {"session": "m", "removed": True}
+    assert _json("bisect", "remove", "m", "--yes") == {"session": "m", "removed": True}
 
     _script(tmp_path, {0: 0, 1: 1, 2: 1})
     scripted = tmp_path / "s.yaml"

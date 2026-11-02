@@ -92,7 +92,7 @@ def test_a_second_deployment_runs_beside_the_first_one(qft: Qft, alpha: dict[str
     stolen = {"username": alpha["test_account"]["username"], "password": alpha["test_account"]["password"]}
     assert requests.post(api(beta) + "auth/token/", json=stolen, timeout=30).status_code == 401
 
-    qft("deployment", "remove", BETA, "--force")
+    qft("deployment", "remove", BETA, "--yes")
     assert compose_containers(beta_project) == []
     assert compose_volumes(beta_project) == []
     assert not network_exists(beta["network"])
@@ -115,7 +115,7 @@ def test_stop_then_start_keeps_the_data(qft: Qft, alpha: dict[str, Any]) -> None
 def test_remove_leaves_nothing_behind(qft: Qft, alpha: dict[str, Any]) -> None:
     compose_project = alpha["components"]["qfieldcloud"]["compose_project"]
 
-    qft("deployment", "remove", ALPHA, "--force")
+    qft("deployment", "remove", ALPHA, "--yes")
 
     assert ALPHA not in qft.names()
     assert not (qft.root / "home" / "deployments" / ALPHA).exists()

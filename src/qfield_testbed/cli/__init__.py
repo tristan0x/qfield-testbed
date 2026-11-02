@@ -20,6 +20,7 @@ from qfield_testbed.cli._console import (
     emit_error,
     error,
     json_requested,
+    non_interactive_requested,
     print_hint,
     set_json_output,
     stderr,
@@ -56,9 +57,14 @@ def root(
         bool,
         typer.Option("--json", help="One JSON document on stdout (the envelope); also QFT_OUTPUT=json"),
     ] = False,
+    non_interactive: Annotated[
+        bool,
+        typer.Option("--non-interactive", help="Never prompt: refuse what needs a person; also QFT_NONINTERACTIVE=1"),
+    ] = False,
     _: Annotated[bool, typer.Option("--version", callback=_version, is_eager=True, help="Show the version")] = False,
 ) -> None:
     set_json_output(json_ or OUTPUT.requested or os.environ.get("QFT_OUTPUT", "").lower() == "json")
+    OUTPUT.non_interactive = non_interactive or non_interactive_requested()
     level = logging.WARNING if verbose == 0 else logging.INFO if verbose == 1 else logging.DEBUG
     logging.basicConfig(
         level=level,

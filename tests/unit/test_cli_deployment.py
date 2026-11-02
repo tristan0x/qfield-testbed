@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterator, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -20,6 +21,7 @@ from qfield_testbed.errors import (
     HealthTimeoutError,
     MaterializationUnavailableError,
     RefusedError,
+    ResourceExhaustedError,
     TestbedError,
     TimeoutExceededError,
     UnknownDeploymentError,
@@ -402,11 +404,11 @@ def test_non_interactive_mode_refuses_even_with_a_terminal(testbed: Testbed, mon
 
 
 @pytest.mark.usefixtures("fake_components", "added")
-def test_deprecated_force_still_removes_with_a_warning(testbed: Testbed) -> None:
+def test_force_no_longer_skips_the_confirmation(testbed: Testbed) -> None:
     result = invoke(["deployment", "remove", "demo", "--force"])
-    assert result.exit_code == 0
-    assert "use --yes" in result.stderr
-    assert testbed.deployments() == []
+    assert isinstance(result.exception, RefusedError)
+    assert result.exception.hint == "pass --yes"
+    assert [d.name for d in testbed.deployments()] == ["demo"]
 
 
 @pytest.mark.usefixtures("fake_components", "added")
@@ -458,3 +460,96 @@ def test_failed_start_answers_with_details_in_json(
         "step": "health",
         "probe": "http://127.0.0.1:1/",
     }
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+@pytest.mark.parametrize(
+    ("args", "touches"),
+    [
+        (["deployment", "show", "demo"], True),
+        (["deployment", "env", "demo"], True),
+        (["deployment", "logs", "demo"], True),
+        (["deployment", "start", "demo"], True),
+        (["deployment", "list"], False),
+        (["deployment", "stop", "demo"], False),
+    ],
+)
+def test_using_a_deployment_restarts_its_ttl(
+    testbed: Testbed, monkeypatch: pytest.MonkeyPatch, args: list[str], touches: bool
+) -> None:
+    later = datetime(2030, 1, 1, tzinfo=UTC)
+    monkeypatch.setattr("qfield_testbed.state._now", lambda: later)
+    assert invoke(args).exit_code == 0
+    assert (testbed.registry.load().deployments["demo"].last_used_at == later) is touches
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_deployments_get_the_configured_ttl(testbed: Testbed) -> None:
+    agent = testbed.add(DeploymentSpec.from_yaml(SPEC), agent_session="s1")
+    human = testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))
+    assert agent.summary().ttl_s == 24 * 3600
+    assert (agent.summary().owner, human.summary().owner) == ("agent", "human")
+    assert human.summary().expires_at is None
+    assert (
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "short")), agent_session="s1", ttl=60).summary().ttl_s
+        == 60
+    )
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_session_owns_what_it_adds(testbed: Testbed, spec_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert invoke(["--agent-session", "s1", "deployment", "add", str(spec_file), "--ttl", "8h"]).exit_code == 0
+    monkeypatch.setenv("QFT_AGENT_SESSION", "s2")
+    assert invoke(["deployment", "add", str(spec_file), "--name", "other"]).exit_code == 0
+    entries = testbed.registry.load().deployments
+    assert (entries["demo"].agent_session, entries["demo"].ttl_s) == ("s1", 8 * 3600)
+    assert (entries["other"].agent_session, entries["other"].ttl_s) == ("s2", 24 * 3600)
+    listed = json.loads(invoke(["--json", "deployment", "list", "--agent-session", "s1"]).stdout)["data"]
+    assert [d["name"] for d in listed["deployments"]] == ["demo"]
+    monkeypatch.delenv("QFT_AGENT_SESSION")
+    human = json.loads(invoke(["--json", "deployment", "list", "--owner", "human"]).stdout)["data"]
+    assert human["deployments"] == []
+    assert "unknown owner" in str(invoke(["deployment", "list", "--owner", "robot"]).exception)
+    text = invoke(["deployment", "list"]).output
+    assert "agent s1" in text
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_keep_extends_or_clears_the_ttl(testbed: Testbed) -> None:
+    assert "kept until" in invoke(["deployment", "keep", "demo", "--ttl", "2d"]).output
+    assert testbed.registry.load().deployments["demo"].ttl_s == 2 * 86400
+    assert "with no expiry" in invoke(["deployment", "keep", "demo", "--ttl", "none"]).output
+    assert testbed.registry.load().deployments["demo"].expires_at is None
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_sessions_only_touch_their_own_deployments(testbed: Testbed) -> None:
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))  # a person's
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "a-one")), agent_session="a")
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "b-one")), agent_session="b")
+    as_a = ["--agent-session", "a", "deployment"]
+    for target in ("mine", "b-one"):
+        for verb in (
+            ["stop", target],
+            ["restart", target],
+            ["remove", target, "--yes"],
+            ["keep", target, "--ttl", "1d"],
+        ):
+            refused = invoke([*as_a, *verb])
+            assert isinstance(refused.exception, RefusedError), (target, verb)
+            assert refused.exception.details["owner"] in {"human", "agent"}
+    assert sorted(d.name for d in testbed.deployments()) == ["a-one", "b-one", "mine"]
+    assert invoke([*as_a, "stop", "a-one"]).exit_code == 0
+    assert invoke([*as_a, "remove", "b-one", "--yes", "--force"]).exit_code == 0
+    assert invoke(["deployment", "remove", "a-one", "--yes"]).exit_code == 0  # a person may remove anything
+    assert [d.name for d in testbed.deployments()] == ["mine"]
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_deployments_are_capped(testbed: Testbed) -> None:
+    testbed.config.max_agent_deployments = 2
+    for name in ("a1", "a2"):
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", name)), agent_session="a")
+    with pytest.raises(ResourceExhaustedError, match="max_agent_deployments"):
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "a3")), agent_session="b")
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))  # people are not capped

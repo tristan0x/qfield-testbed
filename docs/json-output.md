@@ -20,6 +20,8 @@ appear in any release; removing or renaming one bumps `schema_version`.
 | Field | Content |
 |---|---|
 | `name`, `status`, `slot` | identity and overall status |
+| `owner`, `agent_session` | `human`, `agent` (with its session) or `bisect` |
+| `created_at`, `last_used_at`, `ttl_s`, `expires_at` | the sliding expiry; `ttl_s` and `expires_at` are `null` when it never expires |
 | `directory` | `$QFT_HOME/deployments/<name>` |
 | `network` | the Docker network of the deployment |
 | `ports` | service name → host port, in the slot's port block |
@@ -28,7 +30,8 @@ appear in any release; removing or renaming one bumps `schema_version`.
 
 | Command | `data` |
 |---|---|
-| `deployment list` | `{deployments: [{name, slot, status, port_base, port_last, components: {name: status}, session}]}` — never credentials; `session` is the bisect session owning it |
+| `deployment list [--owner O] [--agent-session S]` | `{deployments: [{name, slot, status, port_base, port_last, components: {name: status}, session, owner, agent_session, created_at, last_used_at, ttl_s, expires_at}]}` — never credentials; `session` is the bisect session owning it |
+| `deployment keep NAME --ttl T` | the same summary, with the new expiry |
 | `deployment remove NAME --yes` | `{name, removed: true}` |
 | `deployment env NAME` | `{variables: {QFT_…: value}}`, also with `--format json`; see [The QFT_* environment](environment.md) |
 | `deployment launch NAME TARGET` | `{launcher, exit_code}` once the client is closed |

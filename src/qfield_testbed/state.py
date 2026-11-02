@@ -9,13 +9,13 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, get_args
 
 from filelock import FileLock
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from qfield_testbed.errors import DeploymentExistsError, NoFreeSlotError, UnknownDeploymentError
 from qfield_testbed.paths import Paths
@@ -72,12 +72,38 @@ class DeploymentState(BaseModel):
         return self.components.setdefault(name, ComponentState())
 
 
+Owner = Literal["human", "agent", "bisect"]
+OWNERS: tuple[str, ...] = get_args(Owner)
+
+
 class RegistryEntry(BaseModel):
+    """A deployment in the registry: its slot, who owns it and when it expires (see docs/isolation.md)."""
+
     model_config = ConfigDict(extra="forbid")
 
     slot: int
-    created_at: datetime = Field(default_factory=_now)
+    # looked up at call time, so tests can move the clock
+    created_at: datetime = Field(default_factory=lambda: _now())  # noqa: PLW0108
     session: str | None = Field(default=None, description="Bisect session owning this deployment, if any")
+    owner: Owner = "human"
+    agent_session: str | None = Field(default=None, description="Agent session that created it (QFT_AGENT_SESSION)")
+    last_used_at: datetime = Field(default_factory=lambda: _now())  # noqa: PLW0108
+    ttl_s: float | None = Field(default=None, description="Removable by `qft gc` this long after its last use")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_older_registries(cls, data: Any) -> Any:
+        """Entries written before owners existed: bisect-owned when a session is set, human otherwise."""
+        if isinstance(data, dict) and "owner" not in data:
+            data = {**data, "owner": "bisect" if data.get("session") else "human"}
+            if "created_at" in data:
+                data.setdefault("last_used_at", data["created_at"])
+        return data
+
+    @property
+    def expires_at(self) -> datetime | None:
+        """Sliding expiry: every use pushes it back by the TTL."""
+        return self.last_used_at + timedelta(seconds=self.ttl_s) if self.ttl_s is not None else None
 
 
 class RegistryData(BaseModel):
@@ -111,7 +137,15 @@ class Registry:
     def names(self) -> list[str]:
         return sorted(self.load().deployments)
 
-    def register(self, spec: DeploymentSpec, *, prober: PortProber, session: str | None = None) -> DeploymentState:
+    def register(
+        self,
+        spec: DeploymentSpec,
+        *,
+        prober: PortProber,
+        session: str | None = None,
+        agent_session: str | None = None,
+        ttl_s: float | None = None,
+    ) -> DeploymentState:
         """Allocate a slot, write the spec and the initial state; the deployment dir is created here."""
         with self.locked() as data:
             if spec.name in data.deployments:
@@ -120,13 +154,31 @@ class Registry:
             slot = find_free_slot(used, port_base=self.port_base, max_slots=self.max_slots, prober=prober)
             if slot is None:
                 raise NoFreeSlotError(self.max_slots)
-            data.deployments[spec.name] = RegistryEntry(slot=slot, session=session)
+            owner: Owner = "bisect" if session else "agent" if agent_session else "human"
+            data.deployments[spec.name] = RegistryEntry(
+                slot=slot, session=session, owner=owner, agent_session=agent_session, ttl_s=ttl_s
+            )
             directory = self.paths.deployment_dir(spec.name)
             directory.mkdir(parents=True, exist_ok=False)
             (directory / "spec.yaml").write_text(spec.to_yaml())
             state = DeploymentState(name=spec.name, slot=slot)
             save_state(directory, state)
             return state
+
+    def touch(self, name: str) -> None:
+        """Record a use of ``name`` now: its TTL starts over."""
+        with self.locked() as data:
+            if name not in data.deployments:
+                raise UnknownDeploymentError(name)
+            data.deployments[name].last_used_at = _now()
+
+    def set_ttl(self, name: str, ttl_s: float | None) -> None:
+        """Replace the TTL of ``name`` (None: never expires); counts as a use."""
+        with self.locked() as data:
+            if name not in data.deployments:
+                raise UnknownDeploymentError(name)
+            data.deployments[name].ttl_s = ttl_s
+            data.deployments[name].last_used_at = _now()
 
     def unregister(self, name: str) -> None:
         with self.locked() as data:

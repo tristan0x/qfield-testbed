@@ -240,7 +240,7 @@ def test_remove_session(manual: BisectSession, testbed: Testbed) -> None:
     assert "Remove session 'm' and deployment 'bs-m'?" in declined.output
     assert manual.directory.is_dir()
 
-    removed = invoke(["bisect", "remove", "m", "-f"])
+    removed = invoke(["bisect", "remove", "m", "-y"])
     assert removed.exit_code == 0
     assert "session m removed" in removed.output
     assert not manual.directory.exists()
@@ -273,13 +273,13 @@ def test_manual_run_is_refused_in_non_interactive_mode(manual: BisectSession, mo
 
 
 @pytest.mark.usefixtures("fake_components")
-def test_remove_session_with_yes_or_deprecated_force(manual: BisectSession, testbed: Testbed, tmp_path: Path) -> None:
+def test_remove_session_needs_yes_and_agents_need_force(manual: BisectSession, testbed: Testbed) -> None:
+    invoke(["bisect", "next"])  # creates the session's deployment
     refused = invoke(["bisect", "remove", "m"])
     assert refused.exception is not None
     assert getattr(refused.exception, "hint", None) == "pass --yes"
-    assert invoke(["bisect", "remove", "m", "--yes"]).exit_code == 0
+    assert "pass --yes" in str(getattr(invoke(["bisect", "remove", "m", "--force"]).exception, "hint", ""))
+    agent = invoke(["--agent-session", "s1", "bisect", "remove", "m", "--yes"])
+    assert "belongs to bisect session 'm'" in str(agent.exception)
+    assert invoke(["--agent-session", "s1", "bisect", "remove", "m", "--yes", "--force"]).exit_code == 0
     assert BisectSession.names(testbed) == []
-    invoke(["bisect", "start", str(_write(tmp_path, _scenario("m", MANUAL)))])
-    forced = invoke(["bisect", "remove", "m", "--force"])
-    assert forced.exit_code == 0
-    assert "--force to skip the confirmation is deprecated" in forced.stderr

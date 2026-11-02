@@ -73,12 +73,13 @@ Recorded here so every sub-issue applies the same rules.
 - **Readiness**: `start`, `restart` and `add --start` return only when the deployment is ready (this is already
   the case); a `--timeout` bounds them. No `--wait` flag.
 - **Ownership and TTL**: every deployment records an owner (`human`, `agent`, `bisect`) and, for agents, a
-  session. Agent deployments get a **sliding** TTL of 24 h by default: `expires_at = last_used_at + ttl`, where
+  session, given by `--agent-session` / `QFT_AGENT_SESSION` (`QFT_SESSION` is the bisect session of test
+  scripts). Agent deployments get a **sliding** TTL of 24 h by default: `expires_at = last_used_at + ttl`, where
   `last_used_at` is refreshed by `ensure`, `start`, `restart`, `show`, `env`, `run` and `logs`, not by `list`,
   `gc` or `doctor`. Human deployments have no TTL unless asked.
 - **Identity for `ensure`**: the hash of the normalized spec (`git:<ref>` resolved to a sha, paths made
   absolute). The version of a host QGIS is not part of it; a change since creation is reported as a warning.
-- **No `qft session` command group**: `--session` filters on `deployment list` and `gc` cover it.
+- **No `qft session` command group**: `--agent-session` filters on `deployment list` and `gc` cover it.
 - **MCP server** in the optional extra `qfield-testbed[mcp]`, stdio only, as thin as the CLI over the same core.
 - **`qft agent install`** copies the skill and writes no snippet into the user's `CLAUDE.md`.
 

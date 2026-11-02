@@ -88,10 +88,6 @@ def confirm(question: str, *, action: str) -> bool:
     return typer.confirm(question)
 
 
-def deprecated_force() -> None:
-    warn("--force to skip the confirmation is deprecated and will only override ownership checks; use --yes")
-
-
 def error(message: str) -> None:
     stderr.print(f"[bold red]error:[/] {message}")
 

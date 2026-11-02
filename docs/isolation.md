@@ -46,6 +46,25 @@ One thing is shared on purpose: QFieldCloud's worker hands `/tmp/<job>` host pat
 spawns through the Docker socket (`TMP_FILE` is hardcoded in `worker_wrapper/wrapper.py`), so `TMP_DIRECTORY`
 must be the host's `/tmp` for every deployment. Job directories are named randomly and removed after each job.
 
+## Owners, sessions and expiry
+
+Every deployment records who owns it:
+
+| Owner | When | Expires |
+|---|---|---|
+| `human` | added without an agent session | never, unless `--ttl` |
+| `agent` | added with `qft --agent-session ID …` or `QFT_AGENT_SESSION=ID` | `agent_ttl` after its last use (24h by default) |
+| `bisect` | the deployment of a bisect session | never |
+
+The TTL slides: `start`, `restart`, `show`, `env`, `run` and `logs` count as a use and push the expiry back;
+`list`, `stop` and `doctor` don't. `qft deployment add --ttl 8h|none` sets it at creation,
+`qft deployment keep NAME --ttl 3d|none` later. `qft deployment list` shows OWNER and EXPIRES, and filters on
+`--owner` and `--agent-session`.
+
+An agent session may only stop, restart, remove or keep **its own** deployments: anything a person, a bisect
+session or another agent session owns is refused (exit 8) unless `--force`. People are never restricted.
+Agent sessions own at most `max_agent_deployments` deployments in all (10 by default; exit 4 beyond).
+
 ## Locks
 
 Registry mutations and slot allocation take `$QFT_HOME/registry.lock`; `start`, `stop`, `remove` and `swap` take

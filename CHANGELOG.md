@@ -35,6 +35,12 @@ All notable changes to this project are documented here. The format follows
   such as `release:v26.28` included, for editors and agents (#31).
 - Spec and scenario errors give the YAML line of each problem, and `--json` lists them as
   `{path, message, line, column}`; `qft spec validate -` reads stdin (#31).
+- Deployments record their owner — a person, an agent session (`qft --agent-session ID`, `QFT_AGENT_SESSION`)
+  or a bisect session — and a sliding expiry: agent deployments expire 24h after their last use
+  (`agent_ttl`), `deployment add --ttl` and `qft deployment keep NAME --ttl` change it, `deployment list` shows
+  and filters both (#32).
+- An agent session may only stop, restart, remove or keep its own deployments unless `--force`, and agent
+  sessions own at most `max_agent_deployments` (10) deployments (#32).
 - `qft docs [TOPIC]` prints the documentation shipped in the package, matching the installed version; the
   `docs` field of JSON errors names one of its topics (#31).
 
@@ -84,7 +90,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Deprecated
 
-- `--force` to skip a confirmation: use `--yes`. `--force` will only override ownership checks (#27).
+- `--force` to skip a confirmation: use `--yes` (#27). Since #32 `--force` only overrides ownership checks and
+  no longer skips confirmations.
 
 ### Fixed
 

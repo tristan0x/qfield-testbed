@@ -98,6 +98,14 @@ With `qgis: host` and no display (SSH session, CI, an agent's shell), the launch
 | `QFT_QFIELD_DESKTOP_QFIELDCLOUD_URL` | the server it is configured for |
 | `QFT_QFIELD_DESKTOP_SETTINGS_FILE` | its settings file |
 
+## Set by you
+
+| Variable | Effect |
+|---|---|
+| `QFT_AGENT_SESSION` | same as `qft --agent-session ID`: deployments added are owned by that agent session, which may only stop or remove its own ([isolation](isolation.md)) |
+| `QFT_OUTPUT=json` | same as `qft --json` |
+| `QFT_NONINTERACTIVE=1` | same as `qft --non-interactive` |
+
 ## Bisect test scripts
 
 On top of the above, a bisect test script gets `QFT_BISECT_COMPONENT`, `QFT_BISECT_INDEX`,

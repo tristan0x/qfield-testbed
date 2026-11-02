@@ -74,6 +74,8 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     assert _json("deployment", "launch", "demo", "qgis")["exit_code"] == 0
     assert _json("deployment", "stop", "demo")["status"] == "stopped"
     assert _json("deployment", "restart", "demo")["status"] == "running"
+    kept = _json("deployment", "keep", "demo", "--ttl", "3d")
+    assert (kept["ttl_s"], kept["owner"]) == (3 * 86400, "human")
     assert _json("deployment", "remove", "demo", "--yes") == {"name": "demo", "removed": True}
 
     cache = _json("cache", "list")
@@ -126,7 +128,20 @@ def test_no_command_is_left_without_json() -> None:
         "spec schema",
         *(
             f"deployment {c}"
-            for c in ("add", "list", "start", "show", "env", "logs", "run", "launch", "stop", "restart", "remove")
+            for c in (
+                "add",
+                "list",
+                "start",
+                "show",
+                "env",
+                "logs",
+                "run",
+                "launch",
+                "stop",
+                "restart",
+                "keep",
+                "remove",
+            )
         ),
         "cache list",
         "cache prune",

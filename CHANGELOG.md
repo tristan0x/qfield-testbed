@@ -21,6 +21,12 @@ All notable changes to this project are documented here. The format follows
 - `qft doctor` ends with a capability matrix — which components, QGIS modes and version sources this host can
   run, what each one is missing and how to fix it — and `qft doctor --require KEY` exits 3 when a capability
   is missing; `--json` returns the matrix and the slots in use (#28).
+- `qft deployment env NAME --format shell|dotenv|json`; [docs/environment.md](docs/environment.md) documents
+  every `QFT_*` variable, and a test keeps it in step with what the components export (#29).
+- `qft deployment logs` takes `--tail N`, `--since T` and `--service S`; with `--json` it returns the lines
+  instead of printing them, and never follows (#29).
+- `qft deployment run NAME --timeout 10m -- CMD` kills the command and its children when it runs too long
+  (exit 6); with `--json` it captures the output and returns the exit code, duration and output tails (#29).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

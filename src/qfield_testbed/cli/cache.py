@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import timedelta
 from typing import Annotated, Any
 
@@ -10,20 +9,10 @@ from rich.table import Table
 from qfield_testbed.cache import dir_size, human_size
 from qfield_testbed.cli._console import console, emit, ok
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import UsageError
+from qfield_testbed.durations import parse_duration
 from qfield_testbed.runtimes import docker
 
 app = typer.Typer(no_args_is_help=True)
-
-_DURATION = re.compile(r"^(\d+)([dhm])$")
-_UNITS = {"d": "days", "h": "hours", "m": "minutes"}
-
-
-def parse_duration(value: str) -> timedelta:
-    match = _DURATION.match(value)
-    if not match:
-        raise UsageError(f"invalid duration '{value}'; use e.g. 30d, 12h, 90m")
-    return timedelta(**{_UNITS[match.group(2)]: int(match.group(1))})
 
 
 @app.command("list")

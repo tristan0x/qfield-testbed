@@ -56,16 +56,11 @@ swap, so `Ctrl-C` and `qft bisect run` again continues where it stopped.
 
 ## The test script
 
-It runs with the session deployment's environment:
+It runs with the session deployment's `QFT_*` environment — URLs, test account, launchers, revisions, all listed
+in [The QFT_* environment](environment.md) — plus the candidate under test:
 
 | Variable | Meaning |
 |---|---|
-| `QFT_DEPLOYMENT`, `QFT_DEPLOYMENT_DIR`, `QFT_NETWORK` | the deployment |
-| `QFT_QFIELDCLOUD_URL`, `QFT_QFIELDCLOUD_URL_INTERNAL`, `QFT_QFIELDCLOUD_VERSION` | server base URL from the host / from the Docker network; the revision label it runs |
-| `QFT_QFIELDCLOUD_USERNAME`, `QFT_QFIELDCLOUD_PASSWORD`, `QFT_QFIELDCLOUD_TOKEN` | the test account |
-| `QFT_QGIS_LAUNCHER`, `QFT_QGIS_PROFILE` | QGIS with the deployment's profile |
-| `QFT_QFIELD_ANDROID_ADB`, `QFT_QFIELD_ANDROID_QFIELDCLOUD_URL` | `adb` against the emulator; the URL as seen from Android |
-| `QFT_REVISION_<COMPONENT>` | every component's revision |
 | `QFT_BISECT_COMPONENT`, `QFT_BISECT_INDEX`, `QFT_BISECT_CANDIDATE`, `QFT_BISECT_SHA` | the candidate under test |
 | `QFT_SESSION`, `QFT_SESSION_DIR` | the session and where to leave extra logs |
 

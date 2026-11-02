@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
+import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated
 
@@ -21,7 +24,9 @@ from qfield_testbed.cli._console import (
 )
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
-from qfield_testbed.errors import NotFoundError, UsageError
+from qfield_testbed.durations import parse_duration
+from qfield_testbed.envfmt import FORMATS, render
+from qfield_testbed.errors import NotFoundError, TimeoutExceededError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
 app = typer.Typer(no_args_is_help=True)
@@ -178,17 +183,27 @@ def remove(
 @app.command()
 def logs(
     name: NameArg,
+    *,
     component: ComponentOpt = None,
-    follow: Annotated[bool, typer.Option("--follow", "-f")] = False,
+    service: Annotated[
+        str | None, typer.Option("--service", help="One compose service, e.g. app or worker_wrapper")
+    ] = None,
+    tail: Annotated[int | None, typer.Option("--tail", "-n", help="Last N lines per component (default 200)")] = 200,
+    since: Annotated[
+        str | None, typer.Option("--since", help="Only lines newer than this, e.g. 10m or an ISO date")
+    ] = None,
+    follow: Annotated[bool, typer.Option("--follow", "-f", help="Keep streaming (not with --json)")] = False,
 ) -> None:
     """Show container logs of the deployment."""
-    _not_in_json_mode("deployment logs")
+    if follow and OUTPUT.json:
+        raise UsageError("--follow streams forever and cannot answer with one JSON document", hint="drop --follow")
     deployment = Testbed().deployment(name)
+    captured: dict[str, str] = {}
     for comp in deployment.components(component):
-        show_logs = getattr(comp, "logs", None)
-        if show_logs is None:
-            continue
-        show_logs(follow=follow)
+        text = comp.logs(follow=follow, tail=tail, since=since, service=service, capture=OUTPUT.json)
+        if text is not None:
+            captured[comp.name] = text
+    emit({"components": captured}, human=lambda: None)
 
 
 @app.command()
@@ -217,35 +232,50 @@ def launch(
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def run(ctx: typer.Context, name: NameArg) -> None:
+def run(
+    ctx: typer.Context,
+    name: NameArg,
+    timeout: Annotated[
+        str | None, typer.Option("--timeout", help="Kill the command (and its children) after e.g. 90s, 10m")
+    ] = None,
+    tail_lines: Annotated[int, typer.Option("--tail-lines", help="Output lines kept in the JSON result")] = 200,
+) -> None:
     """Run a command with the deployment's QFT_* environment (URLs, credentials, launchers)."""
-    _not_in_json_mode("deployment run")
     cmd = list(ctx.args)
     if cmd and cmd[0] == "--":
         cmd = cmd[1:]
     if not cmd:
-        raise UsageError("usage: qft deployment run NAME -- CMD [ARGS...]")
-    env = {**os.environ, **Testbed().deployment(name).env()}
-    completed = subprocess.run(cmd, env=env, check=False)
-    raise typer.Exit(completed.returncode)
+        raise UsageError("usage: qft deployment run NAME [--timeout 10m] -- CMD [ARGS...]")
+    seconds = parse_duration(timeout).total_seconds() if timeout else None
+    result = Testbed().deployment(name).run(cmd, timeout=seconds, capture=OUTPUT.json, tail_lines=tail_lines)
+    if result.timed_out:
+        raise TimeoutExceededError(
+            f"`{shlex.join(cmd)}` did not finish within {timeout}; it was killed",
+            hint="raise --timeout, or look at the output tails in details",
+            details=asdict(result),
+        )
+    emit(result, human=lambda: None)
+    if not OUTPUT.json:
+        # the command's own exit code, as if it had been run directly
+        raise typer.Exit(result.exit_code or 0)
 
 
 @app.command()
-def env(name: NameArg) -> None:
+def env(
+    name: NameArg,
+    fmt: Annotated[
+        str, typer.Option("--format", "-F", help="shell (`export K='v'`, for eval), dotenv (`K=\"v\"`) or json")
+    ] = "shell",
+) -> None:
     """Print the QFT_* environment of a deployment, ready for `eval "$(qft deployment env NAME)"`."""
+    if fmt not in FORMATS:
+        raise UsageError(f"unknown format '{fmt}'", hint="one of: " + ", ".join(FORMATS))
+    if fmt == "json":
+        set_json_output(True)
     variables = dict(sorted(Testbed().deployment(name).env().items()))
-    emit({"variables": variables}, human=lambda: _print_exports(variables))
+    # plain stdout, not rich: the output is meant for `eval` or a file
+    emit({"variables": variables}, human=lambda: _write(render(variables, fmt)))
 
 
-def _print_exports(variables: dict[str, str]) -> None:
-    for key, value in variables.items():
-        print(f"export {key}={_shell_quote(value)}")  # noqa: T201 - plain stdout, meant for `eval`
-
-
-def _not_in_json_mode(command: str) -> None:
-    if OUTPUT.json:
-        raise UsageError(f"`qft {command}` does not support --json yet", hint="run it without --json")
-
-
-def _shell_quote(value: str) -> str:
-    return "'" + value.replace("'", "'\\''") + "'"
+def _write(text: str) -> None:
+    sys.stdout.write(text)

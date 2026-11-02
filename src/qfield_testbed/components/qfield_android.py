@@ -214,8 +214,17 @@ class QFieldAndroid(Component):
     def remove(self) -> None:
         self.backend().down()
 
-    def logs(self, *, follow: bool = False) -> None:
-        self.backend().compose().logs(follow=follow)
+    def logs(
+        self,
+        *,
+        follow: bool = False,
+        tail: int | None = 200,
+        since: str | None = None,
+        service: str | None = None,
+        capture: bool = False,
+    ) -> str | None:
+        services = (service,) if service else ()
+        return self.backend().compose().logs(*services, follow=follow, tail=tail, since=since, capture=capture)
 
     def describe(self) -> dict[str, Any]:
         backend = self.backend()

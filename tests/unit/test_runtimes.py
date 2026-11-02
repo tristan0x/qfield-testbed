@@ -555,8 +555,9 @@ def test_compose_commands_minimal() -> None:
     compose.down(volumes=False)
     compose.down(volumes=True)
     compose.exec_run("app", "manage.py", "migrate")
-    compose.logs("app", follow=True, tail="10")
+    compose.logs("app", follow=True, tail=10)
     compose.logs()
+    compose.logs(tail=None, since="5m", capture=True)
     base = "docker compose -p p -f c.yml"
     assert runner.commands() == [
         f"{base} up -d --remove-orphans --no-build",
@@ -566,9 +567,11 @@ def test_compose_commands_minimal() -> None:
         f"{base} run --rm --no-deps app manage.py migrate",
         f"{base} logs --tail 10 -f app",
         f"{base} logs --tail 200",
+        f"{base} logs --tail all --since 5m",
     ]
     assert all(kwargs["env"] is None and kwargs["cwd"] is None for kwargs in runner.kwargs)
-    assert [kwargs["check"] for kwargs in runner.kwargs] == [True, False, False, False, True, False, False]
+    assert [kwargs["check"] for kwargs in runner.kwargs] == [True, False, False, False, True, False, False, False]
+    assert [kwargs["capture"] for kwargs in runner.kwargs][-3:] == [False, False, True]
 
 
 def _http_error(status: int) -> requests.HTTPError:

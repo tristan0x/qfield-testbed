@@ -30,9 +30,10 @@ appear in any release; removing or renaming one bumps `schema_version`.
 |---|---|
 | `deployment list` | `{deployments: [{name, slot, status, port_base, port_last, components: {name: status}, session}]}` — never credentials; `session` is the bisect session owning it |
 | `deployment remove NAME --yes` | `{name, removed: true}` |
-| `deployment env NAME` | `{variables: {QFT_…: value}}` |
+| `deployment env NAME` | `{variables: {QFT_…: value}}`, also with `--format json`; see [The QFT_* environment](environment.md) |
 | `deployment launch NAME TARGET` | `{launcher, exit_code}` once the client is closed |
-| `deployment logs`, `deployment run` | not available in JSON mode yet: `USAGE` error |
+| `deployment logs NAME [--tail N] [--since T] [--service S]` | `{components: {name: text}}` for the components that have logs; `--follow` is refused |
+| `deployment run NAME [--timeout T] [--tail-lines N] -- CMD` | `{exit_code, duration_s, timed_out, stdout_tail, stderr_tail}`: `ok` is true whenever the command ran, its own failure is `exit_code`; past `--timeout` the whole process group is killed and the answer is a `TIMEOUT` error (exit 6) carrying the same fields in `details` |
 
 ## Bisect
 

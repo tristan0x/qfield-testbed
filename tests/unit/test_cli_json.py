@@ -17,8 +17,6 @@ from tests.unit.test_cli_bisect import testbed as bisect_testbed  # noqa: F401 -
 from tests.unit.test_cli_deployment import fake_components, invoke, isolate  # noqa: F401
 
 SPEC = "name: demo\nqgis: {version: host}\n"
-# need a terminal-less stream or a running process: covered by their own sub-issue (#29)
-NOT_YET_JSON = {"deployment logs", "deployment run"}
 
 
 def _leaf_commands(group: Any, prefix: str = "") -> set[str]:
@@ -69,6 +67,8 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     shown = _json("deployment", "show", "demo")
     assert shown["components"]["qgis"]["profile"] == "testbed"
     assert _json("deployment", "env", "demo")["variables"]["QFT_DEPLOYMENT"] == "demo"
+    assert _json("deployment", "logs", "demo")["components"] == {"qgis": "qgis says hi\n"}
+    assert _json("deployment", "run", "demo", "--", "true")["exit_code"] == 0
     assert _json("deployment", "launch", "demo", "qgis")["exit_code"] == 0
     assert _json("deployment", "stop", "demo")["status"] == "stopped"
     assert _json("deployment", "restart", "demo")["status"] == "running"
@@ -112,7 +112,7 @@ def test_every_bisect_command_answers_in_json(tmp_path: Path) -> None:
 
 
 def test_no_command_is_left_without_json() -> None:
-    """A new command must get a JSON case above (or a reason in NOT_YET_JSON)."""
+    """A new command must get a JSON case above."""
     leaves = _leaf_commands(get_command(app))
     covered = {
         "doctor",
@@ -120,7 +120,10 @@ def test_no_command_is_left_without_json() -> None:
         "config path",
         "spec example",
         "spec validate",
-        *(f"deployment {c}" for c in ("add", "list", "start", "show", "env", "launch", "stop", "restart", "remove")),
+        *(
+            f"deployment {c}"
+            for c in ("add", "list", "start", "show", "env", "logs", "run", "launch", "stop", "restart", "remove")
+        ),
         "cache list",
         "cache prune",
         *(
@@ -129,16 +132,4 @@ def test_no_command_is_left_without_json() -> None:
         ),
         "bisect remove",
     }
-    assert leaves == covered | NOT_YET_JSON
-
-
-@pytest.mark.usefixtures("fake_components")
-@pytest.mark.parametrize("command", sorted(NOT_YET_JSON))
-def test_streaming_commands_refuse_json_for_now(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runner: FakeRunner, command: str
-) -> None:
-    isolate(tmp_path, monkeypatch, runner)
-    extra = ["--", "true"] if command.endswith("run") else []
-    result = invoke(["--json", *command.split(), "demo", *extra])
-    assert result.exit_code != 0
-    assert "does not support --json yet" in str(result.exception)
+    assert leaves == covered

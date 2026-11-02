@@ -10,7 +10,7 @@ from rich.table import Table
 from qfield_testbed.cache import dir_size, human_size
 from qfield_testbed.cli._console import console, ok
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import UsageError
 from qfield_testbed.runtimes import docker
 
 app = typer.Typer(no_args_is_help=True)
@@ -22,7 +22,7 @@ _UNITS = {"d": "days", "h": "hours", "m": "minutes"}
 def parse_duration(value: str) -> timedelta:
     match = _DURATION.match(value)
     if not match:
-        raise TestbedError(f"invalid duration '{value}'; use e.g. 30d, 12h, 90m")
+        raise UsageError(f"invalid duration '{value}'; use e.g. 30d, 12h, 90m")
     return timedelta(**{_UNITS[match.group(2)]: int(match.group(1))})
 
 

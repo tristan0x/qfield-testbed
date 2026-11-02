@@ -31,6 +31,15 @@ more examples (`HYPOTHESIS_PROFILE=ci uv run pytest`).
 and documentation use its terms and no synonyms. A change that introduces a new concept adds it to the glossary
 in the same pull request.
 
+## Errors and exit codes
+
+Failures are typed: raise the subclass of `TestbedError` (`errors.py`) that says what went wrong — usage, missing
+prerequisite, exhausted resource, not found, timeout, component failure, refusal — never `TestbedError` itself.
+Its class fixes the exit code and the error code that `--json` reports; put the next thing to try in `hint=`,
+not in the message. The contract and its tables are in
+[docs/adr/0001-agent-interface.md](docs/adr/0001-agent-interface.md); a new error class goes into the table test
+of `tests/unit/test_errors.py`.
+
 ## Commit messages
 
 Conventional-Commits subjects: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`. The subject is short and

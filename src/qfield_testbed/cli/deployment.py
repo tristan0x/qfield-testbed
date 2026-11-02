@@ -8,10 +8,10 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import confirm, console, ok, print_json, styled_status, warn
+from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, styled_status, warn
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import NotFoundError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
 app = typer.Typer(no_args_is_help=True)
@@ -25,7 +25,7 @@ def _parse_overrides(values: list[str]) -> dict[str, str]:
     for item in values:
         key, sep, value = item.partition("=")
         if not sep or not key:
-            raise TestbedError(f"--set expects key=value, got '{item}'")
+            raise UsageError(f"--set expects key=value, got '{item}'")
         overrides[key] = value
     return overrides
 
@@ -106,13 +106,12 @@ def _print_show(info: dict[str, object]) -> None:
 
 
 @app.command()
-def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False) -> None:
+def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same as `qft --json`")] = False) -> None:
     """Show URLs, ports, credentials, revisions and status of a deployment."""
-    info = Testbed().deployment(name).describe()
     if json_:
-        print_json(info)
-    else:
-        _print_show(info)
+        set_json_output(True)
+    info = Testbed().deployment(name).describe()
+    emit(info, human=lambda: _print_show(info))
 
 
 @app.command()
@@ -184,7 +183,7 @@ def launch(
             if (deployment.directory / "bin").is_dir()
             else []
         )
-        raise TestbedError(
+        raise NotFoundError(
             f"no launcher '{target}' in deployment '{name}'"
             + (f"; available: {', '.join(available)}" if available else " (start it first)")
         )
@@ -201,7 +200,7 @@ def run(ctx: typer.Context, name: NameArg) -> None:
     if cmd and cmd[0] == "--":
         cmd = cmd[1:]
     if not cmd:
-        raise TestbedError("usage: qft deployment run NAME -- CMD [ARGS...]")
+        raise UsageError("usage: qft deployment run NAME -- CMD [ARGS...]")
     env = {**os.environ, **Testbed().deployment(name).env()}
     completed = subprocess.run(cmd, env=env, check=False)
     raise typer.Exit(completed.returncode)

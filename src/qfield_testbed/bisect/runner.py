@@ -10,11 +10,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from qfield_testbed.bisect.algorithm import ABORT_EXIT_CODE, Verdict
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import NotFoundError, TestbedError, UsageError
 
 
 class BisectAbortError(TestbedError):
-    """The test asked to stop the whole session (exit code >= 128)."""
+    """The test asked to stop the whole session (exit code >= 128), or the user paused it."""
+
+    code = "ABORTED"
 
 
 @dataclass
@@ -33,9 +35,9 @@ class ScriptTest:
 
     def run(self, env: Mapping[str, str], log_file: Path) -> Outcome:
         if not self.script.exists():
-            raise TestbedError(f"test script not found: {self.script}")
+            raise NotFoundError(f"test script not found: {self.script}")
         if not os.access(self.script, os.X_OK):
-            raise TestbedError(f"test script is not executable: {self.script} (chmod +x)")
+            raise UsageError(f"test script is not executable: {self.script} (chmod +x)")
         started = time.monotonic()
         log_file.parent.mkdir(parents=True, exist_ok=True)
         with log_file.open("w") as log:

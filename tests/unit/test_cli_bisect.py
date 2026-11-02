@@ -121,7 +121,7 @@ def test_manual_next_and_verdicts(manual: BisectSession, testbed: Testbed) -> No
     status = invoke(["bisect", "status", "m"])
     assert "m  done  qfieldcloud v1..v2  deployment bs-m  2 tested / 0 skipped / 3 candidates" in status.output
     assert "First bad" in status.output
-    info = json.loads(invoke(["bisect", "status", "--json"]).output)
+    info = json.loads(invoke(["bisect", "status", "--json"]).stdout)["data"]
     assert info["first_bad"]["label"] == "c2"
     assert [row["verdict"] for row in info["verdicts"]] == ["good", "bad", None]
 

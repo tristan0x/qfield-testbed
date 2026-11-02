@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import ComponentFailureError, PrerequisiteMissingError
 from qfield_testbed.runtimes.shell import Runner
 
 PROFILE_NAME = "default"
@@ -27,7 +27,11 @@ class QgisHostBackend:
     def detect(cls, runner: Runner) -> QgisHostBackend:
         found = runner.which("qgis")
         if not found:
-            raise TestbedError("no `qgis` executable on PATH; install QGIS or use `qgis: {version: docker:<tag>}`")
+            raise PrerequisiteMissingError(
+                "no `qgis` executable on PATH",
+                hint="install QGIS or use `qgis: {version: docker:<tag>}`",
+                docs="components/qgis",
+            )
         return cls(runner=runner, binary=Path(found).resolve())
 
     @property
@@ -49,7 +53,9 @@ class QgisHostBackend:
         out = self.runner.run([str(self.binary), "--version"], check=False).stdout
         match = _VERSION.search(out)
         if not match:
-            raise TestbedError(f"cannot read the QGIS version from `{self.binary} --version`: {out.strip()[:80]!r}")
+            raise ComponentFailureError(
+                f"cannot read the QGIS version from `{self.binary} --version`: {out.strip()[:80]!r}"
+            )
         return match.group(1)
 
     def python_env(self) -> dict[str, str]:

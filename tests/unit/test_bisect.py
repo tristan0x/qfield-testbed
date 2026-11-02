@@ -11,7 +11,7 @@ from qfield_testbed.bisect.scenario import BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus, repository_url, resolve_candidates
 from qfield_testbed.components import REGISTRY, register
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import SpecError, TestbedError
+from qfield_testbed.errors import NeedsHumanError, SpecError, TestbedError
 from qfield_testbed.revisions.git import Mirror
 from qfield_testbed.runtimes.shell import FakeRunner
 from tests.unit.test_deployment import FakeQgis
@@ -333,8 +333,10 @@ def test_manual_session_prompts_and_pauses(testbed: Testbed, runner: FakeRunner,
     assert result.first_bad == 1
     assert [o.verdict for _, o in sorted(session.state.outcomes.items())] == [Verdict.GOOD, Verdict.BAD]
     session.reset()
-    with pytest.raises(TestbedError, match="interactively"):
+    with pytest.raises(NeedsHumanError, match="manual test") as refused:
         session.step(prompt=None)
+    assert refused.value.hint is not None
+    assert "interactively" in refused.value.hint
 
 
 def test_repository_url_of_qfield_follows_the_configuration(testbed: Testbed) -> None:

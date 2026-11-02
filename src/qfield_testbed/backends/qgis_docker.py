@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from qfield_testbed.backends.qgis_host import PROFILE_NAME, _quote
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import ComponentFailureError
 from qfield_testbed.runtimes import docker
 from qfield_testbed.runtimes.shell import Runner
 
@@ -95,7 +95,7 @@ class QgisDockerBackend:
         ).stdout
         match = _VERSION.search(out)
         if not match:
-            raise TestbedError(f"cannot read the QGIS version of {self.image}: {out.strip()[:80]!r}")
+            raise ComponentFailureError(f"cannot read the QGIS version of {self.image}: {out.strip()[:80]!r}")
         return match.group(1)
 
     def run_python(self, script: Path, *args: str, env: dict[str, str] | None = None, timeout: float = 600) -> str:

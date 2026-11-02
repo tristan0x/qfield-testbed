@@ -11,7 +11,7 @@ import logging
 import re
 from pathlib import Path
 
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import MaterializationUnavailableError, NotFoundError
 from qfield_testbed.paths import Paths
 from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import Runner
@@ -60,7 +60,7 @@ class Mirror:
         )
         sha = result.stdout.strip()
         if result.returncode != 0 or not _SHA.match(sha):
-            raise TestbedError(f"unknown ref '{ref}' in {self.url}")
+            raise NotFoundError(f"unknown ref '{ref}' in {self.url}")
         return sha
 
     def tags(self, pattern: str = "*") -> list[str]:
@@ -117,10 +117,10 @@ def resolve_code_source(runner: Runner, mirror: Mirror, source: ReleaseSource | 
 def worktree_head(runner: Runner, path: Path) -> tuple[str, bool]:
     """``(sha, dirty)`` of a user checkout; refuses paths that are not git worktrees."""
     if not path.is_dir():
-        raise TestbedError(f"worktree path does not exist: {path}")
+        raise NotFoundError(f"worktree path does not exist: {path}")
     head = runner.run(["git", "-C", str(path), "rev-parse", "HEAD"], check=False)
     if head.returncode != 0:
-        raise TestbedError(f"not a git worktree: {path}")
+        raise NotFoundError(f"not a git worktree: {path}")
     status = runner.run(["git", "-C", str(path), "status", "--porcelain", "--untracked-files=no"], check=False)
     return head.stdout.strip(), bool(status.stdout.strip())
 

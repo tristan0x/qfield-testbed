@@ -21,7 +21,12 @@ import requests
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
 from qfield_testbed.components.qgis import Qgis, _replace_with_symlink
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import (
+    ComponentFailureError,
+    MaterializationUnavailableError,
+    PrerequisiteMissingError,
+    SpecError,
+)
 from qfield_testbed.provision.qgis_profile import AuthConfig
 from qfield_testbed.revisions import Revision
 from qfield_testbed.revisions.git import Mirror, ensure_submodules, resolve_code_source
@@ -41,7 +46,9 @@ def libqfieldsync_pin(requirements: str) -> tuple[str, str]:
     """``(tarball url, sha)`` of the libqfieldsync pinned by a QFieldSync checkout."""
     match = _LIBQFIELDSYNC_PIN.search(requirements)
     if not match:
-        raise TestbedError("requirements.txt does not pin libqfieldsync to a GitHub archive; cannot build its wheel")
+        raise ComponentFailureError(
+            "requirements.txt does not pin libqfieldsync to a GitHub archive; cannot build its wheel"
+        )
     return match.group(1), match.group(2)
 
 
@@ -84,7 +91,7 @@ class QFieldSync(Component):
     def qgis(self) -> Qgis:
         spec = self.ctx.spec.qgis
         if spec is None:
-            raise TestbedError("qfieldsync requires the qgis component")
+            raise SpecError("qfieldsync requires the qgis component")
         return Qgis(self.ctx, spec)
 
     def check_host(self) -> list[str]:
@@ -115,7 +122,7 @@ class QFieldSync(Component):
         ensure_submodules(self.ctx.runner, checkout)
         plugin_dir = checkout / PLUGIN_ID
         if not (plugin_dir / "metadata.txt").is_file():
-            raise TestbedError(f"{checkout} does not look like a QFieldSync checkout (no {PLUGIN_ID}/metadata.txt)")
+            raise SpecError(f"{checkout} does not look like a QFieldSync checkout (no {PLUGIN_ID}/metadata.txt)")
         wheel = self.libqfieldsync_wheel(checkout)
         for stale in plugin_dir.glob("libqfieldsync*.whl"):
             if stale.name != wheel.name:
@@ -161,7 +168,9 @@ class QFieldSync(Component):
         folders = sorted(p for p in source_dir.iterdir() if p.is_dir())
         if len(folders) != 1:
             found = ", ".join(p.name for p in folders) or "none"
-            raise TestbedError(f"libqfieldsync archive {url} should unpack to one project folder, found {found}")
+            raise ComponentFailureError(
+                f"libqfieldsync archive {url} should unpack to one project folder, found {found}"
+            )
         project_dir = folders[0]
         out_dir = workdir / "dist"
         out_dir.mkdir(exist_ok=True)
@@ -174,7 +183,7 @@ class QFieldSync(Component):
             )
         built = sorted(out_dir.glob("libqfieldsync-*.whl"))
         if not built:
-            raise TestbedError(f"no wheel produced in {out_dir}")
+            raise ComponentFailureError(f"no wheel produced in {out_dir}")
         wheel.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(built[-1], wheel)
         self.ctx.cache.touch(cache_key, wheel, user=self.ctx.name)
@@ -206,7 +215,9 @@ class QFieldSync(Component):
         credentials = self.ctx.state.credentials
         url = cloud.get("url")
         if not url or credentials is None:
-            raise TestbedError("qfieldsync: the qfieldcloud component must be running and provisioned first")
+            raise PrerequisiteMissingError(
+                "qfieldsync: the qfieldcloud component must be running and provisioned first"
+            )
         settings: dict[str, Any] = {
             f"PythonPlugins/{PLUGIN_ID}": True,
             "QFieldSync/qfieldCloudServerUrl": url,

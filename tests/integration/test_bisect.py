@@ -63,7 +63,7 @@ def test_bisect_names_the_first_bad_release(qft: Qft) -> None:
 
     qft("bisect", "start", str(scenario), "--run", timeout=3600)
 
-    info = json.loads(qft("bisect", "status", SESSION, "--json").stdout)
+    info = json.loads(qft("bisect", "status", SESSION, "--json").stdout)["data"]
     assert info["status"] == "done"
     assert [(row["label"], row["verdict"]) for row in info["verdicts"]] == [
         (CANDIDATE_BEFORE, "good"),

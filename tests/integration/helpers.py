@@ -49,7 +49,7 @@ class Qft:
         self("deployment", "add", self.write(spec), "--start", *args)
 
     def show(self, name: str) -> dict[str, Any]:
-        return dict(json.loads(self("deployment", "show", name, "--json").stdout))
+        return dict(json.loads(self("deployment", "show", name, "--json").stdout)["data"])
 
     def names(self) -> list[str]:
         registry = self.root / "home" / "registry.json"

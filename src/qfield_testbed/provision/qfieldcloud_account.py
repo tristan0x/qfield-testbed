@@ -11,7 +11,7 @@ from typing import Any
 import requests
 
 from qfield_testbed import __version__
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import ComponentFailureError
 from qfield_testbed.runtimes.http import get_json, post_json, retrying
 
 log = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ def login(url: str, username: str, password: str) -> str:
             what="login",
         )
     except requests.RequestException as exc:
-        raise TestbedError(f"login of '{username}' failed on {url}: {exc}") from exc
+        raise ComponentFailureError(f"login of '{username}' failed on {url}: {exc}") from exc
     token = data.get("token")
     if not token:
-        raise TestbedError(f"login of '{username}' on {url} returned no token: {data}")
+        raise ComponentFailureError(f"login of '{username}' on {url} returned no token: {data}")
     return str(token)
 
 
@@ -50,7 +50,7 @@ def server_info(url: str) -> dict[str, Any]:
     try:
         return dict(retrying(lambda: get_json(api(url) + "server/info/"), what="server info"))
     except requests.RequestException as exc:
-        raise TestbedError(f"cannot read server info from {url}: {exc}") from exc
+        raise ComponentFailureError(f"cannot read server info from {url}: {exc}") from exc
 
 
 def sample_project_dir() -> Path:

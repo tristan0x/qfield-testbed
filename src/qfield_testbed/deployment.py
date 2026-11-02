@@ -20,7 +20,7 @@ from filelock import FileLock
 from qfield_testbed.cache import Cache
 from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
-from qfield_testbed.errors import TestbedError, UnknownDeploymentError, UnsupportedComponentError
+from qfield_testbed.errors import NotFoundError, UnknownDeploymentError, UnsupportedComponentError
 from qfield_testbed.paths import Paths
 from qfield_testbed.ports import PortBlock, make_prober
 from qfield_testbed.runtimes import docker
@@ -152,7 +152,7 @@ class Deployment:
                 raise UnsupportedComponentError(f"component '{name}' is not supported by this version")
             selected.append(cls(ctx, component_spec))
         if only and not selected:
-            raise TestbedError(f"deployment '{self.name}' has no component '{only}'")
+            raise NotFoundError(f"deployment '{self.name}' has no component '{only}'")
         return selected
 
     @contextmanager
@@ -237,7 +237,7 @@ class Deployment:
             self.spec = self.spec.model_copy(deep=True)
             component_spec = self.spec.component(component_name)
             if component_spec is None:
-                raise TestbedError(f"deployment '{self.name}' has no component '{component_name}'")
+                raise NotFoundError(f"deployment '{self.name}' has no component '{component_name}'")
             # each component spec narrows `version` to its own sources; the caller passes one valid for this component
             component_spec.version = version  # pyright: ignore[reportAttributeAccessIssue]
             (self.directory / "spec.yaml").write_text(self.spec.to_yaml())

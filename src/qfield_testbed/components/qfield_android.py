@@ -16,7 +16,7 @@ from typing import Any, ClassVar
 from qfield_testbed.backends.android_emulator import QFIELDCLOUD_URL_FROM_ANDROID, AndroidEmulatorBackend
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import MaterializationUnavailableError, NotFoundError, SpecError, TestbedError
 from qfield_testbed.provision import android_settings
 from qfield_testbed.revisions import Revision
 from qfield_testbed.revisions.git import worktree_head
@@ -87,13 +87,13 @@ class QFieldAndroid(Component):
         if isinstance(source, ArtifactSource):
             sha = self.commit_sha(source.ref)
             if sha is None:
-                raise TestbedError(f"unknown ref '{source.ref}' in {self.repo}")
+                raise NotFoundError(f"unknown ref '{source.ref}' in {self.repo}")
             label = source.ref if sha.startswith(source.ref) else f"{source.ref}@{sha[:12]}"
             return Revision(source=source, label=label, sha=sha)
         if isinstance(source, BuildSource):
             sha, dirty = worktree_head(self.ctx.runner, source.path)
             return Revision(source=source, label=f"build@{sha[:12]}", sha=sha, dirty=dirty)
-        raise TestbedError(f"unsupported version source for qfield-android: {source}")
+        raise SpecError(f"unsupported version source for qfield-android: {source}")
 
     def materialize(self, revision: Revision) -> Path:
         """The x86_64 APK for the revision, cached by revision key."""
@@ -123,7 +123,7 @@ class QFieldAndroid(Component):
         elif isinstance(source, BuildSource):
             self.build(source.path, apk)
         else:
-            raise TestbedError(f"unsupported version source for qfield-android: {source}")
+            raise SpecError(f"unsupported version source for qfield-android: {source}")
         self.ctx.cache.touch(f"qfield/apk/{revision.key}", target_dir, user=self.ctx.name)
         return apk
 

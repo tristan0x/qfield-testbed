@@ -21,7 +21,7 @@ from qfieldcloud_sdk.interfaces import QfcException
 
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import TestbedError, WiringError
+from qfield_testbed.errors import ComponentFailureError, PrerequisiteMissingError, SpecError, TestbedError, WiringError
 from qfield_testbed.provision import qfieldcloud_account
 from qfield_testbed.revisions import Revision
 from qfield_testbed.revisions.git import Mirror, resolve_code_source
@@ -154,7 +154,7 @@ def storages_with_endpoint(raw_json: str, endpoint_url: str) -> str:
 def release_tuple(tag: str) -> tuple[int, int]:
     match = re.fullmatch(r"v(\d+)\.(\d+)", tag)
     if not match:
-        raise TestbedError(f"QFieldCloud release tags look like vYY.N, got '{tag}'")
+        raise ComponentFailureError(f"QFieldCloud release tags look like vYY.N, got '{tag}'")
     return int(match.group(1)), int(match.group(2))
 
 
@@ -204,7 +204,7 @@ class QFieldCloud(Component):
     def checkout(self) -> Path:
         path = self.state.facts.get("checkout")
         if not path:
-            raise TestbedError("qfieldcloud is not rendered yet; run `qft deployment start`")
+            raise PrerequisiteMissingError("qfieldcloud is not rendered yet", hint="run `qft deployment start`")
         return Path(path)
 
     def compose(self) -> docker.Compose:
@@ -289,7 +289,7 @@ class QFieldCloud(Component):
         checkout = materialized
         example = checkout / ".env.example"
         if not example.is_file():
-            raise TestbedError(f"{checkout} has no .env.example; is it a QFieldCloud checkout?")
+            raise SpecError(f"{checkout} has no .env.example; is it a QFieldCloud checkout?")
         services = compose_services(checkout)
         images = self.images(revision, checkout)
         (self.directory / ".env").write_text(self.derive_env(example.read_text(), revision, images, checkout))
@@ -390,7 +390,7 @@ class QFieldCloud(Component):
         account = self.spec.test_account
         credentials = self.ctx.state.credentials
         if credentials is None:
-            raise TestbedError("no test account credentials in the deployment state")
+            raise ComponentFailureError("no test account credentials in the deployment state")
         log.info("applying migrations")
         compose.exec_run("app", "python", "manage.py", "migrate", "--no-input")
         compose.exec_run("app", "python", "manage.py", "collectstatic", "--no-input", timeout=600)

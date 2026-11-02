@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import re
 import runpy
@@ -14,8 +15,9 @@ import yaml
 
 from qfield_testbed import __version__
 from qfield_testbed.cli import main
-from qfield_testbed.cli._console import styled_status
+from qfield_testbed.cli._console import emit, json_requested, set_json_output, styled_status, warn
 from qfield_testbed.deployment import Testbed
+from qfield_testbed.ports import PortBlock
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import EXAMPLE_FULL, EXAMPLE_MINIMAL, DeploymentSpec
 from qfield_testbed.state import Status
@@ -82,7 +84,7 @@ def test_main_reports_aborts(
 ) -> None:
     testbed.add(DeploymentSpec.from_yaml("name: demo\nqgis: {version: host}\n"))
     monkeypatch.setattr(sys, "stdin", io.StringIO("n\n"))
-    assert _main(monkeypatch, "deployment", "remove", "demo") == 130
+    assert _main(monkeypatch, "deployment", "remove", "demo") == 8
     assert "error: aborted" in capsys.readouterr().err
     assert [d.name for d in testbed.deployments()] == ["demo"]
 
@@ -241,3 +243,42 @@ def test_main_reports_other_typer_errors(monkeypatch: pytest.MonkeyPatch, capsys
     monkeypatch.setattr("qfield_testbed.cli.app", failing)
     assert _main(monkeypatch, "doctor") == 1  # the exception's own exit code
     assert "error: bad parameter" in capsys.readouterr().err
+
+
+# --- JSON mode ------------------------------------------------------------------------------------------------
+
+
+def test_main_json_interrupt(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def interrupted(**_: Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("qfield_testbed.cli.app", interrupted)
+    assert _main(monkeypatch, "--json", "doctor") == 130
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["error"]["code"] == "INTERRUPTED"
+
+
+def test_json_flag_after_a_separator_belongs_to_the_command() -> None:
+    assert json_requested(["deployment", "run", "demo", "--", "tool", "--json"]) is False
+    assert json_requested(["deployment", "show", "demo", "--json"]) is True
+
+
+def test_warnings_are_collected_in_the_envelope(capsys: pytest.CaptureFixture[str]) -> None:
+    set_json_output(True)
+    try:
+        warn("careful")
+        emit({"x": 1}, human=lambda: None)
+    finally:
+        set_json_output(False)
+    captured = capsys.readouterr()
+    assert json.loads(captured.out) == {"schema_version": 1, "ok": True, "data": {"x": 1}, "warnings": ["careful"]}
+    assert "careful" in captured.err
+
+
+def test_pydantic_models_are_dumped_as_json(capsys: pytest.CaptureFixture[str]) -> None:
+    set_json_output(True)
+    try:
+        emit(PortBlock(base=30000), human=lambda: None)
+    finally:
+        set_json_output(False)
+    assert json.loads(capsys.readouterr().out)["data"] == {"base": 30000}

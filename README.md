@@ -79,6 +79,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft docs [TOPIC]`, `qft spec schema` | The documentation and the spec JSON Schema of the installed version |
 | `qft spec example [--minimal]`, `qft spec validate FILE` | Help writing specs |
 | `qft deployment add SPEC [--name N] [--set k=v] [--start]` | Register a deployment and allocate its slot |
+| `qft deployment ensure SPEC [--name auto] [--replace]` | Create-or-reuse a ready deployment of a spec (scripts, agents) |
 | `qft deployment list \| show \| start \| stop \| restart \| remove \| logs NAME` | Lifecycle |
 | `qft deployment launch NAME qgis\|android\|ios\|qfield-desktop` | Open an interactive client |
 | `qft deployment run NAME [--timeout T] -- CMD`, `qft deployment env NAME [--format F]` | Use the deployment from scripts ([`QFT_*` variables](docs/environment.md)) |

@@ -41,6 +41,9 @@ All notable changes to this project are documented here. The format follows
   and filters both (#32).
 - An agent session may only stop, restart, remove or keep its own deployments unless `--force`, and agent
   sessions own at most `max_agent_deployments` (10) deployments (#32).
+- `qft deployment ensure SPEC` creates and starts a deployment of a spec, or reuses the one that exists: the
+  identity of a spec is its options plus the commits its `git:`/`artifact:` refs point to; another spec under
+  the same name is refused with a diff unless `--replace`, and `--name auto` names it after the spec (#34).
 - `qft gc` removes expired deployments (`--expired`), every deployment of an agent session (`--agent-session`)
   and the `qft-*` containers, compose projects, networks, files and registry entries no deployment owns
   (`--orphaned`); `--dry-run` shows the plan, busy deployments are skipped, and `gc_on_start: true` runs the

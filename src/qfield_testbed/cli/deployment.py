@@ -76,13 +76,7 @@ def add(
     ttl: TtlOpt = None,
 ) -> None:
     """Register a deployment from a spec and allocate its slot (ports, network, directory)."""
-    overrides = _parse_overrides(set_)
-    if name:
-        overrides["name"] = name
-    if str(spec_file) == "-":
-        spec = DeploymentSpec.from_yaml(typer.get_text_stream("stdin").read(), overrides=overrides)
-    else:
-        spec = DeploymentSpec.from_file(spec_file, overrides=overrides)
+    spec = _read_spec(spec_file, name, set_)
     testbed = Testbed()
     deployment = testbed.add(
         spec, agent_session=CALLER.agent_session, ttl=parse_ttl(ttl) if ttl is not None else "default"
@@ -98,6 +92,56 @@ def add(
         emit(info, human=lambda: _print_show(info))
     else:
         emit(deployment.info(), human=lambda: console.print(f"Next: [bold]qft deployment start {spec.name}[/]"))
+
+
+def _read_spec(spec_file: Path, name: str | None, set_: list[str]) -> DeploymentSpec:
+    overrides = _parse_overrides(set_)
+    if name:
+        overrides["name"] = name
+    if str(spec_file) == "-":
+        return DeploymentSpec.from_yaml(typer.get_text_stream("stdin").read(), overrides=overrides)
+    return DeploymentSpec.from_file(spec_file, overrides=overrides)
+
+
+@app.command()
+def ensure(
+    spec_file: Annotated[Path, typer.Argument(help="Deployment spec (YAML); `-` reads stdin", show_default=False)],
+    *,
+    name: Annotated[
+        str | None, typer.Option("--name", "-n", help="Override the spec's name; `auto` names it after the spec")
+    ] = None,
+    set_: Annotated[list[str], typer.Option("--set", "-s", help="Override a spec value, as for `add`")] = [],  # noqa: B006
+    replace: Annotated[
+        bool, typer.Option("--replace", help="Recreate a deployment of that name made from another spec")
+    ] = False,
+    timeout: TimeoutOpt = None,
+    ttl: TtlOpt = None,
+    force: ForceOpt = False,
+) -> None:
+    """Make sure a deployment of this spec exists and is ready: reuse it if it does, create and start it if not."""
+    auto = name == "auto"
+    spec = _read_spec(spec_file, None if auto else name, set_)
+    result = Testbed().ensure(
+        spec,
+        auto_name=auto,
+        replace=replace,
+        force=force,
+        timeout=_seconds(timeout),
+        ttl=parse_ttl(ttl) if ttl is not None else "default",
+    )
+    for message in result.warnings:
+        warn(message)
+    verb = "created" if result.created else "started" if result.started else "reused"
+    ok(f"deployment [bold]{result.info.name}[/] {verb} (spec {result.spec_hash})")
+    emit(
+        {
+            **result.info.model_dump(mode="json"),
+            "created": result.created,
+            "started": result.started,
+            "spec_hash": result.spec_hash,
+        },
+        human=lambda: _print_show(result.info),
+    )
 
 
 @app.command("list")

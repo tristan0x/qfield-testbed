@@ -100,3 +100,19 @@ These are the same variables a bisect [test script](bisect.md) receives.
 | Global configuration | `~/.config/qfield-testbed/config.yaml` (`qft config show`) |
 
 `QFT_HOME`, `QFT_CACHE_DIR` and `QFT_CONFIG` override these.
+
+## From a script or an agent: `ensure`
+
+`qft deployment ensure SPEC` makes sure a deployment of that spec exists and is ready, and returns it: it creates
+and starts it the first time, reuses it afterwards (starting it if it was stopped), so a script can call it at
+every run.
+
+```sh
+qft --json deployment ensure examples/minimal.yaml --timeout 15m   # data.created tells which case it was
+qft deployment ensure examples/minimal.yaml --name auto            # named after the spec: one deployment per spec
+```
+
+Two specs are the same deployment when every option matches and their `git:`/`artifact:` refs point to the same
+commit — the name, the description and the host QGIS version don't count. When a deployment of that name exists
+with another spec (`git:master` moved on, an option changed), `ensure` refuses (exit 2) and shows the diff; pass
+`--replace` to recreate it, or pin a sha to keep it stable.

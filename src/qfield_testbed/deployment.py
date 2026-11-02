@@ -6,6 +6,7 @@ registered deployment and drives its components through the lifecycle defined in
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import secrets
@@ -27,6 +28,7 @@ from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import (
+    AlreadyExistsError,
     NotFoundError,
     RefusedError,
     ResourceExhaustedError,
@@ -35,11 +37,12 @@ from qfield_testbed.errors import (
     UnknownDeploymentError,
     UnsupportedComponentError,
 )
+from qfield_testbed.identity import normalize, spec_diff, spec_hash
 from qfield_testbed.paths import Paths
 from qfield_testbed.ports import BLOCK_SIZE, PortBlock, make_prober
 from qfield_testbed.runtimes import docker
 from qfield_testbed.runtimes.shell import ProcessResult, Runner, SubprocessRunner, run_process
-from qfield_testbed.spec import DeploymentSpec, VersionSource
+from qfield_testbed.spec import DeploymentSpec, HostSource, VersionSource
 from qfield_testbed.state import (
     Credentials,
     DeploymentState,
@@ -110,6 +113,68 @@ class Testbed:
         )
         return Deployment(self, spec.name)
 
+    def ensure(
+        self,
+        spec: DeploymentSpec,
+        *,
+        auto_name: bool = False,
+        replace: bool = False,
+        force: bool = False,
+        timeout: float | None = None,
+        ttl: float | Literal["default"] | None = "default",
+    ) -> EnsureResult:
+        """Make sure a deployment of ``spec`` exists and is ready: reuse it when its identity matches, else create it.
+
+        A deployment with the same name but another identity is refused with a diff, unless ``replace``.
+        ``auto_name`` names it after its identity, so that equal specs share one deployment.
+        """
+        identity = normalize(self, spec)
+        digest = spec_hash(identity)
+        if auto_name:
+            spec = spec.model_copy(update={"name": f"{spec.name[:13].rstrip('-')}-{digest[:6]}"})
+        name = spec.name
+        locks = self.paths.home / "locks"
+        locks.mkdir(parents=True, exist_ok=True)
+        # concurrent `ensure` of one name: the second waits for the first, then reuses what it made
+        with FileLock(locks / f"{name}.lock", timeout=ENSURE_LOCK_TIMEOUT_S):
+            entry = self.registry.load().deployments.get(name)
+            if entry is not None and entry.spec_hash != digest:
+                if not replace:
+                    raise AlreadyExistsError(
+                        f"deployment '{name}' exists with another spec",
+                        hint="pass --replace to recreate it, or --name auto to keep both",
+                        details={
+                            "existing_hash": entry.spec_hash,
+                            "requested_hash": digest,
+                            "diff": spec_diff(self._identity(name), identity),
+                        },
+                    )
+                self.authorize(name, "replace", force=force)
+                self.deployment(name).remove()
+                entry = None
+            warnings: list[str] = []
+            if entry is None:
+                deployment = self.add(spec, agent_session=CALLER.agent_session, ttl=ttl)
+                self.registry.set_spec_hash(name, digest)
+                (deployment.directory / IDENTITY_FILE).write_text(json.dumps(identity, indent=2, sort_keys=True) + "\n")
+                deployment.state.host_qgis = _host_qgis(self, spec)
+                deployment.save()
+            else:
+                deployment = self.deployment(name, touch=True)
+                current = _host_qgis(self, spec)
+                if deployment.state.host_qgis and current and current != deployment.state.host_qgis:
+                    warnings.append(
+                        f"the host QGIS changed since '{name}' was created ({deployment.state.host_qgis} → {current})"
+                    )
+            started = deployment.state.status is not Status.RUNNING
+            if started:
+                deployment.start(timeout=timeout)
+            return EnsureResult(deployment.info(), entry is None, started, digest, warnings)
+
+    def _identity(self, name: str) -> dict[str, Any]:
+        file = self.paths.deployment_dir(name) / IDENTITY_FILE
+        return json.loads(file.read_text()) if file.is_file() else {}
+
     def authorize(self, name: str, action: str, *, force: bool = False) -> None:
         """Refuse an agent session to ``action`` a deployment it does not own, unless ``force``; people may."""
         caller = CALLER.agent_session
@@ -179,6 +244,27 @@ class Deadline:
 
 
 LOG_TAIL_LINES = 30
+IDENTITY_FILE = "identity.json"  # the normalized spec a deployment was ensured from, for diffs
+ENSURE_LOCK_TIMEOUT_S = 3 * 3600  # a first start may build images for a long time
+
+
+@dataclass
+class EnsureResult:
+    info: DeploymentInfo
+    created: bool
+    started: bool
+    spec_hash: str
+    warnings: list[str]
+
+
+def _host_qgis(testbed: Testbed, spec: DeploymentSpec) -> str | None:
+    """The version of the host QGIS a spec uses (`qgis: host`), or None."""
+    if spec.qgis is None or not isinstance(spec.qgis.version, HostSource):
+        return None
+    try:
+        return Deployment.probe(testbed, spec, "qgis", spec.qgis).resolve().label
+    except TestbedError:
+        return None
 
 
 def parse_ttl(value: str) -> float | None:

@@ -30,6 +30,7 @@ appear in any release; removing or renaming one bumps `schema_version`.
 
 | Command | `data` |
 |---|---|
+| `deployment ensure SPEC [--name N\|auto] [--replace]` | deployment info plus `{created, started, spec_hash}`; another spec under that name is an `ALREADY_EXISTS` error with `details.diff` |
 | `deployment list [--owner O] [--agent-session S]` | `{deployments: [{name, slot, status, port_base, port_last, components: {name: status}, session, owner, agent_session, created_at, last_used_at, ttl_s, expires_at}]}` — never credentials; `session` is the bisect session owning it |
 | `deployment keep NAME --ttl T` | the same summary, with the new expiry |
 | `deployment remove NAME --yes` | `{name, removed: true}` |

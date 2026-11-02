@@ -61,6 +61,9 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     assert _json("spec", "schema")["schema"]["title"] == "DeploymentSpec"
 
     added = _json("deployment", "add", str(spec_file))
+    ensured = _json("deployment", "ensure", str(spec_file), "--name", "auto")
+    assert (ensured["created"], ensured["status"]) == (True, "running")
+    assert _json("deployment", "remove", ensured["name"], "--yes")["removed"] is True
     assert (added["name"], added["status"]) == ("demo", "created")
     assert "password" not in json.dumps(_json("deployment", "list"))
     [listed] = _json("deployment", "list")["deployments"]
@@ -132,6 +135,7 @@ def test_no_command_is_left_without_json() -> None:
             f"deployment {c}"
             for c in (
                 "add",
+                "ensure",
                 "list",
                 "start",
                 "show",

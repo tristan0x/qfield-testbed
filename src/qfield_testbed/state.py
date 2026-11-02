@@ -66,6 +66,7 @@ class DeploymentState(BaseModel):
     updated_at: datetime = Field(default_factory=_now)
     status: Status = Status.CREATED
     credentials: Credentials | None = None
+    host_qgis: str | None = Field(default=None, description="Host QGIS revision label when it was ensured")
     components: dict[str, ComponentState] = Field(default_factory=dict)
 
     def component(self, name: str) -> ComponentState:
@@ -89,6 +90,7 @@ class RegistryEntry(BaseModel):
     agent_session: str | None = Field(default=None, description="Agent session that created it (QFT_AGENT_SESSION)")
     last_used_at: datetime = Field(default_factory=lambda: _now())  # noqa: PLW0108
     ttl_s: float | None = Field(default=None, description="Removable by `qft gc` this long after its last use")
+    spec_hash: str | None = Field(default=None, description="Identity of the spec it was ensured from")
 
     @model_validator(mode="before")
     @classmethod
@@ -164,6 +166,12 @@ class Registry:
             state = DeploymentState(name=spec.name, slot=slot)
             save_state(directory, state)
             return state
+
+    def set_spec_hash(self, name: str, spec_hash: str) -> None:
+        with self.locked() as data:
+            if name not in data.deployments:
+                raise UnknownDeploymentError(name)
+            data.deployments[name].spec_hash = spec_hash
 
     def touch(self, name: str) -> None:
         """Record a use of ``name`` now: its TTL starts over."""

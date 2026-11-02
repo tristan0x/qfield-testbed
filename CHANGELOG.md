@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `qft --json …` (or `QFT_OUTPUT=json`) answers with one JSON envelope on stdout — `schema_version`, `ok`,
+  `data` or `error`, `warnings` — for every command, success or failure; progress and logs go to stderr (#26).
+- Errors carry a stable code (`NOT_FOUND`, `PREREQ_MISSING`, `TIMEOUT`…), a hint printed after the message and
+  a documentation topic; [docs/adr/0001-agent-interface.md](docs/adr/0001-agent-interface.md) records the
+  contract (#26).
+
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).
 - `qft deployment show` and `qft deployment launch NAME qgis` report the Qt platform QGIS uses (#5).
@@ -42,6 +48,14 @@ All notable changes to this project are documented here. The format follows
 - Deployment specs with version sources `release`, `git`, `worktree`, `artifact`, `build`, `host` and `docker`.
 - Slot allocation: each deployment owns a block of 100 host ports and a Docker network.
 - Glossary and documentation skeleton.
+
+### Changed
+
+- Breaking: failures exit with a code per kind instead of 1 — 2 usage or invalid spec, 3 missing prerequisite,
+  4 exhausted resource, 5 not found, 6 timeout, 7 component failure, 8 refused (declining a confirmation used to
+  exit 130) (#26).
+- Breaking: `qft deployment show --json` and `qft bisect status --json` wrap their data in the JSON envelope;
+  read `.data` (#26).
 
 ### Fixed
 

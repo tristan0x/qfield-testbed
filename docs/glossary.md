@@ -27,6 +27,8 @@ gives the identifier that carries the concept in the code base.
 | **Candidate** | One revision in the ordered list a session searches. | `Candidate` |
 | **Verdict** | The outcome of testing a candidate: `good`, `bad` or `skip`. | `Verdict` |
 | **Test** | What produces a verdict: a `script` (exit code) or a `manual` prompt. | `ScriptTest`, `ManualTest` |
+| **Error code** | The stable, upper-case name of a failure kind (`NOT_FOUND`, `PREREQ_MISSING`…), reported with `--json`; each maps to one exit code. | `TestbedError.code`, `errors.py` |
+| **JSON envelope** | The single document `qft --json` writes on stdout: `schema_version`, `ok`, `data` or `error`, `warnings`. | `emit()`, `cli/_console.py` |
 | **Swap** | Replacing one component's revision inside a running deployment: stop, reset, materialize, render, start, health, wire. The bisect primitive. | `Deployment.swap()` |
 
 Conventions: component names are lowercase with hyphens (`qfield-android`), the same in specs, CLI output,

@@ -8,6 +8,7 @@ A spec is a YAML document validated into :class:`DeploymentSpec`. Version source
 from __future__ import annotations
 
 import re
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -320,18 +321,13 @@ class DeploymentSpec(BaseModel):
 
     @classmethod
     def from_yaml(cls, text: str, *, overrides: dict[str, str] | None = None) -> DeploymentSpec:
-        try:
-            data = yaml.safe_load(text) or {}
-        except yaml.YAMLError as exc:
-            raise SpecError(f"spec is not valid YAML: {exc}") from exc
-        if not isinstance(data, dict):
-            raise SpecError("spec must be a YAML mapping")
+        data = load_yaml_mapping(text, "spec")
         for dotted, value in (overrides or {}).items():
             _set_dotted(data, dotted, value)
         try:
             return cls.model_validate(data)
         except ValidationError as exc:
-            raise SpecError(_format_validation_error(exc)) from exc
+            raise invalid("invalid spec:", validation_issues(exc, text)) from exc
 
     @classmethod
     def from_file(cls, path: Path, *, overrides: dict[str, str] | None = None) -> DeploymentSpec:
@@ -346,6 +342,40 @@ class DeploymentSpec(BaseModel):
         return yaml.safe_dump(data, sort_keys=False)
 
 
+def with_version_shorthands(schema: dict[str, Any]) -> dict[str, Any]:
+    """Teach a generated JSON Schema the ``kind:value`` shorthand that :func:`parse_version_source` accepts.
+
+    Pydantic only sees the object forms (``{kind: release, tag: …}``); every ``version`` property also accepts the
+    matching strings (``release:v26.28``, ``host``).
+    """
+    defs = schema.get("$defs", {})
+
+    def kinds(union: dict[str, Any]) -> list[str]:
+        refs = [union["$ref"]] if "$ref" in union else [option["$ref"] for option in union.get("oneOf", [])]
+        return [defs[ref.rsplit("/", 1)[1]]["properties"]["kind"]["const"] for ref in refs]
+
+    for definition in defs.values():
+        version = definition.get("properties", {}).get("version")
+        if version is None:
+            continue
+        names = kinds(version)
+        alternatives = [f"{kind}:.+" if _SHORTHAND_FIELDS[kind] else kind for kind in names]
+        objects = {key: value for key, value in version.items() if key not in {"default", "title", "description"}}
+        shorthand = {
+            "type": "string",
+            "pattern": "^(?:" + "|".join(alternatives) + ")$",
+            "examples": [f"{kind}:<{_SHORTHAND_FIELDS[kind]}>" if _SHORTHAND_FIELDS[kind] else kind for kind in names],
+        }
+        kept = {key: value for key, value in version.items() if key in {"default", "title", "description"}}
+        definition["properties"]["version"] = {**kept, "anyOf": [shorthand, objects]}
+    return schema
+
+
+def spec_json_schema() -> dict[str, Any]:
+    """The JSON Schema of a deployment spec (`qft spec schema`)."""
+    return with_version_shorthands(DeploymentSpec.model_json_schema())
+
+
 def _set_dotted(data: dict[str, Any], dotted: str, value: str) -> None:
     """Apply a `--set a.b=c` override; plain scalars are parsed as YAML so `true`/`3` keep their type."""
     *parents, leaf = dotted.split(".")
@@ -357,12 +387,84 @@ def _set_dotted(data: dict[str, Any], dotted: str, value: str) -> None:
     node[leaf] = yaml.safe_load(value)
 
 
-def _format_validation_error(exc: ValidationError) -> str:
-    lines = ["invalid spec:"]
+@dataclass
+class SpecIssue:
+    """One problem in a spec or scenario: where (dotted path, 1-based YAML line and column) and what."""
+
+    path: str
+    message: str
+    line: int | None = None
+    column: int | None = None
+
+    def __str__(self) -> str:
+        where = f" (line {self.line})" if self.line else ""
+        return f"{self.path or '<root>'}: {self.message}{where}"
+
+
+def load_yaml_mapping(text: str, what: str) -> dict[str, Any]:
+    """Parse ``text``; a syntax error or a document that is not a mapping is a located :class:`SpecError`."""
+    try:
+        data = yaml.safe_load(text) or {}
+    except yaml.MarkedYAMLError as exc:
+        mark = exc.problem_mark
+        issue = SpecIssue(
+            "", str(exc.problem or exc), mark.line + 1 if mark else None, mark.column + 1 if mark else None
+        )
+        raise invalid(f"{what} is not valid YAML:", [issue]) from exc
+    except yaml.YAMLError as exc:
+        raise invalid(f"{what} is not valid YAML:", [SpecIssue("", str(exc))]) from exc
+    if not isinstance(data, dict):
+        raise invalid(f"{what} must be a YAML mapping:", [SpecIssue("", f"got {type(data).__name__}", 1, 1)])
+    return data
+
+
+def validation_issues(exc: ValidationError, text: str | None = None) -> list[SpecIssue]:
+    """The errors pydantic found, with the YAML line of the deepest key of each error's location."""
+    root = _compose(text)
+    issues = []
     for error in exc.errors():
-        location = ".".join(str(part) for part in error["loc"]) or "<root>"
-        lines.append(f"  - {location}: {error['msg']}")
-    return "\n".join(lines)
+        loc = [part for part in error["loc"] if not isinstance(part, str) or not part.startswith("function-")]
+        line, column = _locate(root, loc)
+        issues.append(SpecIssue(".".join(str(part) for part in loc), error["msg"], line, column))
+    return issues
+
+
+def invalid(header: str, issues: list[SpecIssue]) -> SpecError:
+    lines = [header, *(f"  - {issue}" for issue in issues)]
+    return SpecError(
+        "\n".join(lines),
+        hint="see `qft spec schema` and `qft spec example`",
+        docs="spec",
+        details={"issues": [asdict(issue) for issue in issues]},
+    )
+
+
+def _compose(text: str | None) -> yaml.Node | None:
+    if text is None:
+        return None
+    try:
+        node: yaml.Node | None = yaml.compose(text)
+    except yaml.YAMLError:
+        return None
+    return node
+
+
+def _locate(node: yaml.Node | None, loc: list[int | str]) -> tuple[int | None, int | None]:
+    """1-based line and column of the deepest node of ``loc`` found in the document (a key for mappings)."""
+    found: yaml.Node | None = None
+    for part in loc:
+        if isinstance(node, yaml.MappingNode):
+            entry = next((pair for pair in node.value if getattr(pair[0], "value", None) == str(part)), None)
+            if entry is None:
+                break
+            found, node = entry[0], entry[1]
+        elif isinstance(node, yaml.SequenceNode) and isinstance(part, int) and part < len(node.value):
+            found = node = node.value[part]
+        else:
+            break
+    if found is None:
+        return None, None
+    return found.start_mark.line + 1, found.start_mark.column + 1
 
 
 EXAMPLE_MINIMAL = """\

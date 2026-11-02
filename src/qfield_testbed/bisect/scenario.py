@@ -20,6 +20,10 @@ from qfield_testbed.spec import (
     QFieldIosSpec,
     QFieldSyncSpec,
     QgisSpec,
+    invalid,
+    load_yaml_mapping,
+    validation_issues,
+    with_version_shorthands,
 )
 
 _TAGS_RULE = re.compile(r"^tags:(.+)$")
@@ -145,15 +149,14 @@ class BisectScenario(BaseModel):
     @classmethod
     def from_file(cls, path: Path) -> BisectScenario:
         try:
-            data = yaml.safe_load(path.read_text()) or {}
-        except (OSError, yaml.YAMLError) as exc:
+            text = path.read_text()
+        except OSError as exc:
             raise SpecError(f"cannot read scenario {path}: {exc}") from exc
+        data = load_yaml_mapping(text, f"scenario {path}")
         try:
             scenario = cls.model_validate(data)
         except ValidationError as exc:
-            lines = [f"invalid scenario {path}:"]
-            lines += [f"  - {'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()]
-            raise SpecError("\n".join(lines)) from exc
+            raise invalid(f"invalid scenario {path}:", validation_issues(exc, text)) from exc
         if scenario.test.script is not None and not scenario.test.script.is_absolute():
             scenario.test.script = (path.parent / scenario.test.script).resolve()
         # the fixed part must itself be a valid deployment once the varying component is added
@@ -185,3 +188,8 @@ test:
   timeout: 900
   # manual: true                 # or prompt good / bad / skip after each swap
 """
+
+
+def scenario_json_schema() -> dict[str, Any]:
+    """The JSON Schema of a bisect scenario (`qft spec schema --scenario`)."""
+    return with_version_shorthands(BisectScenario.model_json_schema())

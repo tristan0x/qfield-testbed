@@ -76,6 +76,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | Command | Purpose |
 |---|---|
 | `qft doctor [--require KEY]` | Check Docker, KVM, `gh`, QGIS, display, `xvfb-run`, iOS hosts, free disk; tell which components and version sources this host can run |
+| `qft docs [TOPIC]`, `qft spec schema` | The documentation and the spec JSON Schema of the installed version |
 | `qft spec example [--minimal]`, `qft spec validate FILE` | Help writing specs |
 | `qft deployment add SPEC [--name N] [--set k=v] [--start]` | Register a deployment and allocate its slot |
 | `qft deployment list \| show \| start \| stop \| restart \| remove \| logs NAME` | Lifecycle |
@@ -86,6 +87,9 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 
 ## Documentation
+
+`qft docs` lists the pages below and `qft docs TOPIC` prints one (`qft docs spec`, `qft docs components/qgis`):
+they ship with the package, so they always match the installed version and work offline.
 
 - [Glossary](docs/glossary.md) — the terms, used consistently everywhere
 - [Getting started](docs/getting-started.md)

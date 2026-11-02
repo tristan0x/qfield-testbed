@@ -10,7 +10,7 @@ from rich.table import Table
 
 from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, styled_status, warn
 from qfield_testbed.components.qgis import qt_platform
-from qfield_testbed.deployment import Testbed
+from qfield_testbed.deployment import DeploymentInfo, Testbed
 from qfield_testbed.errors import NotFoundError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
@@ -56,7 +56,7 @@ def add(
     if start:
         deployment.start()
         ok(f"deployment [bold]{spec.name}[/] is running")
-        _print_show(deployment.describe())
+        _print_show(deployment.info())
     else:
         console.print(f"Next: [bold]qft deployment start {spec.name}[/]")
 
@@ -82,7 +82,7 @@ def list_() -> None:
         table.add_row(
             summary.name,
             str(summary.slot),
-            f"{summary.ports.base}–{summary.ports.base + 99}",
+            f"{summary.port_base}–{summary.port_last}",
             styled_status(summary.status),
             components,
             summary.session or "",
@@ -90,17 +90,14 @@ def list_() -> None:
     console.print(table)
 
 
-def _print_show(info: dict[str, object]) -> None:
-    console.print(
-        f"[bold]{info['name']}[/]  {styled_status(info['status'])}  slot {info['slot']}  "  # type: ignore[arg-type]
-        f"network {info['network']}"
-    )
-    console.print(f"  directory: {info['directory']}")
-    if account := info.get("test_account"):
-        console.print(f"  test account: {account['username']} / {account['password']}")  # type: ignore[index]
-    for name, facts in info["components"].items():  # type: ignore[attr-defined]
-        console.print(f"\n[bold]{name}[/]  {styled_status(facts.pop('status'))}")
-        for key, value in facts.items():
+def _print_show(info: DeploymentInfo) -> None:
+    console.print(f"[bold]{info.name}[/]  {styled_status(info.status)}  slot {info.slot}  network {info.network}")
+    console.print(f"  directory: {info.directory}")
+    if account := info.test_account:
+        console.print(f"  test account: {account.username} / {account.password}")
+    for name, component in info.components.items():
+        console.print(f"\n[bold]{name}[/]  {styled_status(component.status)}")
+        for key, value in component.model_dump(exclude={"status"}).items():
             if value is not None:
                 console.print(f"  {key}: {value}")
 
@@ -110,7 +107,7 @@ def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same
     """Show URLs, ports, credentials, revisions and status of a deployment."""
     if json_:
         set_json_output(True)
-    info = Testbed().deployment(name).describe()
+    info = Testbed().deployment(name).info()
     emit(info, human=lambda: _print_show(info))
 
 
@@ -120,7 +117,7 @@ def start(name: NameArg, component: ComponentOpt = None) -> None:
     deployment = Testbed().deployment(name)
     deployment.start(component)
     ok(f"deployment [bold]{name}[/] is running")
-    _print_show(deployment.describe())
+    _print_show(deployment.info())
 
 
 @app.command()

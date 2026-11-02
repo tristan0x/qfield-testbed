@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import confirm, console, ok, print_json, styled_status, warn
+from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, styled_status, warn
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import NotFoundError, UsageError
@@ -106,13 +106,12 @@ def _print_show(info: dict[str, object]) -> None:
 
 
 @app.command()
-def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False) -> None:
+def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same as `qft --json`")] = False) -> None:
     """Show URLs, ports, credentials, revisions and status of a deployment."""
-    info = Testbed().deployment(name).describe()
     if json_:
-        print_json(info)
-    else:
-        _print_show(info)
+        set_json_output(True)
+    info = Testbed().deployment(name).describe()
+    emit(info, human=lambda: _print_show(info))
 
 
 @app.command()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.table import Table
@@ -13,7 +13,7 @@ from qfield_testbed.bisect.runner import BisectAbortError, Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
-from qfield_testbed.cli._console import confirm, console, ok, print_json, warn
+from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import NeedsHumanError, NotFoundError, UsageError
 
@@ -177,13 +177,18 @@ def skip(session: SessionArg = None) -> None:
 
 
 @app.command()
-def status(session: SessionArg = None, json_: Annotated[bool, typer.Option("--json")] = False) -> None:
+def status(
+    session: SessionArg = None, json_: Annotated[bool, typer.Option("--json", help="Same as `qft --json`")] = False
+) -> None:
     """Show candidates, verdicts and what comes next."""
+    if json_:
+        set_json_output(True)
     current = _session(Testbed(), session)
     info = current.summary()
-    if json_:
-        print_json(info)
-        return
+    emit(info, human=lambda: _print_status(current, info))
+
+
+def _print_status(current: BisectSession, info: dict[str, Any]) -> None:
     console.print(
         f"[bold]{info['session']}[/]  {info['status']}  {info['component']} {info['good']}..{info['bad']}  "
         f"deployment {info['deployment']}  {info['tested']} tested / {info['skipped']} skipped / {info['candidates']} candidates"

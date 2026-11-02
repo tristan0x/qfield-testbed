@@ -199,10 +199,13 @@ def test_show_text_and_json(testbed: Testbed) -> None:
     assert "demo  created  slot 0  network qft-demo" in text.output
     assert f"directory: {testbed.paths.deployment_dir('demo')}" in text.output
     assert "qgis  created" in text.output
-    as_json = invoke(["deployment", "show", "demo", "--json"])
-    assert as_json.exit_code == 0
-    info = json.loads(as_json.output)
-    assert info["name"] == "demo"
+    for flags in (["deployment", "show", "demo", "--json"], ["--json", "deployment", "show", "demo"]):
+        as_json = invoke(flags)
+        assert as_json.exit_code == 0
+        envelope = json.loads(as_json.stdout)
+        assert (envelope["schema_version"], envelope["ok"], envelope["warnings"]) == (1, True, [])
+        info = envelope["data"]
+        assert info["name"] == "demo"
     assert info["components"]["qgis"]["version"] == "host"
 
 

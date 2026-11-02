@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows
   is missing; `--json` returns the matrix and the slots in use (#28).
 - `qft deployment env NAME --format shell|dotenv|json`; [docs/environment.md](docs/environment.md) documents
   every `QFT_*` variable, and a test keeps it in step with what the components export (#29).
+- `qft deployment logs` takes `--tail N`, `--since T` and `--service S`; with `--json` it returns the lines
+  instead of printing them, and never follows (#29).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

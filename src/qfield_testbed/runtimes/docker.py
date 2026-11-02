@@ -121,8 +121,19 @@ class Compose:
         """`compose run --rm <service> <cmd>` — for one-off management commands."""
         return self.run("run", "--rm", "--no-deps", service, *cmd, capture=False, timeout=timeout)
 
-    def logs(self, *services: str, follow: bool = False, tail: str = "200") -> None:
-        args = ["logs", "--tail", tail]
+    def logs(
+        self,
+        *services: str,
+        follow: bool = False,
+        tail: int | None = 200,
+        since: str | None = None,
+        capture: bool = False,
+    ) -> str | None:
+        """Print the logs of ``services`` (all when none), or return them with ``capture``; ``tail=None`` is all."""
+        args = ["logs", "--tail", "all" if tail is None else str(tail)]
+        if since:
+            args += ["--since", since]
         if follow:
             args.append("-f")
-        self.run(*args, *services, check=False, capture=False)
+        completed = self.run(*args, *services, check=False, capture=capture)
+        return completed.stdout if capture else None

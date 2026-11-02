@@ -53,8 +53,9 @@ class CliQgis(Component):
     def describe(self) -> dict[str, Any]:
         return {"profile": "testbed", "missing": None}
 
-    def logs(self, *, follow: bool) -> None:
-        self.calls.append(f"logs qgis follow={follow}")
+    def logs(self, *, follow: bool = False, capture: bool = False, **options: Any) -> str | None:
+        self.calls.append(f"logs qgis follow={follow} {options}")
+        return "qgis says hi\n" if capture else None
 
 
 class CliCloud(CliQgis):
@@ -266,14 +267,18 @@ def test_remove_warns_about_bisect_session(testbed: Testbed) -> None:
 
 @pytest.mark.usefixtures("fake_components")
 def test_logs_follows_components_that_have_logs(testbed: Testbed) -> None:
-    REGISTRY["qfieldcloud"] = type("NoLogsCloud", (CliCloud,), {"logs": None})
+    REGISTRY["qfieldcloud"] = type("NoLogsCloud", (CliCloud,), {"logs": Component.logs})
     testbed.add(DeploymentSpec.from_yaml(SPEC_WITH_CLOUD))
     result = invoke(["deployment", "logs", "demo", "-f"])
     assert result.exit_code == 0
-    assert CliQgis.calls == ["logs qgis follow=True"]
-    only = invoke(["deployment", "logs", "demo", "--component", "qgis"])
+    assert CliQgis.calls == ["logs qgis follow=True {'tail': 200, 'since': None, 'service': None}"]
+    only = invoke(["deployment", "logs", "demo", "--component", "qgis", "--tail", "5", "--since", "10m"])
     assert only.exit_code == 0
-    assert CliQgis.calls[-1] == "logs qgis follow=False"
+    assert CliQgis.calls[-1] == "logs qgis follow=False {'tail': 5, 'since': '10m', 'service': None}"
+    captured = invoke(["--json", "deployment", "logs", "demo"])
+    assert json.loads(captured.stdout)["data"] == {"components": {"qgis": "qgis says hi\n"}}
+    refused = invoke(["--json", "deployment", "logs", "demo", "--follow"])
+    assert "--follow streams forever" in str(refused.exception)
 
 
 @pytest.fixture

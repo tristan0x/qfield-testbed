@@ -470,8 +470,17 @@ class QFieldCloud(Component):
                 if image.endswith(f":wt-{self.ctx.name}"):
                     self.ctx.runner.run(["docker", "image", "rm", image], check=False)
 
-    def logs(self, *, follow: bool = False) -> None:
-        self.compose().logs(follow=follow)
+    def logs(
+        self,
+        *,
+        follow: bool = False,
+        tail: int | None = 200,
+        since: str | None = None,
+        service: str | None = None,
+        capture: bool = False,
+    ) -> str | None:
+        services = (service,) if service else ()
+        return self.compose().logs(*services, follow=follow, tail=tail, since=since, capture=capture)
 
     def describe(self) -> dict[str, Any]:
         facts = self.state.facts

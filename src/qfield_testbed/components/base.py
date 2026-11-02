@@ -99,6 +99,18 @@ class Component(ABC):
     @abstractmethod
     def stop(self) -> None: ...
 
+    def logs(
+        self,
+        *,
+        follow: bool = False,  # noqa: ARG002
+        tail: int | None = 200,  # noqa: ARG002
+        since: str | None = None,  # noqa: ARG002
+        service: str | None = None,  # noqa: ARG002
+        capture: bool = False,  # noqa: ARG002
+    ) -> str | None:
+        """Print the component's logs, or return them with ``capture``; None when it has no logs."""
+        return None
+
     def reset(self) -> None:  # noqa: B027 - optional hook
         """Wipe persistent data (volumes, profile state) so the next start is pristine; used by bisect swaps."""
 

@@ -32,7 +32,8 @@ appear in any release; removing or renaming one bumps `schema_version`.
 | `deployment remove NAME --yes` | `{name, removed: true}` |
 | `deployment env NAME` | `{variables: {QFT_…: value}}`, also with `--format json`; see [The QFT_* environment](environment.md) |
 | `deployment launch NAME TARGET` | `{launcher, exit_code}` once the client is closed |
-| `deployment logs`, `deployment run` | not available in JSON mode yet: `USAGE` error |
+| `deployment logs NAME [--tail N] [--since T] [--service S]` | `{components: {name: text}}` for the components that have logs; `--follow` is refused |
+| `deployment run` | not available in JSON mode yet: `USAGE` error |
 
 ## Bisect
 

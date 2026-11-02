@@ -180,17 +180,27 @@ def remove(
 @app.command()
 def logs(
     name: NameArg,
+    *,
     component: ComponentOpt = None,
-    follow: Annotated[bool, typer.Option("--follow", "-f")] = False,
+    service: Annotated[
+        str | None, typer.Option("--service", help="One compose service, e.g. app or worker_wrapper")
+    ] = None,
+    tail: Annotated[int | None, typer.Option("--tail", "-n", help="Last N lines per component (default 200)")] = 200,
+    since: Annotated[
+        str | None, typer.Option("--since", help="Only lines newer than this, e.g. 10m or an ISO date")
+    ] = None,
+    follow: Annotated[bool, typer.Option("--follow", "-f", help="Keep streaming (not with --json)")] = False,
 ) -> None:
     """Show container logs of the deployment."""
-    _not_in_json_mode("deployment logs")
+    if follow and OUTPUT.json:
+        raise UsageError("--follow streams forever and cannot answer with one JSON document", hint="drop --follow")
     deployment = Testbed().deployment(name)
+    captured: dict[str, str] = {}
     for comp in deployment.components(component):
-        show_logs = getattr(comp, "logs", None)
-        if show_logs is None:
-            continue
-        show_logs(follow=follow)
+        text = comp.logs(follow=follow, tail=tail, since=since, service=service, capture=OUTPUT.json)
+        if text is not None:
+            captured[comp.name] = text
+    emit({"components": captured}, human=lambda: None)
 
 
 @app.command()

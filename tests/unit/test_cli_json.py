@@ -18,7 +18,7 @@ from tests.unit.test_cli_deployment import fake_components, invoke, isolate  # n
 
 SPEC = "name: demo\nqgis: {version: host}\n"
 # need a terminal-less stream or a running process: covered by their own sub-issue (#29)
-NOT_YET_JSON = {"deployment logs", "deployment run"}
+NOT_YET_JSON = {"deployment run"}
 
 
 def _leaf_commands(group: Any, prefix: str = "") -> set[str]:
@@ -69,6 +69,7 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     shown = _json("deployment", "show", "demo")
     assert shown["components"]["qgis"]["profile"] == "testbed"
     assert _json("deployment", "env", "demo")["variables"]["QFT_DEPLOYMENT"] == "demo"
+    assert _json("deployment", "logs", "demo")["components"] == {"qgis": "qgis says hi\n"}
     assert _json("deployment", "launch", "demo", "qgis")["exit_code"] == 0
     assert _json("deployment", "stop", "demo")["status"] == "stopped"
     assert _json("deployment", "restart", "demo")["status"] == "running"
@@ -120,7 +121,10 @@ def test_no_command_is_left_without_json() -> None:
         "config path",
         "spec example",
         "spec validate",
-        *(f"deployment {c}" for c in ("add", "list", "start", "show", "env", "launch", "stop", "restart", "remove")),
+        *(
+            f"deployment {c}"
+            for c in ("add", "list", "start", "show", "env", "logs", "launch", "stop", "restart", "remove")
+        ),
         "cache list",
         "cache prune",
         *(

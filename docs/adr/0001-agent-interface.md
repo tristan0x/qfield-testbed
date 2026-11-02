@@ -45,7 +45,7 @@ Raising `TestbedError` itself is forbidden (a unit test enforces it).
 | Exit | Meaning | Codes |
 |---|---|---|
 | 0 | success | |
-| 1 | unexpected error; bisect session stopped by its test or paused by the user | `ERROR`, `ABORTED` |
+| 1 | unexpected error | `ERROR` |
 | 2 | usage error, invalid spec or scenario, name already taken | `USAGE`, `INVALID_SPEC`, `ALREADY_EXISTS` |
 | 3 | prerequisite missing (host, configuration, previous step), or a human must act | `PREREQ_MISSING`, `NEEDS_HUMAN` |
 | 4 | resource exhausted: no free slot, port or disk | `RESOURCE_EXHAUSTED` |
@@ -53,7 +53,7 @@ Raising `TestbedError` itself is forbidden (a unit test enforces it).
 | 6 | timeout: something did not become ready in time | `TIMEOUT` |
 | 7 | component failure: container unhealthy, wiring, build, external command | `COMPONENT_FAILED` |
 | 8 | refused: confirmation or authorization missing, confirmation declined | `REFUSED` |
-| 130 | interrupted (Ctrl-C) | `INTERRUPTED` |
+| 130 | interrupted (Ctrl-C), or bisect session stopped by its test or paused by the user | `INTERRUPTED`, `ABORTED` |
 
 `125` is **not** a `qft` exit code: it stays the `git bisect run` convention for bisect *test scripts* ("skip
 this candidate"). A revision that cannot be materialized is caught inside the bisect session and recorded as a

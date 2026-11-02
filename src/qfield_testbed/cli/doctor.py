@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.table import Table
 
 from qfield_testbed.backends.qgis_host import NO_DISPLAY_HINT
-from qfield_testbed.cli._console import console
+from qfield_testbed.cli._console import console, emit
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.runtimes import docker
@@ -149,12 +149,23 @@ def run_checks(testbed: Testbed) -> list[Check]:
 def doctor() -> None:
     """Check the host for Docker, KVM, gh, QGIS, display and configured iOS hosts."""
     testbed = Testbed(GlobalConfig.load())
+    checks = run_checks(testbed)
+    data = {
+        "checks": checks,
+        "home": testbed.paths.home,
+        "cache": testbed.paths.cache,
+        "config": GlobalConfig.file_path(),
+    }
+    emit(data, human=lambda: _print_checks(testbed, checks))
+
+
+def _print_checks(testbed: Testbed, checks: list[Check]) -> None:
     table = Table(box=None, header_style="bold", pad_edge=False)
     table.add_column("")
     table.add_column("CHECK")
     table.add_column("DETAIL")
     table.add_column("NEEDED BY", style="dim")
-    for check in run_checks(testbed):
+    for check in checks:
         table.add_row("[green]✓[/]" if check.ok else "[red]✗[/]", check.name, check.detail, check.needed_by)
     console.print(table)
     console.print(f"\nhome: {testbed.paths.home}\ncache: {testbed.paths.cache}\nconfig: {GlobalConfig.file_path()}")

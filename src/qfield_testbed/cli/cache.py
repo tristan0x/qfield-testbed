@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import re
 from datetime import timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.table import Table
 
 from qfield_testbed.cache import dir_size, human_size
-from qfield_testbed.cli._console import console, ok
+from qfield_testbed.cli._console import console, emit, ok
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import UsageError
 from qfield_testbed.runtimes import docker
@@ -31,7 +31,24 @@ def list_() -> None:
     """List cached materializations, their size and the deployments using them."""
     testbed = Testbed()
     index = testbed.cache.load()
-    if not index.entries:
+    entries: list[dict[str, Any]] = [
+        {
+            "key": key,
+            "path": entry.path,
+            "size_bytes": dir_size(entry.path) if entry.path.exists() else 0,
+            "last_used": entry.last_used,
+            "users": sorted(entry.users),
+            "images": entry.images,
+        }
+        for key, entry in sorted(index.entries.items())
+    ]
+    total = sum(e["size_bytes"] for e in entries)
+    data = {"cache_dir": testbed.paths.cache, "entries": entries, "total_bytes": total}
+    emit(data, human=lambda: _print_entries(testbed, entries, total))
+
+
+def _print_entries(testbed: Testbed, entries: list[dict[str, Any]], total: int) -> None:
+    if not entries:
         console.print(f"Cache is empty ({testbed.paths.cache})")
         return
     table = Table(box=None, header_style="bold", pad_edge=False)
@@ -40,19 +57,16 @@ def list_() -> None:
     table.add_column("LAST USED")
     table.add_column("USED BY")
     table.add_column("IMAGES")
-    total = 0
-    for key, entry in sorted(index.entries.items()):
-        size = dir_size(entry.path) if entry.path.exists() else 0
-        total += size
+    for entry in entries:
         table.add_row(
-            key,
-            human_size(size),
-            entry.last_used.strftime("%Y-%m-%d"),
-            ", ".join(sorted(entry.users)),
-            ", ".join(entry.images),
+            entry["key"],
+            human_size(entry["size_bytes"]),
+            entry["last_used"].strftime("%Y-%m-%d"),
+            ", ".join(entry["users"]),
+            ", ".join(entry["images"]),
         )
     console.print(table)
-    console.print(f"\n{len(index.entries)} entries, {human_size(total)} on disk in {testbed.paths.cache}")
+    console.print(f"\n{len(entries)} entries, {human_size(total)} on disk in {testbed.paths.cache}")
 
 
 @app.command()
@@ -70,8 +84,11 @@ def prune(
     candidates = testbed.cache.prunable(older_than=age, live_users=live)
     if not candidates:
         console.print("Nothing to prune.")
+    removed: list[dict[str, Any]] = []
     for key, entry in sorted(candidates.items()):
-        size = human_size(dir_size(entry.path)) if entry.path.exists() else "gone"
+        size_bytes = dir_size(entry.path) if entry.path.exists() else None
+        removed.append({"key": key, "size_bytes": size_bytes})
+        size = human_size(size_bytes) if size_bytes is not None else "gone"
         console.print(f"{'would remove' if dry_run else 'removing'} {key} ({size})")
         if not dry_run:
             testbed.cache.drop(key)
@@ -82,6 +99,7 @@ def prune(
     if not dry_run:
         ok("cache pruned")
     _report_dangling_images(testbed)
+    emit({"dry_run": dry_run, "removed": removed}, human=lambda: None)
 
 
 def _report_dangling_images(testbed: Testbed) -> None:

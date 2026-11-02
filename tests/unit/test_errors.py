@@ -34,7 +34,7 @@ EXPECTED = {
     "WiringError": ("COMPONENT_FAILED", 7),
     "CommandError": ("COMPONENT_FAILED", 7),
     "RefusedError": ("REFUSED", 8),
-    "BisectAbortError": ("ABORTED", 1),
+    "BisectAbortError": ("ABORTED", 130),
 }
 
 SRC = Path(qfield_testbed.__file__).parent

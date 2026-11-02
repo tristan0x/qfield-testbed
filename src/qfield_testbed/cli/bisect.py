@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -9,7 +10,7 @@ import typer
 from rich.table import Table
 
 from qfield_testbed.bisect.algorithm import Verdict
-from qfield_testbed.bisect.runner import BisectAbortError, Outcome
+from qfield_testbed.bisect.runner import Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
@@ -60,7 +61,9 @@ def _print_result(session: BisectSession) -> None:
 @app.command()
 def example() -> None:
     """Print an example scenario to start from."""
-    console.print(EXAMPLE_SCENARIO, markup=False, highlight=False, end="")
+    emit(
+        {"yaml": EXAMPLE_SCENARIO}, human=lambda: console.print(EXAMPLE_SCENARIO, markup=False, highlight=False, end="")
+    )
 
 
 @app.command()
@@ -82,7 +85,7 @@ def start(
     if run_:
         run(created.name)
     else:
-        console.print(f"Next: [bold]qft bisect run {created.name}[/]")
+        emit(created.summary(), human=lambda: console.print(f"Next: [bold]qft bisect run {created.name}[/]"))
 
 
 @app.command()
@@ -96,29 +99,25 @@ def run(session: SessionArg = None) -> None:
             hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
             docs="bisect",
         )
-    try:
-        while True:
-            search = current.search()
-            index = search.next_index()
-            if index is None:
-                break
-            candidate = current.candidate(index)
-            console.rule(
-                f"step {len(current.state.outcomes) + 1} · candidate {index} · {candidate.label} · ≤ {search.remaining_steps()} steps left"
+    while True:
+        search = current.search()
+        index = search.next_index()
+        if index is None:
+            break
+        candidate = current.candidate(index)
+        console.rule(
+            f"step {len(current.state.outcomes) + 1} · candidate {index} · {candidate.label} · ≤ {search.remaining_steps()} steps left"
+        )
+        console.print(f"{candidate.subject}  [dim]{candidate.date}[/]")
+        if not current.step(_prompt):
+            break
+        outcome = current.state.outcomes.get(index)
+        if outcome:
+            console.print(
+                f"→ [bold]{outcome.verdict}[/]"
+                + (f" (exit {outcome.exit_code})" if outcome.exit_code is not None else "")
             )
-            console.print(f"{candidate.subject}  [dim]{candidate.date}[/]")
-            if not current.step(_prompt):
-                break
-            outcome = current.state.outcomes.get(index)
-            if outcome:
-                console.print(
-                    f"→ [bold]{outcome.verdict}[/]"
-                    + (f" (exit {outcome.exit_code})" if outcome.exit_code is not None else "")
-                )
-    except BisectAbortError as exc:
-        warn(str(exc))
-        raise typer.Exit(130) from exc
-    _print_result(current)
+    emit(current.summary(), human=lambda: _print_result(current))
 
 
 @app.command("next")
@@ -127,22 +126,30 @@ def next_(session: SessionArg = None) -> None:
     current = _session(Testbed(), session)
     if current.state.current is not None:
         candidate = current.candidate(current.state.current)
-        console.print(
-            f"candidate {current.state.current} ({candidate.label}) is already prepared; give a verdict first"
-        )
+        message = f"candidate {current.state.current} ({candidate.label}) is already prepared; give a verdict first"
+        _emit_next(current, current.state.current, "already-prepared", lambda: console.print(message))
         return
     index = current.search().next_index()
     if index is None:
-        _print_result(current)
+        _emit_next(current, None, "done", lambda: _print_result(current))
         return
     deployment = current.prepare(index)
     if deployment is None:
-        console.print("candidate skipped (not materializable); run `qft bisect next` again")
+        message = "candidate skipped (not materializable); run `qft bisect next` again"
+        _emit_next(current, None, "skipped", lambda: console.print(message))
         return
     candidate = current.candidate(index)
     ok(f"candidate {index} ready: [bold]{candidate.label}[/] — {candidate.subject}")
-    console.print(f"deployment: {deployment.name}  →  qft deployment show {deployment.name}")
-    console.print("then: qft bisect good | bad | skip")
+
+    def human() -> None:
+        console.print(f"deployment: {deployment.name}  →  qft deployment show {deployment.name}")
+        console.print("then: qft bisect good | bad | skip")
+
+    _emit_next(current, index, "prepared", human)
+
+
+def _emit_next(current: BisectSession, prepared: int | None, outcome: str, human: Callable[[], None]) -> None:
+    emit({"prepared": prepared, "outcome": outcome, "session": current.summary()}, human=human)
 
 
 def _verdict(session: str | None, verdict: Verdict) -> None:
@@ -152,10 +159,14 @@ def _verdict(session: str | None, verdict: Verdict) -> None:
         raise UsageError("no candidate is prepared", hint="run `qft bisect next` first")
     current.record(index, Outcome(verdict, None, 0.0, f"manual verdict: {verdict}\n"))
     ok(f"candidate {index} ({current.candidate(index).label}) → {verdict}")
-    if current.state.status is SessionStatus.DONE:
-        _print_result(current)
-    else:
-        console.print(f"≤ {current.search().remaining_steps()} steps left — qft bisect next")
+
+    def human() -> None:
+        if current.state.status is SessionStatus.DONE:
+            _print_result(current)
+        else:
+            console.print(f"≤ {current.search().remaining_steps()} steps left — qft bisect next")
+
+    emit(current.summary(), human=human)
 
 
 @app.command()
@@ -217,17 +228,20 @@ def _print_status(current: BisectSession, info: dict[str, Any]) -> None:
 def list_() -> None:
     """List bisect sessions."""
     testbed = Testbed()
-    names = BisectSession.names(testbed)
-    if not names:
+    sessions = [BisectSession(testbed, name).summary() for name in BisectSession.names(testbed)]
+    emit({"sessions": sessions}, human=lambda: _print_sessions(sessions))
+
+
+def _print_sessions(sessions: list[dict[str, Any]]) -> None:
+    if not sessions:
         console.print("No bisect session yet. Try: [bold]qft bisect example > scenario.yaml[/]")
         return
     table = Table(box=None, header_style="bold", pad_edge=False)
     for column in ("SESSION", "STATUS", "COMPONENT", "RANGE", "PROGRESS", "DEPLOYMENT"):
         table.add_column(column)
-    for name in names:
-        info = BisectSession(testbed, name).summary()
+    for info in sessions:
         table.add_row(
-            name,
+            info["session"],
             info["status"],
             info["component"],
             f"{info['good']}..{info['bad']}",
@@ -250,13 +264,27 @@ def log(
         record = current.state.outcomes.get(index)
         if record is None or not record.log_file:
             raise NotFoundError(f"no log for candidate {index}")
-        console.print(Path(record.log_file).read_text(), markup=False, highlight=False)
+        text = Path(record.log_file).read_text()
+        emit({"index": index, "log": text}, human=lambda: console.print(text, markup=False, highlight=False))
         return
-    for i, record in sorted(current.state.outcomes.items()):
-        candidate = current.candidate(i)
-        console.print(
-            f"[bold]{i}[/] {candidate.label} → {record.verdict} ({record.duration_s}s) {record.log_file or ''}"
-        )
+    outcomes = [
+        {
+            "index": i,
+            "label": current.candidate(i).label,
+            "verdict": record.verdict,
+            "duration_s": record.duration_s,
+            "log_file": record.log_file,
+        }
+        for i, record in sorted(current.state.outcomes.items())
+    ]
+
+    def human() -> None:
+        for row in outcomes:
+            console.print(
+                f"[bold]{row['index']}[/] {row['label']} → {row['verdict']} ({row['duration_s']}s) {row['log_file'] or ''}"
+            )
+
+    emit({"outcomes": outcomes}, human=human)
 
 
 @app.command()
@@ -270,6 +298,7 @@ def reset(
     current = _session(Testbed(), session)
     current.reset(remove_deployment=remove_deployment)
     ok(f"session [bold]{current.name}[/] reset")
+    emit(current.summary(), human=lambda: None)
 
 
 @app.command()
@@ -284,3 +313,4 @@ def remove(
         raise typer.Abort
     current.remove()
     ok(f"session [bold]{session}[/] removed")
+    emit({"session": session, "removed": True}, human=lambda: None)

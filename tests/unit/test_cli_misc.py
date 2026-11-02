@@ -15,7 +15,7 @@ import yaml
 
 from qfield_testbed import __version__
 from qfield_testbed.cli import main
-from qfield_testbed.cli._console import emit, json_requested, set_json_output, styled_status, warn
+from qfield_testbed.cli._console import emit, emit_default, json_requested, set_json_output, styled_status, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.ports import PortBlock
 from qfield_testbed.runtimes.shell import FakeRunner
@@ -282,3 +282,13 @@ def test_pydantic_models_are_dumped_as_json(capsys: pytest.CaptureFixture[str]) 
     finally:
         set_json_output(False)
     assert json.loads(capsys.readouterr().out)["data"] == {"base": 30000}
+
+
+def test_a_command_without_data_still_answers(capsys: pytest.CaptureFixture[str]) -> None:
+    set_json_output(True)
+    try:
+        emit_default()
+        emit_default()  # once only
+    finally:
+        set_json_output(False)
+    assert json.loads(capsys.readouterr().out) == {"schema_version": 1, "ok": True, "data": None, "warnings": []}

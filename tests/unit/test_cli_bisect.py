@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from qfield_testbed.bisect.runner import BisectAbortError
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import TestbedError
@@ -175,8 +176,9 @@ def test_run_prompts_for_manual_verdicts() -> None:
 @pytest.mark.usefixtures("fake_components")
 def test_run_can_be_paused(manual: BisectSession, testbed: Testbed) -> None:
     result = invoke(["bisect", "run"], stdin="q\n")
-    assert result.exit_code == 130
-    assert "session paused by the user" in result.stderr
+    assert isinstance(result.exception, BisectAbortError)
+    assert result.exception.exit_code == 130
+    assert "session paused by the user" in str(result.exception)
     assert BisectSession(testbed, manual.name).state.outcomes == {}
 
 
@@ -204,8 +206,8 @@ def test_script_abort_stops_the_session(tmp_path: Path) -> None:
     _script(tmp_path, {1: 130})
     invoke(["bisect", "start", str(_write(tmp_path, _scenario("s", SCRIPT)))])
     result = invoke(["bisect", "run", "s"])
-    assert result.exit_code == 130
-    assert "test exited with 130; aborting the session" in result.stderr
+    assert isinstance(result.exception, BisectAbortError)
+    assert "test exited with 130; aborting the session" in str(result.exception)
 
 
 @pytest.mark.usefixtures("fake_components", "testbed")

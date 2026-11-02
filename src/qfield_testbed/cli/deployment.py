@@ -8,9 +8,9 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
-from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, styled_status, warn
+from qfield_testbed.cli._console import OUTPUT, confirm, console, emit, ok, set_json_output, styled_status, warn
 from qfield_testbed.components.qgis import qt_platform
-from qfield_testbed.deployment import DeploymentInfo, Testbed
+from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
 from qfield_testbed.errors import NotFoundError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
@@ -56,9 +56,10 @@ def add(
     if start:
         deployment.start()
         ok(f"deployment [bold]{spec.name}[/] is running")
-        _print_show(deployment.info())
+        info = deployment.info()
+        emit(info, human=lambda: _print_show(info))
     else:
-        console.print(f"Next: [bold]qft deployment start {spec.name}[/]")
+        emit(deployment.info(), human=lambda: console.print(f"Next: [bold]qft deployment start {spec.name}[/]"))
 
 
 @app.command("list")
@@ -66,7 +67,12 @@ def list_() -> None:
     """List deployments with their slot, status and components."""
     testbed = Testbed()
     deployments = testbed.deployments()
-    if not deployments:
+    summaries = [deployment.summary() for deployment in deployments]
+    emit({"deployments": summaries}, human=lambda: _print_list(summaries))
+
+
+def _print_list(summaries: list[DeploymentSummary]) -> None:
+    if not summaries:
         console.print("No deployment yet. Try: [bold]qft deployment add examples/minimal.yaml --start[/]")
         return
     table = Table(box=None, header_style="bold", pad_edge=False)
@@ -76,8 +82,7 @@ def list_() -> None:
     table.add_column("STATUS")
     table.add_column("COMPONENTS")
     table.add_column("SESSION")
-    for deployment in deployments:
-        summary = deployment.summary()
+    for summary in summaries:
         components = "  ".join(f"{name} {styled_status(status)}" for name, status in summary.components.items())
         table.add_row(
             summary.name,
@@ -117,14 +122,17 @@ def start(name: NameArg, component: ComponentOpt = None) -> None:
     deployment = Testbed().deployment(name)
     deployment.start(component)
     ok(f"deployment [bold]{name}[/] is running")
-    _print_show(deployment.info())
+    info = deployment.info()
+    emit(info, human=lambda: _print_show(info))
 
 
 @app.command()
 def stop(name: NameArg, component: ComponentOpt = None) -> None:
     """Stop the components; data and containers are kept for the next start."""
-    Testbed().deployment(name).stop(component)
+    deployment = Testbed().deployment(name)
+    deployment.stop(component)
     ok(f"deployment [bold]{name}[/] stopped")
+    emit(deployment.info(), human=lambda: None)
 
 
 @app.command()
@@ -134,6 +142,7 @@ def restart(name: NameArg, component: ComponentOpt = None) -> None:
     deployment.stop(component)
     deployment.start(component)
     ok(f"deployment [bold]{name}[/] restarted")
+    emit(deployment.info(), human=lambda: None)
 
 
 @app.command()
@@ -149,6 +158,7 @@ def remove(
         raise typer.Abort
     deployment.remove()
     ok(f"deployment [bold]{name}[/] removed")
+    emit({"name": name, "removed": True}, human=lambda: None)
 
 
 @app.command()
@@ -158,6 +168,7 @@ def logs(
     follow: Annotated[bool, typer.Option("--follow", "-f")] = False,
 ) -> None:
     """Show container logs of the deployment."""
+    _not_in_json_mode("deployment logs")
     deployment = Testbed().deployment(name)
     for comp in deployment.components(component):
         show_logs = getattr(comp, "logs", None)
@@ -187,12 +198,14 @@ def launch(
     qgis = deployment.spec.qgis if target == "qgis" else None
     suffix = f" (Qt platform: {qt_platform(qgis, os.environ)})" if qgis is not None else ""
     console.print(f"launching {launcher}{suffix}")
-    subprocess.run([str(launcher)], check=False)
+    completed = subprocess.run([str(launcher)], check=False)
+    emit({"launcher": str(launcher), "exit_code": completed.returncode}, human=lambda: None)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def run(ctx: typer.Context, name: NameArg) -> None:
     """Run a command with the deployment's QFT_* environment (URLs, credentials, launchers)."""
+    _not_in_json_mode("deployment run")
     cmd = list(ctx.args)
     if cmd and cmd[0] == "--":
         cmd = cmd[1:]
@@ -206,8 +219,18 @@ def run(ctx: typer.Context, name: NameArg) -> None:
 @app.command()
 def env(name: NameArg) -> None:
     """Print the QFT_* environment of a deployment, ready for `eval "$(qft deployment env NAME)"`."""
-    for key, value in sorted(Testbed().deployment(name).env().items()):
+    variables = dict(sorted(Testbed().deployment(name).env().items()))
+    emit({"variables": variables}, human=lambda: _print_exports(variables))
+
+
+def _print_exports(variables: dict[str, str]) -> None:
+    for key, value in variables.items():
         print(f"export {key}={_shell_quote(value)}")  # noqa: T201 - plain stdout, meant for `eval`
+
+
+def _not_in_json_mode(command: str) -> None:
+    if OUTPUT.json:
+        raise UsageError(f"`qft {command}` does not support --json yet", hint="run it without --json")
 
 
 def _shell_quote(value: str) -> str:

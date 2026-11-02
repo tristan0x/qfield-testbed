@@ -95,9 +95,8 @@ def test_json_version(tmp_path: Path) -> None:
     assert _envelope(result)["data"] == {"version": __version__}
 
 
-def test_json_command_without_data_still_answers(tmp_path: Path) -> None:
+def test_json_logs_stay_on_stderr(tmp_path: Path) -> None:
     result = _qft(tmp_path, "--json", "-vv", "config", "path")
     assert result.returncode == 0
     envelope = _envelope(result)
-    assert (envelope["ok"], envelope["data"]) == (True, None)
-    assert "config.yaml" in result.stderr  # human output moved to stderr
+    assert envelope["data"] == {"path": str(tmp_path / "config.yaml"), "exists": True}

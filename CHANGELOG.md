@@ -27,6 +27,8 @@ All notable changes to this project are documented here. The format follows
   instead of printing them, and never follows (#29).
 - `qft deployment run NAME --timeout 10m -- CMD` kills the command and its children when it runs too long
   (exit 6); with `--json` it captures the output and returns the exit code, duration and output tails (#29).
+- `--timeout 10m` on `qft deployment start`, `restart` and `add --start` bounds the whole start: it fails with
+  exit 6 (`TIMEOUT`) naming the component and the step it had reached (#30).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

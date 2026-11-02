@@ -426,3 +426,12 @@ def test_env_formats() -> None:
     assert json.loads(as_json.stdout)["data"]["variables"]["QFT_DEPLOYMENT"] == "demo"
     unknown = invoke(["deployment", "env", "demo", "--format", "yaml"])
     assert "unknown format 'yaml'" in str(unknown.exception)
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_start_and_restart_take_a_timeout(testbed: Testbed) -> None:
+    assert invoke(["deployment", "start", "demo", "--timeout", "10m"]).exit_code == 0
+    assert invoke(["deployment", "restart", "demo", "--timeout", "90s"]).exit_code == 0
+    assert testbed.deployment("demo").state.status is Status.RUNNING
+    bogus = invoke(["deployment", "start", "demo", "--timeout", "soon"])
+    assert "invalid duration 'soon'" in str(bogus.exception)

@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterator, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -458,3 +459,37 @@ def test_failed_start_answers_with_details_in_json(
         "step": "health",
         "probe": "http://127.0.0.1:1/",
     }
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+@pytest.mark.parametrize(
+    ("args", "touches"),
+    [
+        (["deployment", "show", "demo"], True),
+        (["deployment", "env", "demo"], True),
+        (["deployment", "logs", "demo"], True),
+        (["deployment", "start", "demo"], True),
+        (["deployment", "list"], False),
+        (["deployment", "stop", "demo"], False),
+    ],
+)
+def test_using_a_deployment_restarts_its_ttl(
+    testbed: Testbed, monkeypatch: pytest.MonkeyPatch, args: list[str], touches: bool
+) -> None:
+    later = datetime(2030, 1, 1, tzinfo=UTC)
+    monkeypatch.setattr("qfield_testbed.state._now", lambda: later)
+    assert invoke(args).exit_code == 0
+    assert (testbed.registry.load().deployments["demo"].last_used_at == later) is touches
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_deployments_get_the_configured_ttl(testbed: Testbed) -> None:
+    agent = testbed.add(DeploymentSpec.from_yaml(SPEC), agent_session="s1")
+    human = testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))
+    assert agent.summary().ttl_s == 24 * 3600
+    assert (agent.summary().owner, human.summary().owner) == ("agent", "human")
+    assert human.summary().expires_at is None
+    assert (
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "short")), agent_session="s1", ttl=60).summary().ttl_s
+        == 60
+    )

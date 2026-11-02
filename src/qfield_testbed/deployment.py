@@ -14,8 +14,9 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from filelock import FileLock
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from qfield_testbed.cache import Cache
 from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
+from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import (
     NotFoundError,
     TestbedError,
@@ -38,7 +40,9 @@ from qfield_testbed.spec import DeploymentSpec, VersionSource
 from qfield_testbed.state import (
     Credentials,
     DeploymentState,
+    Owner,
     Registry,
+    RegistryEntry,
     Status,
     load_spec,
     load_state,
@@ -58,12 +62,25 @@ class Testbed:
 
     # --- deployments ------------------------------------------------------------------------------------
 
-    def add(self, spec: DeploymentSpec, *, session: str | None = None) -> Deployment:
-        """Register a deployment: validate components for this host, allocate a slot, generate credentials."""
+    def add(
+        self,
+        spec: DeploymentSpec,
+        *,
+        session: str | None = None,
+        agent_session: str | None = None,
+        ttl: float | Literal["default"] | None = "default",
+    ) -> Deployment:
+        """Register a deployment: validate components for this host, allocate a slot, generate credentials.
+
+        ``session`` is the owning bisect session, ``agent_session`` the agent session creating it. ``ttl`` (seconds,
+        None for none) defaults to `agent_ttl` from the config for agents and to no expiry otherwise.
+        """
         self.paths.ensure()
         self._check_components(spec)
         prober = make_prober(docker.published_host_ports(self.runner))
-        state = self.registry.register(spec, prober=prober, session=session)
+        if ttl == "default":
+            ttl = parse_ttl(self.config.agent_ttl) if agent_session and not session else None
+        state = self.registry.register(spec, prober=prober, session=session, agent_session=agent_session, ttl_s=ttl)
         if spec.qfieldcloud:
             password = spec.qfieldcloud.test_account.password
             if password == "auto":  # noqa: S105 - sentinel, not a secret
@@ -81,9 +98,12 @@ class Testbed:
         )
         return Deployment(self, spec.name)
 
-    def deployment(self, name: str) -> Deployment:
+    def deployment(self, name: str, *, touch: bool = False) -> Deployment:
+        """The deployment ``name``; ``touch`` records a use, which restarts its TTL."""
         if name not in self.registry.load().deployments:
             raise UnknownDeploymentError(name)
+        if touch:
+            self.registry.touch(name)
         return Deployment(self, name)
 
     def deployments(self) -> list[Deployment]:
@@ -129,6 +149,22 @@ class Deadline:
 LOG_TAIL_LINES = 30
 
 
+def parse_ttl(value: str) -> float | None:
+    """A TTL from the config or the command line: a duration (`8h`, `3d`) or `none`."""
+    return None if value.lower() == "none" else parse_duration(value).total_seconds()
+
+
+def _ownership(entry: RegistryEntry) -> dict[str, Any]:
+    return {
+        "owner": entry.owner,
+        "agent_session": entry.agent_session,
+        "created_at": entry.created_at,
+        "last_used_at": entry.last_used_at,
+        "ttl_s": entry.ttl_s,
+        "expires_at": entry.expires_at,
+    }
+
+
 @contextmanager
 def _step(component: Component, step: str, deadline: Deadline) -> Iterator[float | None]:
     """Run one step of bringing ``component`` up: within the deadline, and failures say where they happened.
@@ -169,6 +205,12 @@ class DeploymentSummary(BaseModel):
     port_last: int
     components: dict[str, Status]
     session: str | None = Field(description="Bisect session owning this deployment, if any")
+    owner: Owner
+    agent_session: str | None
+    created_at: datetime
+    last_used_at: datetime
+    ttl_s: float | None
+    expires_at: datetime | None
 
 
 class ComponentInfo(BaseModel):
@@ -192,6 +234,12 @@ class DeploymentInfo(BaseModel):
     ports: dict[str, int]
     test_account: Credentials | None
     components: dict[str, ComponentInfo]
+    owner: Owner
+    agent_session: str | None
+    created_at: datetime
+    last_used_at: datetime
+    ttl_s: float | None
+    expires_at: datetime | None
 
 
 class Deployment:
@@ -369,6 +417,7 @@ class Deployment:
             port_last=self.ports.base + BLOCK_SIZE - 1,
             components={name: self.state.component(name).status for name in self.spec.components()},
             session=entry.session,
+            **_ownership(entry),
         )
 
     def info(self) -> DeploymentInfo:
@@ -393,6 +442,7 @@ class Deployment:
             ports=self.ports.all_ports(),
             test_account=self.state.credentials,
             components=components,
+            **_ownership(self.testbed.registry.load().deployments[self.name]),
         )
 
     def describe(self) -> dict[str, Any]:

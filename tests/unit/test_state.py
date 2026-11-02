@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from qfield_testbed.config import GlobalConfig
@@ -63,3 +65,42 @@ def test_state_roundtrip(registry: Registry) -> None:
     assert loaded.status is Status.RUNNING
     assert loaded.component("qgis").facts == {"profile": "/x"}
     assert loaded.updated_at >= loaded.created_at
+
+
+# --- ownership and TTL ----------------------------------------------------------------------------------------
+
+
+def test_registries_written_before_owners_load_unchanged(registry: Registry) -> None:
+    registry.paths.registry_file.write_text(
+        '{"deployments": {'
+        '"old": {"slot": 0, "created_at": "2026-10-01T10:00:00Z", "session": null},'
+        '"bs-x": {"slot": 1, "created_at": "2026-10-02T10:00:00Z", "session": "x"}}}'
+    )
+    entries = registry.load().deployments
+    assert (entries["old"].owner, entries["bs-x"].owner) == ("human", "bisect")
+    assert entries["old"].last_used_at == entries["old"].created_at
+    assert entries["old"].expires_at is None
+
+
+def test_owner_follows_who_registers(registry: Registry) -> None:
+    registry.register(_spec("a"), prober=lambda _p: True)
+    registry.register(_spec("b"), prober=lambda _p: True, agent_session="s1", ttl_s=3600)
+    registry.register(_spec("c"), prober=lambda _p: True, session="hunt")
+    entries = registry.load().deployments
+    assert [entries[n].owner for n in "abc"] == ["human", "agent", "bisect"]
+    assert entries["b"].agent_session == "s1"
+
+
+def test_ttl_slides_with_each_use(registry: Registry, monkeypatch: pytest.MonkeyPatch) -> None:
+    start = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
+    now = [start]
+    monkeypatch.setattr("qfield_testbed.state._now", lambda: now[0])
+    registry.register(_spec("a"), prober=lambda _p: True, agent_session="s1", ttl_s=3600)
+    assert registry.load().deployments["a"].expires_at == start + timedelta(hours=1)
+    now[0] = start + timedelta(minutes=50)
+    registry.touch("a")
+    assert registry.load().deployments["a"].expires_at == start + timedelta(minutes=110)
+    registry.set_ttl("a", None)
+    assert registry.load().deployments["a"].expires_at is None
+    with pytest.raises(UnknownDeploymentError):
+        registry.touch("nope")

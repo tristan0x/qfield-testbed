@@ -136,14 +136,14 @@ def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same
     """Show URLs, ports, credentials, revisions and status of a deployment."""
     if json_:
         set_json_output(True)
-    info = Testbed().deployment(name).info()
+    info = Testbed().deployment(name, touch=True).info()
     emit(info, human=lambda: _print_show(info))
 
 
 @app.command()
 def start(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None) -> None:
     """Materialize and start the components, then wire them together."""
-    deployment = Testbed().deployment(name)
+    deployment = Testbed().deployment(name, touch=True)
     deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] is running")
     info = deployment.info()
@@ -162,7 +162,7 @@ def stop(name: NameArg, component: ComponentOpt = None) -> None:
 @app.command()
 def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None) -> None:
     """Stop then start."""
-    deployment = Testbed().deployment(name)
+    deployment = Testbed().deployment(name, touch=True)
     deployment.stop(component)
     deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] restarted")
@@ -206,7 +206,7 @@ def logs(
     """Show container logs of the deployment."""
     if follow and OUTPUT.json:
         raise UsageError("--follow streams forever and cannot answer with one JSON document", hint="drop --follow")
-    deployment = Testbed().deployment(name)
+    deployment = Testbed().deployment(name, touch=True)
     captured: dict[str, str] = {}
     for comp in deployment.components(component):
         text = comp.logs(follow=follow, tail=tail, since=since, service=service, capture=OUTPUT.json)
@@ -255,7 +255,11 @@ def run(
         cmd = cmd[1:]
     if not cmd:
         raise UsageError("usage: qft deployment run NAME [--timeout 10m] -- CMD [ARGS...]")
-    result = Testbed().deployment(name).run(cmd, timeout=_seconds(timeout), capture=OUTPUT.json, tail_lines=tail_lines)
+    result = (
+        Testbed()
+        .deployment(name, touch=True)
+        .run(cmd, timeout=_seconds(timeout), capture=OUTPUT.json, tail_lines=tail_lines)
+    )
     if result.timed_out:
         raise TimeoutExceededError(
             f"`{shlex.join(cmd)}` did not finish within {timeout}; it was killed",
@@ -280,7 +284,7 @@ def env(
         raise UsageError(f"unknown format '{fmt}'", hint="one of: " + ", ".join(FORMATS))
     if fmt == "json":
         set_json_output(True)
-    variables = dict(sorted(Testbed().deployment(name).env().items()))
+    variables = dict(sorted(Testbed().deployment(name, touch=True).env().items()))
     # plain stdout, not rich: the output is meant for `eval` or a file
     emit({"variables": variables}, human=lambda: _write(render(variables, fmt)))
 

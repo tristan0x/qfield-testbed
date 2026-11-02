@@ -53,6 +53,9 @@ class GlobalConfig(BaseModel):
     repositories: Repositories = Repositories()
     ios_hosts: dict[str, IosHost] = Field(default_factory=dict)
     cache: CacheConfig = CacheConfig()
+    agent_ttl: str = Field(
+        default="24h", description="TTL of deployments an agent session creates (sliding; `none` for no expiry)"
+    )
 
     @classmethod
     def load(cls, path: Path | None = None) -> GlobalConfig:

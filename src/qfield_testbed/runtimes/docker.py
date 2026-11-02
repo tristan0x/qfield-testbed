@@ -65,6 +65,50 @@ def remove_labelled(runner: Runner, labels: dict[str, str]) -> list[str]:
     return ids
 
 
+COMPOSE_PROJECT_LABEL = "com.docker.compose.project"
+DEPLOYMENT_LABEL = "qft.deployment"
+
+
+def _labels(runner: Runner, kind: str, label: str) -> set[str]:
+    result = runner.run(
+        [
+            "docker",
+            kind,
+            "ls",
+            *(["-a"] if kind == "container" else []),
+            "--filter",
+            f"label={label}",
+            "--format",
+            f'{{{{.Label "{label}"}}}}',
+        ],
+        check=False,
+    )
+    return set(result.stdout.split()) if result.returncode == 0 else set()
+
+
+def compose_projects(runner: Runner, prefix: str) -> set[str]:
+    """Compose projects named ``prefix…`` that still have containers or volumes."""
+    found = _labels(runner, "container", COMPOSE_PROJECT_LABEL) | _labels(runner, "volume", COMPOSE_PROJECT_LABEL)
+    return {project for project in found if project.startswith(prefix)}
+
+
+def labelled_deployments(runner: Runner) -> set[str]:
+    """Deployment names carried by containers labelled ``qft.deployment`` (QGIS in Docker)."""
+    return _labels(runner, "container", DEPLOYMENT_LABEL)
+
+
+def networks(runner: Runner, prefix: str) -> set[str]:
+    """Plain networks named ``prefix…``; compose project networks (``<project>_…``) are left to compose."""
+    result = runner.run(["docker", "network", "ls", "--filter", f"name={prefix}", "--format", "{{.Name}}"], check=False)
+    names = result.stdout.split() if result.returncode == 0 else []
+    return {name for name in names if name.startswith(prefix) and "_" not in name}
+
+
+def compose_down_project(runner: Runner, project: str) -> None:
+    """Remove a compose project's containers, networks and volumes without its compose files."""
+    runner.run(["docker", "compose", "-p", project, "down", "-v", "--remove-orphans"], check=False, timeout=600)
+
+
 @dataclass
 class Compose:
     """A `docker compose` invocation bound to a project name, a set of files and an env file."""

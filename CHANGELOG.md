@@ -41,6 +41,10 @@ All notable changes to this project are documented here. The format follows
   and filters both (#32).
 - An agent session may only stop, restart, remove or keep its own deployments unless `--force`, and agent
   sessions own at most `max_agent_deployments` (10) deployments (#32).
+- `qft gc` removes expired deployments (`--expired`), every deployment of an agent session (`--agent-session`)
+  and the `qft-*` containers, compose projects, networks, files and registry entries no deployment owns
+  (`--orphaned`); `--dry-run` shows the plan, busy deployments are skipped, and `gc_on_start: true` runs the
+  expired part at every invocation (#33).
 - `qft docs [TOPIC]` prints the documentation shipped in the package, matching the installed version; the
   `docs` field of JSON errors names one of its topics (#31).
 

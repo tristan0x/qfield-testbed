@@ -83,6 +83,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft deployment launch NAME qgis\|android\|ios\|qfield-desktop` | Open an interactive client |
 | `qft deployment run NAME [--timeout T] -- CMD`, `qft deployment env NAME [--format F]` | Use the deployment from scripts ([`QFT_*` variables](docs/environment.md)) |
 | `qft bisect start \| run \| next \| good \| bad \| skip \| status \| log \| reset` | Bisect sessions |
+| `qft gc [--expired] [--orphaned] [--dry-run]` | Remove expired deployments and leftovers no deployment owns |
 | `qft cache list \| prune` | The shared cache of checkouts, downloads and images |
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 

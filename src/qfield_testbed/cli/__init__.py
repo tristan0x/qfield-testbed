@@ -12,7 +12,7 @@ from rich.logging import RichHandler
 
 from qfield_testbed import __version__
 from qfield_testbed.caller import set_agent_session
-from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, spec
+from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, gc, spec
 from qfield_testbed.cli._console import (
     OUTPUT,
     console,
@@ -26,7 +26,10 @@ from qfield_testbed.cli._console import (
     set_json_output,
     stderr,
 )
+from qfield_testbed.config import GlobalConfig
+from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import RefusedError, TestbedError
+from qfield_testbed.gc import apply_gc, plan_gc
 
 INTERRUPTED_EXIT_CODE = 130
 
@@ -44,6 +47,7 @@ app.add_typer(config.app, name="config", help="Show the global configuration.")
 app.add_typer(spec.app, name="spec", help="Help writing deployment specs.")
 app.command()(doctor.doctor)
 app.command()(docs.docs)
+app.command()(gc.gc)
 
 
 def _version(value: bool) -> None:
@@ -76,6 +80,7 @@ def root(
     set_json_output(json_ or OUTPUT.requested or os.environ.get("QFT_OUTPUT", "").lower() == "json")
     OUTPUT.non_interactive = non_interactive or non_interactive_requested()
     set_agent_session(agent_session)
+    _opportunistic_gc()
     level = logging.WARNING if verbose == 0 else logging.INFO if verbose == 1 else logging.DEBUG
     logging.basicConfig(
         level=level,
@@ -84,6 +89,21 @@ def root(
         # stderr in every mode: stdout is for results (tables, `env` exports, the JSON envelope)
         handlers=[RichHandler(console=stderr, show_path=False, show_time=verbose > 1, markup=False)],
     )
+
+
+def _opportunistic_gc() -> None:
+    """With `gc_on_start: true`, every invocation first removes expired deployments, quietly and never blocking."""
+    try:
+        config = GlobalConfig.load()
+        if not config.gc_on_start:
+            return
+        testbed = Testbed(config)
+        plan = plan_gc(testbed, expired=True)
+        if plan.expired:
+            report = apply_gc(testbed, plan)
+            logging.getLogger(__name__).info("gc_on_start removed %s", ", ".join(report.removed) or "nothing")
+    except Exception:
+        logging.getLogger(__name__).debug("gc_on_start failed", exc_info=True)
 
 
 def _fail(

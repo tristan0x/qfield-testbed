@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -21,6 +22,7 @@ from qfield_testbed.cli._console import (
 )
 from qfield_testbed.components.qgis import qt_platform
 from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
+from qfield_testbed.envfmt import FORMATS, render
 from qfield_testbed.errors import NotFoundError, UsageError
 from qfield_testbed.spec import DeploymentSpec
 
@@ -231,21 +233,26 @@ def run(ctx: typer.Context, name: NameArg) -> None:
 
 
 @app.command()
-def env(name: NameArg) -> None:
+def env(
+    name: NameArg,
+    fmt: Annotated[
+        str, typer.Option("--format", "-F", help="shell (`export K='v'`, for eval), dotenv (`K=\"v\"`) or json")
+    ] = "shell",
+) -> None:
     """Print the QFT_* environment of a deployment, ready for `eval "$(qft deployment env NAME)"`."""
+    if fmt not in FORMATS:
+        raise UsageError(f"unknown format '{fmt}'", hint="one of: " + ", ".join(FORMATS))
+    if fmt == "json":
+        set_json_output(True)
     variables = dict(sorted(Testbed().deployment(name).env().items()))
-    emit({"variables": variables}, human=lambda: _print_exports(variables))
+    # plain stdout, not rich: the output is meant for `eval` or a file
+    emit({"variables": variables}, human=lambda: _write(render(variables, fmt)))
 
 
-def _print_exports(variables: dict[str, str]) -> None:
-    for key, value in variables.items():
-        print(f"export {key}={_shell_quote(value)}")  # noqa: T201 - plain stdout, meant for `eval`
+def _write(text: str) -> None:
+    sys.stdout.write(text)
 
 
 def _not_in_json_mode(command: str) -> None:
     if OUTPUT.json:
         raise UsageError(f"`qft {command}` does not support --json yet", hint="run it without --json")
-
-
-def _shell_quote(value: str) -> str:
-    return "'" + value.replace("'", "'\\''") + "'"

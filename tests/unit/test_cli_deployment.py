@@ -386,3 +386,14 @@ def test_installed_qft_exits_with_the_command_code(monkeypatch: pytest.MonkeyPat
     with pytest.raises(SystemExit) as exited:
         main()
     assert exited.value.code == 3
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_env_formats() -> None:
+    dotenv = invoke(["deployment", "env", "demo", "--format", "dotenv"])
+    assert dotenv.exit_code == 0
+    assert 'QFT_DEPLOYMENT="demo"' in dotenv.stdout.splitlines()
+    as_json = invoke(["deployment", "env", "demo", "--format", "json"])
+    assert json.loads(as_json.stdout)["data"]["variables"]["QFT_DEPLOYMENT"] == "demo"
+    unknown = invoke(["deployment", "env", "demo", "--format", "yaml"])
+    assert "unknown format 'yaml'" in str(unknown.exception)

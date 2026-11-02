@@ -15,6 +15,7 @@ from qfield_testbed.backends.qgis_host import _quote
 from qfield_testbed.bisect.algorithm import Search, Verdict
 from qfield_testbed.cache import Cache
 from qfield_testbed.components.qgis import plugin_zip_name
+from qfield_testbed.envfmt import dotenv_quote, shell_quote
 from qfield_testbed.paths import Paths
 from qfield_testbed.ports import BLOCK_SIZE, PORT_OFFSETS, PortBlock, find_free_slot
 from qfield_testbed.revisions.github import owner_repo
@@ -195,6 +196,34 @@ def test_launcher_quoting_survives_bash(value: str) -> None:
     assert BASH is not None
     out = subprocess.run([BASH, "-c", f"printf %s {_quote(value)}"], capture_output=True, check=True)
     assert out.stdout.decode("utf-8", "surrogateescape") == value
+
+
+@pytest.mark.skipif(BASH is None, reason="needs bash")
+@settings(max_examples=40, deadline=None)
+@given(st.text(st.characters(blacklist_characters="\x00", blacklist_categories=("Cs",)), max_size=40))
+def test_env_shell_quoting_survives_bash(value: str) -> None:
+    assert BASH is not None
+    out = subprocess.run([BASH, "-c", f"printf %s {shell_quote(value)}"], capture_output=True, check=True)
+    assert out.stdout.decode("utf-8", "surrogateescape") == value
+
+
+def _read_dotenv_value(quoted: str) -> str:
+    """What a dotenv reader makes of a double-quoted value: backslash escapes, `\\n` as a newline."""
+    assert quoted[0] == quoted[-1] == '"'
+    out, chars = [], iter(quoted[1:-1])
+    for char in chars:
+        if char == "\\":
+            escaped = next(chars)
+            out.append("\n" if escaped == "n" else escaped)
+        else:
+            assert char not in '"$\n', "unescaped special character"
+            out.append(char)
+    return "".join(out)
+
+
+@given(st.text(max_size=40))
+def test_dotenv_quoting_round_trips(value: str) -> None:
+    assert _read_dotenv_value(dotenv_quote(value)) == value
 
 
 plugin_ids = st.text(st.sampled_from("abcxyz019_"), min_size=1, max_size=10)

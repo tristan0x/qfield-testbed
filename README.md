@@ -91,6 +91,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 - [Getting started](docs/getting-started.md)
 - [Deployment spec](docs/spec.md)
 - [Bisect](docs/bisect.md)
+- [The `QFT_*` environment](docs/environment.md) of scripts run against a deployment
 - [Isolation: slots, ports, names, cache](docs/isolation.md)
 - [Machine interface: JSON output, error and exit codes](docs/adr/0001-agent-interface.md), and
   [the JSON data of each command](docs/json-output.md)

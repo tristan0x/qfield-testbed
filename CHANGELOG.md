@@ -35,6 +35,8 @@ All notable changes to this project are documented here. The format follows
   such as `release:v26.28` included, for editors and agents (#31).
 - Spec and scenario errors give the YAML line of each problem, and `--json` lists them as
   `{path, message, line, column}`; `qft spec validate -` reads stdin (#31).
+- `qft docs [TOPIC]` prints the documentation shipped in the package, matching the installed version; the
+  `docs` field of JSON errors names one of its topics (#31).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

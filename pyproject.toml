@@ -64,6 +64,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/qfield_testbed"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# `qft docs` reads the documentation of the installed version
+"docs" = "qfield_testbed/_docs"
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"

@@ -50,6 +50,7 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     spec_file = tmp_path / "demo.yaml"
     spec_file.write_text(SPEC)
 
+    assert _json("docs", "glossary")["title"] == "Glossary"
     doctor = _json("doctor")
     assert set(doctor) == {"checks", "capabilities", "host"}
     assert doctor["host"]["slots"] == {"used": 0, "max": 5}
@@ -117,6 +118,7 @@ def test_no_command_is_left_without_json() -> None:
     leaves = _leaf_commands(get_command(app))
     covered = {
         "doctor",
+        "docs",
         "config show",
         "config path",
         "spec example",

@@ -33,6 +33,11 @@ jobs:
       - run: uv python install 3.12
       - run: uv sync --group dev
       - run: SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure
+      # `qft docs` reads the documentation from the wheel: make sure it is in there
+      - name: Wheel carries the documentation
+        run: |
+          uv build --wheel --out-dir dist
+          python3 -m zipfile -l dist/*.whl | grep -q 'qfield_testbed/_docs/spec.md'
 
   test:
     name: unit tests (py${{ matrix.python }})

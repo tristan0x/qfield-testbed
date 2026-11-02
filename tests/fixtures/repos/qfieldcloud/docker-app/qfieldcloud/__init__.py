@@ -1,0 +1,1 @@
+"""QFieldCloud Django project (fixture)."""

@@ -10,8 +10,10 @@ import logging
 import os
 import secrets
 import shutil
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +23,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from qfield_testbed.cache import Cache
 from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
-from qfield_testbed.errors import NotFoundError, UnknownDeploymentError, UnsupportedComponentError
+from qfield_testbed.errors import (
+    NotFoundError,
+    TestbedError,
+    TimeoutExceededError,
+    UnknownDeploymentError,
+    UnsupportedComponentError,
+)
 from qfield_testbed.paths import Paths
 from qfield_testbed.ports import BLOCK_SIZE, PortBlock, make_prober
 from qfield_testbed.runtimes import docker
@@ -92,6 +100,63 @@ class Testbed:
             problems.extend(f"{name}: {problem}" for problem in probe.check_host())
         if problems:
             raise UnsupportedComponentError("cannot run this spec on this host:\n  - " + "\n  - ".join(problems))
+
+
+@dataclass
+class Deadline:
+    """The time budget of a start: what is left of ``timeout`` seconds (None: no bound), measured from ``started``."""
+
+    timeout: float | None = None
+    started: float = field(default_factory=lambda: time.monotonic())  # noqa: PLW0108 - looked up at call time, so tests can move the clock
+
+    def elapsed(self) -> float:
+        return round(time.monotonic() - self.started, 1)
+
+    def remaining(self, component: str, step: str) -> float | None:
+        """Seconds left before ``step`` of ``component``; a timeout error naming them once none is left."""
+        if self.timeout is None:
+            return None
+        left = self.timeout - (time.monotonic() - self.started)
+        if left <= 0:
+            raise TimeoutExceededError(
+                f"{component} was not ready within {self.timeout:.0f}s (before its {step} step)",
+                hint="raise --timeout; a first start builds or pulls images and can take long",
+                details={"component": component, "step": step, "elapsed_s": self.elapsed()},
+            )
+        return left
+
+
+LOG_TAIL_LINES = 30
+
+
+@contextmanager
+def _step(component: Component, step: str, deadline: Deadline) -> Iterator[float | None]:
+    """Run one step of bringing ``component`` up: within the deadline, and failures say where they happened.
+
+    Yields the seconds left (None without a timeout). A :class:`TestbedError` gets the component, the step, the
+    time spent and the component's last log lines in its ``details``, and the component name in its message.
+    """
+    remaining = deadline.remaining(component.name, step)
+    try:
+        yield remaining
+    except TestbedError as exc:
+        exc.details.setdefault("component", component.name)
+        exc.details.setdefault("step", step)
+        exc.details.setdefault("elapsed_s", deadline.elapsed())
+        if "log_tail" not in exc.details and (tail := _log_tail(component)):
+            exc.details["log_tail"] = tail
+        if not exc.message.startswith(component.name):
+            exc.message = f"{component.name}: {exc.message}"
+            exc.args = (exc.message, *exc.args[1:])
+        raise
+
+
+def _log_tail(component: Component) -> str | None:
+    try:
+        return component.logs(tail=LOG_TAIL_LINES, capture=True) or None
+    except Exception:
+        log.debug("[%s] no logs to attach", component.name, exc_info=True)
+        return None
 
 
 class DeploymentSummary(BaseModel):
@@ -191,14 +256,19 @@ class Deployment:
 
     # --- lifecycle --------------------------------------------------------------------------------------
 
-    def start(self, only: str | None = None) -> None:
-        """Resolve, materialize, render, start, wait for health and wire each component in order."""
+    def start(self, only: str | None = None, *, timeout: float | None = None) -> None:
+        """Resolve, materialize, render, start, wait for health and wire each component in order.
+
+        Returns once every component is ready. ``timeout`` bounds the whole start: it is checked between steps
+        and given to the health checks; a build in progress is not interrupted.
+        """
+        deadline = Deadline(timeout)
         with self.locked():
             self.state.status = Status.STARTING
             self.save()
             try:
                 for component in self.components(only):
-                    self._bring_up(component)
+                    self._bring_up(component, deadline)
             except Exception:
                 self.state.status = Status.FAILED
                 self.save()
@@ -206,25 +276,35 @@ class Deployment:
             self.state.status = Status.RUNNING
             self.save()
 
-    def _bring_up(self, component: Component) -> None:
-        log.info("[%s] resolving %s", component.name, getattr(component.spec, "version", "?"))
-        revision = component.resolve()
+    def _bring_up(self, component: Component, deadline: Deadline | None = None) -> None:
+        deadline = deadline or Deadline()
+        with _step(component, "resolve", deadline):
+            log.info("[%s] resolving %s", component.name, getattr(component.spec, "version", "?"))
+            revision = component.resolve()
         component.state.revision = revision
         component.state.status = Status.STARTING
         self.save()
-        log.info("[%s] materializing %s", component.name, revision)
-        materialized = component.materialize(revision)
-        component.render(revision, materialized)
-        log.info("[%s] starting", component.name)
+        with _step(component, "materialize", deadline):
+            log.info("[%s] materializing %s", component.name, revision)
+            materialized = component.materialize(revision)
+        with _step(component, "render", deadline):
+            component.render(revision, materialized)
         try:
-            component.start()
-            component.health()
+            with _step(component, "start", deadline):
+                log.info("[%s] starting", component.name)
+                component.start()
+            with _step(component, "health", deadline) as remaining:
+                if remaining is None:
+                    component.health()
+                else:
+                    component.health(timeout=remaining)
         except Exception:
             component.state.status = Status.FAILED
             self.save()
             raise
         try:
-            component.wire()
+            with _step(component, "wire", deadline):
+                component.wire()
         except Exception:
             component.state.status = Status.WIRING_FAILED
             self.save()

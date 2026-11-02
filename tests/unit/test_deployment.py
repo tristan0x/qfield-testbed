@@ -8,7 +8,14 @@ import pytest
 
 from qfield_testbed.components import REGISTRY, Component, register
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import UnknownDeploymentError, UnsupportedComponentError
+from qfield_testbed.errors import (
+    HealthTimeoutError,
+    TestbedError,
+    TimeoutExceededError,
+    UnknownDeploymentError,
+    UnsupportedComponentError,
+    WiringError,
+)
 from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import DeploymentSpec, HostSource
@@ -142,3 +149,115 @@ def _cloud_stub() -> type[Component]:
         name = "qfieldcloud"
 
     return FakeCloud
+
+
+# --- readiness: --timeout -------------------------------------------------------------------------------------
+
+
+class Clock:
+    """A monotonic clock the test moves by hand."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
+    clock = Clock()
+    monkeypatch.setattr("qfield_testbed.deployment.time.monotonic", clock)
+    return clock
+
+
+class TimedQgis(FakeQgis):
+    """Records the health timeout it gets; materializing takes `build_s` seconds of the test clock."""
+
+    health_timeouts: ClassVar[list[float | None]] = []
+    build_s: ClassVar[float] = 0.0
+    clock: ClassVar[Clock | None] = None
+
+    def materialize(self, revision: Revision) -> Path:
+        if self.clock:
+            self.clock.now += self.build_s
+        return super().materialize(revision)
+
+    def health(self, timeout: float = 180) -> None:
+        self.health_timeouts.append(timeout)
+
+
+@pytest.fixture
+def timed_qgis(fake_qgis: type[FakeQgis], clock: Clock) -> type[TimedQgis]:
+    register(TimedQgis)
+    TimedQgis.health_timeouts, TimedQgis.build_s, TimedQgis.clock = [], 0.0, clock
+    return TimedQgis
+
+
+def test_without_timeout_each_health_check_keeps_its_own(testbed: Testbed, timed_qgis: type[TimedQgis]) -> None:
+    testbed.add(DeploymentSpec.from_yaml(SPEC)).start()
+    assert timed_qgis.health_timeouts == [180]
+
+
+def test_timeout_gives_health_the_remaining_budget(testbed: Testbed, timed_qgis: type[TimedQgis]) -> None:
+    timed_qgis.build_s = 100
+    testbed.add(DeploymentSpec.from_yaml(SPEC)).start(timeout=600)
+    assert timed_qgis.health_timeouts == [500]
+
+
+def test_timeout_spent_by_a_build_fails_before_the_next_step(testbed: Testbed, timed_qgis: type[TimedQgis]) -> None:
+    timed_qgis.build_s = 700
+    deployment = testbed.add(DeploymentSpec.from_yaml(SPEC))
+    with pytest.raises(TimeoutExceededError) as raised:
+        deployment.start(timeout=600)
+    assert raised.value.details == {"component": "qgis", "step": "render", "elapsed_s": 700.0}
+    assert timed_qgis.health_timeouts == []
+    assert testbed.deployment("demo").state.status is Status.FAILED
+
+
+class FailingQgis(FakeQgis):
+    """Fails at `failing_step` with `error`; has logs to attach."""
+
+    error: ClassVar[TestbedError] = HealthTimeoutError("http://x/ not healthy", details={"probe": "http://x/"})
+    failing_step: ClassVar[str] = "health"
+
+    def health(self, timeout: float = 180) -> None:
+        if self.failing_step == "health":
+            raise self.error
+
+    def wire(self) -> None:
+        if self.failing_step == "wire":
+            raise self.error
+
+    def logs(self, **_: Any) -> str | None:
+        return "line 1\nboom\n"
+
+
+@pytest.fixture
+def failing_qgis(fake_qgis: type[FakeQgis]) -> type[FailingQgis]:
+    register(FailingQgis)
+    return FailingQgis
+
+
+def test_health_failure_names_component_step_and_logs(testbed: Testbed, failing_qgis: type[FailingQgis]) -> None:
+    failing_qgis.failing_step = "health"
+    failing_qgis.error = HealthTimeoutError("http://x/ not healthy", details={"probe": "http://x/"})
+    deployment = testbed.add(DeploymentSpec.from_yaml(SPEC))
+    with pytest.raises(HealthTimeoutError) as raised:
+        deployment.start()
+    details = raised.value.details
+    assert (details["component"], details["step"], details["probe"]) == ("qgis", "health", "http://x/")
+    assert details["log_tail"] == "line 1\nboom\n"
+    assert str(raised.value) == "qgis: http://x/ not healthy"
+    assert testbed.deployment("demo").state.component("qgis").status is Status.FAILED
+
+
+def test_wiring_failure_names_its_step(testbed: Testbed, failing_qgis: type[FailingQgis]) -> None:
+    failing_qgis.failing_step = "wire"
+    failing_qgis.error = WiringError("qgis is up but wiring failed")
+    deployment = testbed.add(DeploymentSpec.from_yaml(SPEC))
+    with pytest.raises(WiringError) as raised:
+        deployment.start()
+    assert raised.value.details["step"] == "wire"
+    assert str(raised.value) == "qgis is up but wiring failed"  # already named: no prefix added
+    assert testbed.deployment("demo").state.component("qgis").status is Status.WIRING_FAILED

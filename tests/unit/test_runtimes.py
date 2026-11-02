@@ -176,8 +176,9 @@ def test_wait_for_http_times_out_with_last_reason(
 def test_wait_for_http_zero_timeout_never_polls(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(http, "time", FakeClock())
     monkeypatch.setattr(http.requests, "get", lambda *_, **__: pytest.fail("polled"))
-    with pytest.raises(HealthTimeoutError, match=r"\(no response yet\)"):
+    with pytest.raises(HealthTimeoutError, match=r"\(no response yet\)") as raised:
         http.wait_for_http("http://x/", timeout=0)
+    assert raised.value.details == {"probe": "http://x/", "last": "no response yet"}
 
 
 def test_get_json_passes_headers_and_decodes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -344,8 +345,11 @@ def test_adb_wait_for_boot_waits_for_launcher() -> None:
 
 def test_adb_wait_for_boot_times_out_with_last_state(runner: FakeRunner, clock: FakeClock) -> None:
     runner.reply_when(lambda args: "getprop" in args, returncode=1, stderr="error: no devices/emulators found")
-    with pytest.raises(HealthTimeoutError, match=r"in emu not ready after 12s \(error: no devices/emulators found\)"):
+    with pytest.raises(
+        HealthTimeoutError, match=r"in emu not ready after 12s \(error: no devices/emulators found\)"
+    ) as raised:
         Adb(runner, "emu").wait_for_boot(timeout=12)
+    assert raised.value.details["container"] == "emu"
     assert clock.sleeps == [5, 5, 5]
 
 

@@ -33,6 +33,14 @@ app = typer.Typer(no_args_is_help=True)
 
 NameArg = Annotated[str, typer.Argument(help="Deployment name", show_default=False)]
 ComponentOpt = Annotated[str | None, typer.Option("--component", "-c", help="Act on a single component")]
+TimeoutOpt = Annotated[
+    str | None,
+    typer.Option("--timeout", help="Fail (exit 6) unless every component is ready within e.g. 10m, 90s"),
+]
+
+
+def _seconds(duration: str | None) -> float | None:
+    return parse_duration(duration).total_seconds() if duration else None
 
 
 def _parse_overrides(values: list[str]) -> dict[str, str]:
@@ -53,6 +61,7 @@ def add(
         list[str], typer.Option("--set", "-s", help="Override a spec value, e.g. qfieldsync.version=release:v4.22.3")
     ] = [],  # noqa: B006
     start: Annotated[bool, typer.Option("--start", help="Start the deployment right away")] = False,
+    timeout: TimeoutOpt = None,
 ) -> None:
     """Register a deployment from a spec and allocate its slot (ports, network, directory)."""
     overrides = _parse_overrides(set_)
@@ -69,7 +78,7 @@ def add(
         f"(ports {deployment.ports.base}–{deployment.ports.base + 99})"
     )
     if start:
-        deployment.start()
+        deployment.start(timeout=_seconds(timeout))
         ok(f"deployment [bold]{spec.name}[/] is running")
         info = deployment.info()
         emit(info, human=lambda: _print_show(info))
@@ -132,10 +141,10 @@ def show(name: NameArg, json_: Annotated[bool, typer.Option("--json", help="Same
 
 
 @app.command()
-def start(name: NameArg, component: ComponentOpt = None) -> None:
+def start(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None) -> None:
     """Materialize and start the components, then wire them together."""
     deployment = Testbed().deployment(name)
-    deployment.start(component)
+    deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] is running")
     info = deployment.info()
     emit(info, human=lambda: _print_show(info))
@@ -151,11 +160,11 @@ def stop(name: NameArg, component: ComponentOpt = None) -> None:
 
 
 @app.command()
-def restart(name: NameArg, component: ComponentOpt = None) -> None:
+def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None) -> None:
     """Stop then start."""
     deployment = Testbed().deployment(name)
     deployment.stop(component)
-    deployment.start(component)
+    deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] restarted")
     emit(deployment.info(), human=lambda: None)
 
@@ -246,8 +255,7 @@ def run(
         cmd = cmd[1:]
     if not cmd:
         raise UsageError("usage: qft deployment run NAME [--timeout 10m] -- CMD [ARGS...]")
-    seconds = parse_duration(timeout).total_seconds() if timeout else None
-    result = Testbed().deployment(name).run(cmd, timeout=seconds, capture=OUTPUT.json, tail_lines=tail_lines)
+    result = Testbed().deployment(name).run(cmd, timeout=_seconds(timeout), capture=OUTPUT.json, tail_lines=tail_lines)
     if result.timed_out:
         raise TimeoutExceededError(
             f"`{shlex.join(cmd)}` did not finish within {timeout}; it was killed",

@@ -12,7 +12,7 @@ from rich.logging import RichHandler
 
 from qfield_testbed import __version__
 from qfield_testbed.caller import set_agent_session
-from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, spec
+from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, gc, spec
 from qfield_testbed.cli._console import (
     OUTPUT,
     console,
@@ -44,6 +44,7 @@ app.add_typer(config.app, name="config", help="Show the global configuration.")
 app.add_typer(spec.app, name="spec", help="Help writing deployment specs.")
 app.command()(doctor.doctor)
 app.command()(docs.docs)
+app.command()(gc.gc)
 
 
 def _version(value: bool) -> None:

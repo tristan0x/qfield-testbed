@@ -78,6 +78,7 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     assert (kept["ttl_s"], kept["owner"]) == (3 * 86400, "human")
     assert _json("deployment", "remove", "demo", "--yes") == {"name": "demo", "removed": True}
 
+    assert _json("gc", "--dry-run")["plan"]["expired"] == []
     cache = _json("cache", "list")
     assert set(cache) == {"cache_dir", "entries", "total_bytes"}
     assert _json("cache", "prune", "--dry-run") == {"dry_run": True, "removed": []}
@@ -121,6 +122,7 @@ def test_no_command_is_left_without_json() -> None:
     covered = {
         "doctor",
         "docs",
+        "gc",
         "config show",
         "config path",
         "spec example",

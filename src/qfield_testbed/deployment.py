@@ -327,8 +327,9 @@ class Deployment:
         return selected
 
     @contextmanager
-    def locked(self) -> Iterator[None]:
-        with FileLock(self.directory / "deployment.lock", timeout=5):
+    def locked(self, timeout: float = 5) -> Iterator[None]:
+        """Hold this deployment's lock (a start holds it throughout); raises `filelock.Timeout` when busy."""
+        with FileLock(self.directory / "deployment.lock", timeout=timeout):
             yield
 
     def save(self) -> None:
@@ -405,9 +406,9 @@ class Deployment:
                 self.state.status = Status.STOPPED
             self.save()
 
-    def remove(self) -> None:
+    def remove(self, *, lock_timeout: float = 5) -> None:
         """Tear everything down and forget the deployment; cached materializations are kept."""
-        with self.locked():
+        with self.locked(lock_timeout):
             for component in reversed(self.components()):
                 if component.state.status is not Status.CREATED:
                     log.info("[%s] removing", component.name)

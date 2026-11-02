@@ -62,5 +62,5 @@ A manual test cannot run without a terminal: `NEEDS_HUMAN` (exit 3).
 | `config path` | `{path, exists}` |
 | `spec example` | `{yaml}` |
 | `spec validate FILE` | `{name, components: [names]}` |
-| `doctor` | `{checks: [{name, ok, detail, needed_by}], home, cache, config}` |
+| `doctor` | `{checks: [{name, ok, detail, needed_by: [keys], fix_hint}], capabilities: {key: {can_run, missing: [check names], fix_hints}}, host: {free_disk_gib, slots: {used, max}, deployments, home, cache, config}}`; `--require KEY` makes a missing capability a `PREREQ_MISSING` error whose `details.missing` maps each key to its failing checks |
 | `--version` | `{version}` |

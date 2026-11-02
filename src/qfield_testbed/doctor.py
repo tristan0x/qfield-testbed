@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from qfield_testbed.backends.qgis_host import NO_DISPLAY_HINT
+from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.runtimes import docker
 
@@ -20,6 +21,7 @@ LOW_DISK_GIB = 10
 BUILD_DISK_GIB = 15
 HOST_PYTHON = "/usr/bin/python3"
 HOST_PYQGIS_PATH = "/usr/share/qgis/python"
+KVM_DEVICE = Path("/dev/kvm")
 
 
 @dataclass
@@ -56,7 +58,7 @@ def run_checks(testbed: Testbed) -> list[Check]:
         )
     )
 
-    kvm = Path("/dev/kvm").exists() and os.access("/dev/kvm", os.R_OK | os.W_OK)
+    kvm = KVM_DEVICE.exists() and os.access(KVM_DEVICE, os.R_OK | os.W_OK)
     checks.append(
         Check(
             "/dev/kvm",
@@ -195,3 +197,70 @@ def _ios_checks(testbed: Testbed) -> list[Check]:
             )
         )
     return checks
+
+
+# --- capability matrix -----------------------------------------------------------------------------------------
+
+CAPABILITIES: dict[str, str] = {
+    "qfieldcloud": "QFieldCloud server (Docker Compose)",
+    "qgis:host": "the QGIS installed on this host",
+    "qgis:docker": "QGIS in a Docker image (`docker:<tag>`)",
+    "qgis:gui": "QGIS windows on a display",
+    "qgis:headless": "QGIS scripts without a display (xvfb-run)",
+    "qfieldsync": "QFieldSync profile seeding with `qgis: host`",
+    "qfield-android": "QField in the Android emulator (Docker + KVM)",
+    "qfield-ios": "QField in the iOS Simulator of a configured Mac",
+    "qfield-desktop": "QField desktop AppImage",
+    "source:release": "`release:<tag>` version sources (GitHub downloads)",
+    "source:artifact": "`artifact:<ref>` version sources (GitHub Actions artifacts)",
+    "source:git": "`git:<ref>` version sources",
+    "source:worktree": "`worktree:<path>` version sources",
+    "source:build": "`build:<path>` version sources (local builds, disk hungry)",
+}
+# capabilities that one passing check among several is enough for: any reachable Mac runs the simulator
+ANY_OF = frozenset({"qfield-ios"})
+
+
+@dataclass
+class Capability:
+    can_run: bool
+    missing: list[str]
+    fix_hints: list[str]
+
+
+def capabilities(checks: list[Check]) -> dict[str, Capability]:
+    """For each capability key, whether this host has what it needs, and what to do otherwise."""
+    matrix: dict[str, Capability] = {}
+    for key in CAPABILITIES:
+        relevant = [check for check in checks if key in check.needed_by]
+        failing = [check for check in relevant if not check.ok]
+        can_run = any(c.ok for c in relevant) if key in ANY_OF else not failing
+        if can_run:
+            matrix[key] = Capability(True, [], [])
+        else:
+            hints = list(dict.fromkeys(c.fix_hint for c in failing if c.fix_hint))
+            matrix[key] = Capability(False, [c.name for c in failing], hints)
+    return matrix
+
+
+@dataclass
+class HostFacts:
+    free_disk_gib: int
+    slots: dict[str, int]  # {"used": …, "max": …}
+    deployments: list[str]
+    home: Path
+    cache: Path
+    config: Path
+
+
+def host_facts(testbed: Testbed) -> HostFacts:
+    registry = testbed.registry.load()
+    free_gib = shutil.disk_usage(testbed.paths.cache if testbed.paths.cache.exists() else Path.home()).free // 2**30
+    return HostFacts(
+        free_disk_gib=free_gib,
+        slots={"used": len(registry.deployments), "max": testbed.config.max_slots},
+        deployments=sorted(registry.deployments),
+        home=testbed.paths.home,
+        cache=testbed.paths.cache,
+        config=GlobalConfig.file_path(),
+    )

@@ -75,7 +75,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 
 | Command | Purpose |
 |---|---|
-| `qft doctor` | Check Docker, KVM, `gh`, QGIS, display, `xvfb-run`, iOS hosts, free disk |
+| `qft doctor [--require KEY]` | Check Docker, KVM, `gh`, QGIS, display, `xvfb-run`, iOS hosts, free disk; tell which components and version sources this host can run |
 | `qft spec example [--minimal]`, `qft spec validate FILE` | Help writing specs |
 | `qft deployment add SPEC [--name N] [--set k=v] [--start]` | Register a deployment and allocate its slot |
 | `qft deployment list \| show \| start \| stop \| restart \| remove \| logs NAME` | Lifecycle |

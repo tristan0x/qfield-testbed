@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from qfield_testbed.cli.cache import parse_duration
 from qfield_testbed.deployment import Testbed
+from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import TestbedError
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import DeploymentSpec
@@ -31,7 +31,12 @@ def _entry(testbed: Testbed, key: str, *, size: int, user: str | None = None, ag
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("30d", timedelta(days=30)), ("12h", timedelta(hours=12)), ("90m", timedelta(minutes=90))],
+    [
+        ("30d", timedelta(days=30)),
+        ("12h", timedelta(hours=12)),
+        ("90m", timedelta(minutes=90)),
+        ("45s", timedelta(seconds=45)),
+    ],
 )
 def test_parse_duration(value: str, expected: timedelta) -> None:
     assert parse_duration(value) == expected

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import time
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any, ClassVar
@@ -15,7 +16,13 @@ from qfield_testbed.cli import app, main
 from qfield_testbed.components import REGISTRY, Component, register
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import MaterializationUnavailableError, RefusedError, TestbedError, UnknownDeploymentError
+from qfield_testbed.errors import (
+    MaterializationUnavailableError,
+    RefusedError,
+    TestbedError,
+    TimeoutExceededError,
+    UnknownDeploymentError,
+)
 from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import DeploymentSpec
@@ -313,23 +320,40 @@ def test_launch(testbed: Testbed, subprocess_calls: list[tuple[list[str], dict[s
 
 
 @pytest.mark.usefixtures("fake_components", "added")
-def test_run_passes_the_environment_and_exit_code(
-    subprocess_calls: list[tuple[list[str], dict[str, str] | None]],
-) -> None:
-    result = invoke(["deployment", "run", "demo", "--", "sh", "-c", "exit 3"])
+def test_run_passes_the_environment_and_exit_code() -> None:
+    # the environment is merged over the current one: PATH is still there
+    script = 'test "$QFT_DEPLOYMENT" = demo && test -n "$PATH" && exit 3'
+    result = invoke(["deployment", "run", "demo", "--", "sh", "-c", script])
     assert result.exit_code == 3
-    [(cmd, env)] = subprocess_calls
-    assert cmd == ["sh", "-c", "exit 3"]
-    assert env is not None
-    assert env["QFT_DEPLOYMENT"] == "demo"
-    assert "PATH" in env  # merged over the current environment
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_run_in_json_mode_captures_the_output() -> None:
+    script = "echo one; echo two; echo oops >&2; exit 4"
+    result = invoke(["--json", "deployment", "run", "demo", "--tail-lines", "1", "--", "sh", "-c", script])
+    assert result.exit_code == 0  # qft ran the command; its own failure is data
+    data = json.loads(result.stdout)["data"]
+    assert (data["exit_code"], data["timed_out"]) == (4, False)
+    assert (data["stdout_tail"], data["stderr_tail"]) == ("two\n", "oops\n")
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_run_timeout_kills_the_whole_process_group(tmp_path: Path) -> None:
+    marker = tmp_path / "survived"
+    script = f"(sleep 3; touch {marker}) & echo started; sleep 30"
+    result = invoke(["--json", "deployment", "run", "demo", "--timeout", "1s", "--", "sh", "-c", script])
+    assert isinstance(result.exception, TimeoutExceededError)
+    assert result.exception.details["timed_out"] is True
+    assert result.exception.details["stdout_tail"] == "started\n"
+    time.sleep(3.5)
+    assert not marker.exists(), "the background child outlived the timeout"
 
 
 @pytest.mark.usefixtures("fake_components", "added")
 def test_run_without_command(subprocess_calls: list[tuple[list[str], dict[str, str] | None]]) -> None:
     result = invoke(["deployment", "run", "demo", "--"])
     assert result.exit_code == 1
-    assert "usage: qft deployment run NAME -- CMD" in str(result.exception)
+    assert "usage: qft deployment run NAME [--timeout 10m] -- CMD" in str(result.exception)
     assert subprocess_calls == []
 
 
@@ -384,7 +408,7 @@ def test_deprecated_force_still_removes_with_a_warning(testbed: Testbed) -> None
     assert testbed.deployments() == []
 
 
-@pytest.mark.usefixtures("fake_components", "added", "subprocess_calls")
+@pytest.mark.usefixtures("fake_components", "added")
 def test_installed_qft_exits_with_the_command_code(monkeypatch: pytest.MonkeyPatch) -> None:
     """Through `main()`, the console script, not CliRunner: click returns the code instead of raising it."""
     monkeypatch.setattr(sys, "argv", ["qft", "deployment", "run", "demo", "--", "sh", "-c", "exit 3"])

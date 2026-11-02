@@ -7,6 +7,7 @@ registered deployment and drives its components through the lifecycle defined in
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import shutil
 from collections.abc import Iterator
@@ -24,7 +25,7 @@ from qfield_testbed.errors import NotFoundError, UnknownDeploymentError, Unsuppo
 from qfield_testbed.paths import Paths
 from qfield_testbed.ports import BLOCK_SIZE, PortBlock, make_prober
 from qfield_testbed.runtimes import docker
-from qfield_testbed.runtimes.shell import Runner, SubprocessRunner
+from qfield_testbed.runtimes.shell import ProcessResult, Runner, SubprocessRunner, run_process
 from qfield_testbed.spec import DeploymentSpec, VersionSource
 from qfield_testbed.state import (
     Credentials,
@@ -333,6 +334,14 @@ class Deployment:
         for component in self.components():
             variables.update(component.env())
         return variables
+
+    def run(
+        self, cmd: list[str], *, timeout: float | None = None, capture: bool = False, tail_lines: int = 200
+    ) -> ProcessResult:
+        """Run a user command with this deployment's ``QFT_*`` environment (`qft deployment run`)."""
+        return run_process(
+            cmd, env={**os.environ, **self.env()}, timeout=timeout, capture=capture, tail_lines=tail_lines
+        )
 
     def launcher(self, target: str) -> Path | None:
         path = self.directory / "bin" / target

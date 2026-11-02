@@ -6,16 +6,19 @@ component would run (:class:`FakeRunner`) without Docker, git or adb on the mach
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
+import signal
 import subprocess
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from qfield_testbed.errors import CommandError
+from qfield_testbed.errors import CommandError, NotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -135,3 +138,76 @@ class FakeRunner:
 
     def commands(self) -> list[str]:
         return [" ".join(call.args) for call in self.calls]
+
+
+# --- user commands -----------------------------------------------------------------------------------------------
+
+KILL_GRACE_S = 5
+
+
+@dataclass
+class ProcessResult:
+    """How a user command ended; the tails are the last lines of its output when it was captured."""
+
+    exit_code: int | None  # None when it was killed after a timeout
+    duration_s: float
+    timed_out: bool
+    stdout_tail: str | None
+    stderr_tail: str | None
+
+
+def run_process(
+    cmd: Command,
+    *,
+    env: Mapping[str, str],
+    timeout: float | None = None,
+    capture: bool = False,
+    tail_lines: int = 200,
+) -> ProcessResult:
+    """Run a user's command (not a component's: no :class:`Runner`), bounded by ``timeout``.
+
+    With a timeout or capture the command gets its own process group, killed as a whole on timeout — QGIS
+    started by a script dies with it. Without either, it shares the terminal as an interactive command would.
+    """
+    isolated = timeout is not None or capture
+    pipe = subprocess.PIPE if capture else None
+    started = time.monotonic()
+    try:
+        proc = subprocess.Popen(
+            list(cmd), env=dict(env), stdout=pipe, stderr=pipe, text=True, start_new_session=isolated
+        )
+    except FileNotFoundError as exc:
+        raise NotFoundError(f"program not found: {cmd[0]}") from exc
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        _kill_group(proc)
+        stdout, stderr = proc.communicate()
+    except KeyboardInterrupt:
+        if isolated:
+            _kill_group(proc)
+        raise
+    return ProcessResult(
+        exit_code=None if timed_out else proc.returncode,
+        duration_s=round(time.monotonic() - started, 3),
+        timed_out=timed_out,
+        stdout_tail=_tail(stdout, tail_lines) if capture else None,
+        stderr_tail=_tail(stderr, tail_lines) if capture else None,
+    )
+
+
+def _kill_group(proc: subprocess.Popen[str]) -> None:
+    """SIGTERM the command's process group, then SIGKILL whatever is left, children holding its pipes included."""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(proc.pid, signal.SIGTERM)
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        proc.wait(timeout=KILL_GRACE_S)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
+
+
+def _tail(text: str | None, lines: int) -> str:
+    return "".join((text or "").splitlines(keepends=True)[-lines:]) if lines > 0 else ""

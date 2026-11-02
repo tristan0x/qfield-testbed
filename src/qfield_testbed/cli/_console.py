@@ -110,7 +110,7 @@ def ok(message: str) -> None:
     console.print(f"[green]✓[/] {message}")
 
 
-def emit(data: Any, *, human: Callable[[], None]) -> None:
+def emit(data: Any, *, human: Callable[[], object]) -> None:
     """The result of a command: ``data`` in the JSON envelope, or what ``human`` prints."""
     if not OUTPUT.json:
         human()

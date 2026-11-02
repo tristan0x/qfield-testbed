@@ -346,6 +346,40 @@ class DeploymentSpec(BaseModel):
         return yaml.safe_dump(data, sort_keys=False)
 
 
+def with_version_shorthands(schema: dict[str, Any]) -> dict[str, Any]:
+    """Teach a generated JSON Schema the ``kind:value`` shorthand that :func:`parse_version_source` accepts.
+
+    Pydantic only sees the object forms (``{kind: release, tag: …}``); every ``version`` property also accepts the
+    matching strings (``release:v26.28``, ``host``).
+    """
+    defs = schema.get("$defs", {})
+
+    def kinds(union: dict[str, Any]) -> list[str]:
+        refs = [union["$ref"]] if "$ref" in union else [option["$ref"] for option in union.get("oneOf", [])]
+        return [defs[ref.rsplit("/", 1)[1]]["properties"]["kind"]["const"] for ref in refs]
+
+    for definition in defs.values():
+        version = definition.get("properties", {}).get("version")
+        if version is None:
+            continue
+        names = kinds(version)
+        alternatives = [f"{kind}:.+" if _SHORTHAND_FIELDS[kind] else kind for kind in names]
+        objects = {key: value for key, value in version.items() if key not in {"default", "title", "description"}}
+        shorthand = {
+            "type": "string",
+            "pattern": "^(?:" + "|".join(alternatives) + ")$",
+            "examples": [f"{kind}:<{_SHORTHAND_FIELDS[kind]}>" if _SHORTHAND_FIELDS[kind] else kind for kind in names],
+        }
+        kept = {key: value for key, value in version.items() if key in {"default", "title", "description"}}
+        definition["properties"]["version"] = {**kept, "anyOf": [shorthand, objects]}
+    return schema
+
+
+def spec_json_schema() -> dict[str, Any]:
+    """The JSON Schema of a deployment spec (`qft spec schema`)."""
+    return with_version_shorthands(DeploymentSpec.model_json_schema())
+
+
 def _set_dotted(data: dict[str, Any], dotted: str, value: str) -> None:
     """Apply a `--set a.b=c` override; plain scalars are parsed as YAML so `true`/`3` keep their type."""
     *parents, leaf = dotted.split(".")

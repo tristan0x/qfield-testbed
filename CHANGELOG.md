@@ -31,6 +31,8 @@ All notable changes to this project are documented here. The format follows
   exit 6 (`TIMEOUT`) naming the component and the step it had reached (#30).
 - A failed start names its component in the message and, in the error's `details`, the step (`health`,
   `wire`…), the time spent, the component's last log lines and, for health timeouts, the probe (#30).
+- `qft spec schema [--scenario]` prints the JSON Schema of deployment specs (or bisect scenarios), shorthands
+  such as `release:v26.28` included, for editors and agents (#31).
 
 - `qgis.platform` (`session`, `xcb`, `wayland`, `offscreen`) chooses the Qt platform of QGIS for both backends;
   window-manager-dependent bugs (dialogs, focus, `showEvent`) can differ between X11 and Wayland (#5).

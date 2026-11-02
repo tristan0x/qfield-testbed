@@ -53,6 +53,8 @@ dev = [
   "pyright>=1.1.414",
   "vulture>=2.16",
   "deptry>=0.25.1",
+  "jsonschema>=4.26.0",
+  "types-jsonschema>=4.26.0.20261006",
 ]
 
 [build-system]

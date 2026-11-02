@@ -20,6 +20,7 @@ from qfield_testbed.spec import (
     QFieldIosSpec,
     QFieldSyncSpec,
     QgisSpec,
+    with_version_shorthands,
 )
 
 _TAGS_RULE = re.compile(r"^tags:(.+)$")
@@ -185,3 +186,8 @@ test:
   timeout: 900
   # manual: true                 # or prompt good / bad / skip after each swap
 """
+
+
+def scenario_json_schema() -> dict[str, Any]:
+    """The JSON Schema of a bisect scenario (`qft spec schema --scenario`)."""
+    return with_version_shorthands(BisectScenario.model_json_schema())

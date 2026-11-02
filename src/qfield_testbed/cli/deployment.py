@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
+from qfield_testbed.caller import CALLER
 from qfield_testbed.cli._console import (
     OUTPUT,
     confirm,
@@ -23,11 +24,12 @@ from qfield_testbed.cli._console import (
     warn,
 )
 from qfield_testbed.components.qgis import qt_platform
-from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
+from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed, parse_ttl
 from qfield_testbed.durations import parse_duration
 from qfield_testbed.envfmt import FORMATS, render
 from qfield_testbed.errors import NotFoundError, TimeoutExceededError, UsageError
 from qfield_testbed.spec import DeploymentSpec
+from qfield_testbed.state import OWNERS
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -36,6 +38,12 @@ ComponentOpt = Annotated[str | None, typer.Option("--component", "-c", help="Act
 TimeoutOpt = Annotated[
     str | None,
     typer.Option("--timeout", help="Fail (exit 6) unless every component is ready within e.g. 10m, 90s"),
+]
+
+
+TtlOpt = Annotated[
+    str | None,
+    typer.Option("--ttl", help="Removable by `qft gc` this long after its last use, e.g. 8h, 3d, or none"),
 ]
 
 
@@ -56,12 +64,14 @@ def _parse_overrides(values: list[str]) -> dict[str, str]:
 @app.command()
 def add(
     spec_file: Annotated[Path, typer.Argument(help="Deployment spec (YAML); `-` reads stdin", show_default=False)],
+    *,
     name: Annotated[str | None, typer.Option("--name", "-n", help="Override the spec's name")] = None,
     set_: Annotated[
         list[str], typer.Option("--set", "-s", help="Override a spec value, e.g. qfieldsync.version=release:v4.22.3")
     ] = [],  # noqa: B006
     start: Annotated[bool, typer.Option("--start", help="Start the deployment right away")] = False,
     timeout: TimeoutOpt = None,
+    ttl: TtlOpt = None,
 ) -> None:
     """Register a deployment from a spec and allocate its slot (ports, network, directory)."""
     overrides = _parse_overrides(set_)
@@ -72,7 +82,9 @@ def add(
     else:
         spec = DeploymentSpec.from_file(spec_file, overrides=overrides)
     testbed = Testbed()
-    deployment = testbed.add(spec)
+    deployment = testbed.add(
+        spec, agent_session=CALLER.agent_session, ttl=parse_ttl(ttl) if ttl is not None else "default"
+    )
     ok(
         f"deployment [bold]{spec.name}[/] registered on slot {deployment.state.slot} "
         f"(ports {deployment.ports.base}–{deployment.ports.base + 99})"
@@ -87,11 +99,22 @@ def add(
 
 
 @app.command("list")
-def list_() -> None:
-    """List deployments with their slot, status and components."""
+def list_(
+    agent_session: Annotated[
+        str | None, typer.Option("--agent-session", help="Only the deployments of this agent session")
+    ] = None,
+    owner: Annotated[str | None, typer.Option("--owner", help="Only those owned by: human, agent or bisect")] = None,
+) -> None:
+    """List deployments with their slot, status, components, owner and expiry."""
+    if owner is not None and owner not in OWNERS:
+        raise UsageError(f"unknown owner '{owner}'", hint="one of: " + ", ".join(OWNERS))
     testbed = Testbed()
-    deployments = testbed.deployments()
-    summaries = [deployment.summary() for deployment in deployments]
+    summaries = [
+        summary
+        for summary in (deployment.summary() for deployment in testbed.deployments())
+        if (agent_session is None or summary.agent_session == agent_session)
+        and (owner is None or summary.owner == owner)
+    ]
     emit({"deployments": summaries}, human=lambda: _print_list(summaries))
 
 
@@ -105,16 +128,19 @@ def _print_list(summaries: list[DeploymentSummary]) -> None:
     table.add_column("PORTS")
     table.add_column("STATUS")
     table.add_column("COMPONENTS")
-    table.add_column("SESSION")
+    table.add_column("OWNER")
+    table.add_column("EXPIRES")
     for summary in summaries:
         components = "  ".join(f"{name} {styled_status(status)}" for name, status in summary.components.items())
+        session = summary.session or summary.agent_session
         table.add_row(
             summary.name,
             str(summary.slot),
             f"{summary.port_base}–{summary.port_last}",
             styled_status(summary.status),
             components,
-            summary.session or "",
+            f"{summary.owner} {session}" if session else summary.owner,
+            summary.expires_at.astimezone().strftime("%Y-%m-%d %H:%M") if summary.expires_at else "",
         )
     console.print(table)
 
@@ -167,6 +193,21 @@ def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt =
     deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] restarted")
     emit(deployment.info(), human=lambda: None)
+
+
+@app.command()
+def keep(
+    name: NameArg,
+    ttl: Annotated[str, typer.Option("--ttl", help="New TTL from now, e.g. 8h, 3d, or none to keep it for good")],
+) -> None:
+    """Keep a deployment longer: set its TTL, counted from now (`none`: no expiry)."""
+    testbed = Testbed()
+    deployment = testbed.deployment(name)
+    testbed.registry.set_ttl(name, parse_ttl(ttl))
+    summary = deployment.summary()
+    expires = f"until {summary.expires_at.astimezone():%Y-%m-%d %H:%M}" if summary.expires_at else "with no expiry"
+    ok(f"deployment [bold]{name}[/] kept {expires}")
+    emit(summary, human=lambda: None)
 
 
 @app.command()

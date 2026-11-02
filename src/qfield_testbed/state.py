@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from filelock import FileLock
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -73,6 +73,7 @@ class DeploymentState(BaseModel):
 
 
 Owner = Literal["human", "agent", "bisect"]
+OWNERS: tuple[str, ...] = get_args(Owner)
 
 
 class RegistryEntry(BaseModel):

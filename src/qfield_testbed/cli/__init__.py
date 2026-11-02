@@ -11,6 +11,7 @@ import typer
 from rich.logging import RichHandler
 
 from qfield_testbed import __version__
+from qfield_testbed.caller import set_agent_session
 from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, spec
 from qfield_testbed.cli._console import (
     OUTPUT,
@@ -58,6 +59,14 @@ def root(
         bool,
         typer.Option("--json", help="One JSON document on stdout (the envelope); also QFT_OUTPUT=json"),
     ] = False,
+    agent_session: Annotated[
+        str | None,
+        typer.Option(
+            "--agent-session",
+            envvar="QFT_AGENT_SESSION",
+            help="Act for this agent session: owns what it creates, may only stop or remove its own",
+        ),
+    ] = None,
     non_interactive: Annotated[
         bool,
         typer.Option("--non-interactive", help="Never prompt: refuse what needs a person; also QFT_NONINTERACTIVE=1"),
@@ -66,6 +75,7 @@ def root(
 ) -> None:
     set_json_output(json_ or OUTPUT.requested or os.environ.get("QFT_OUTPUT", "").lower() == "json")
     OUTPUT.non_interactive = non_interactive or non_interactive_requested()
+    set_agent_session(agent_session)
     level = logging.WARNING if verbose == 0 else logging.INFO if verbose == 1 else logging.DEBUG
     logging.basicConfig(
         level=level,

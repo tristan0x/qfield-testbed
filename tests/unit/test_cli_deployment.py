@@ -493,3 +493,29 @@ def test_agent_deployments_get_the_configured_ttl(testbed: Testbed) -> None:
         testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "short")), agent_session="s1", ttl=60).summary().ttl_s
         == 60
     )
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_session_owns_what_it_adds(testbed: Testbed, spec_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert invoke(["--agent-session", "s1", "deployment", "add", str(spec_file), "--ttl", "8h"]).exit_code == 0
+    monkeypatch.setenv("QFT_AGENT_SESSION", "s2")
+    assert invoke(["deployment", "add", str(spec_file), "--name", "other"]).exit_code == 0
+    entries = testbed.registry.load().deployments
+    assert (entries["demo"].agent_session, entries["demo"].ttl_s) == ("s1", 8 * 3600)
+    assert (entries["other"].agent_session, entries["other"].ttl_s) == ("s2", 24 * 3600)
+    listed = json.loads(invoke(["--json", "deployment", "list", "--agent-session", "s1"]).stdout)["data"]
+    assert [d["name"] for d in listed["deployments"]] == ["demo"]
+    monkeypatch.delenv("QFT_AGENT_SESSION")
+    human = json.loads(invoke(["--json", "deployment", "list", "--owner", "human"]).stdout)["data"]
+    assert human["deployments"] == []
+    assert "unknown owner" in str(invoke(["deployment", "list", "--owner", "robot"]).exception)
+    text = invoke(["deployment", "list"]).output
+    assert "agent s1" in text
+
+
+@pytest.mark.usefixtures("fake_components", "added")
+def test_keep_extends_or_clears_the_ttl(testbed: Testbed) -> None:
+    assert "kept until" in invoke(["deployment", "keep", "demo", "--ttl", "2d"]).output
+    assert testbed.registry.load().deployments["demo"].ttl_s == 2 * 86400
+    assert "with no expiry" in invoke(["deployment", "keep", "demo", "--ttl", "none"]).output
+    assert testbed.registry.load().deployments["demo"].expires_at is None

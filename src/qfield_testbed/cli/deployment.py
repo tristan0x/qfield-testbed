@@ -16,7 +16,6 @@ from qfield_testbed.cli._console import (
     OUTPUT,
     confirm,
     console,
-    deprecated_force,
     emit,
     ok,
     set_json_output,
@@ -41,6 +40,9 @@ TimeoutOpt = Annotated[
 ]
 
 
+ForceOpt = Annotated[
+    bool, typer.Option("--force", "-f", help="Act on a deployment another session owns (agent sessions only)")
+]
 TtlOpt = Annotated[
     str | None,
     typer.Option("--ttl", help="Removable by `qft gc` this long after its last use, e.g. 8h, 3d, or none"),
@@ -177,18 +179,22 @@ def start(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = N
 
 
 @app.command()
-def stop(name: NameArg, component: ComponentOpt = None) -> None:
+def stop(name: NameArg, component: ComponentOpt = None, force: ForceOpt = False) -> None:
     """Stop the components; data and containers are kept for the next start."""
-    deployment = Testbed().deployment(name)
+    testbed = Testbed()
+    testbed.authorize(name, "stop", force=force)
+    deployment = testbed.deployment(name)
     deployment.stop(component)
     ok(f"deployment [bold]{name}[/] stopped")
     emit(deployment.info(), human=lambda: None)
 
 
 @app.command()
-def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None) -> None:
+def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt = None, force: ForceOpt = False) -> None:
     """Stop then start."""
-    deployment = Testbed().deployment(name, touch=True)
+    testbed = Testbed()
+    testbed.authorize(name, "restart", force=force)
+    deployment = testbed.deployment(name, touch=True)
     deployment.stop(component)
     deployment.start(component, timeout=_seconds(timeout))
     ok(f"deployment [bold]{name}[/] restarted")
@@ -199,9 +205,11 @@ def restart(name: NameArg, component: ComponentOpt = None, timeout: TimeoutOpt =
 def keep(
     name: NameArg,
     ttl: Annotated[str, typer.Option("--ttl", help="New TTL from now, e.g. 8h, 3d, or none to keep it for good")],
+    force: ForceOpt = False,
 ) -> None:
     """Keep a deployment longer: set its TTL, counted from now (`none`: no expiry)."""
     testbed = Testbed()
+    testbed.authorize(name, "keep", force=force)
     deployment = testbed.deployment(name)
     testbed.registry.set_ttl(name, parse_ttl(ttl))
     summary = deployment.summary()
@@ -214,13 +222,12 @@ def keep(
 def remove(
     name: NameArg,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation")] = False,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Deprecated: use --yes")] = False,
+    force: ForceOpt = False,
 ) -> None:
     """Tear down containers, volumes and files of a deployment and free its slot (the cache is kept)."""
     deployment = Testbed().deployment(name)
-    if force:
-        deprecated_force()
-    confirmed = yes or force
+    Testbed().authorize(name, "remove", force=force)
+    confirmed = yes
     if deployment.summary().session and not confirmed:
         warn(f"deployment '{name}' belongs to bisect session '{deployment.summary().session}'")
     if not confirmed and not confirm(f"Remove deployment '{name}' and all its data?", action=f"remove '{name}'"):

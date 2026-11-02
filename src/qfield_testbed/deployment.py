@@ -22,11 +22,14 @@ from filelock import FileLock
 from pydantic import BaseModel, ConfigDict, Field
 
 from qfield_testbed.cache import Cache
+from qfield_testbed.caller import CALLER
 from qfield_testbed.components import REGISTRY, Component, ComponentContext
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import (
     NotFoundError,
+    RefusedError,
+    ResourceExhaustedError,
     TestbedError,
     TimeoutExceededError,
     UnknownDeploymentError,
@@ -78,6 +81,15 @@ class Testbed:
         self.paths.ensure()
         self._check_components(spec)
         prober = make_prober(docker.published_host_ports(self.runner))
+        if agent_session and not session:
+            agents = sum(1 for entry in self.registry.load().deployments.values() if entry.owner == "agent")
+            if agents >= self.config.max_agent_deployments:
+                raise ResourceExhaustedError(
+                    f"{agents} agent deployments exist already (max_agent_deployments: "
+                    f"{self.config.max_agent_deployments})",
+                    hint="remove some (`qft gc`, `qft deployment list --owner agent`) or raise max_agent_deployments",
+                    docs="isolation",
+                )
         if ttl == "default":
             ttl = parse_ttl(self.config.agent_ttl) if agent_session and not session else None
         state = self.registry.register(spec, prober=prober, session=session, agent_session=agent_session, ttl_s=ttl)
@@ -97,6 +109,26 @@ class Testbed:
             self.registry.port_block(state.slot).base + 99,
         )
         return Deployment(self, spec.name)
+
+    def authorize(self, name: str, action: str, *, force: bool = False) -> None:
+        """Refuse an agent session to ``action`` a deployment it does not own, unless ``force``; people may."""
+        caller = CALLER.agent_session
+        if caller is None or force:
+            return
+        entry = self.registry.load().deployments.get(name)
+        if entry is None or (entry.owner == "agent" and entry.agent_session == caller):
+            return
+        whose = {
+            "human": "a person",
+            "bisect": f"bisect session '{entry.session}'",
+            "agent": f"agent session '{entry.agent_session}'",
+        }[entry.owner]
+        raise RefusedError(
+            f"agent session '{caller}' may not {action} deployment '{name}': it belongs to {whose}",
+            hint="act on your own deployments (`qft deployment list --agent-session …`), or pass --force",
+            docs="isolation",
+            details={"owner": entry.owner, "agent_session": entry.agent_session, "bisect_session": entry.session},
+        )
 
     def deployment(self, name: str, *, touch: bool = False) -> Deployment:
         """The deployment ``name``; ``touch`` records a use, which restarts its TTL."""

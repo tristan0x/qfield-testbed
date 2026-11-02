@@ -21,6 +21,7 @@ from qfield_testbed.errors import (
     HealthTimeoutError,
     MaterializationUnavailableError,
     RefusedError,
+    ResourceExhaustedError,
     TestbedError,
     TimeoutExceededError,
     UnknownDeploymentError,
@@ -403,11 +404,11 @@ def test_non_interactive_mode_refuses_even_with_a_terminal(testbed: Testbed, mon
 
 
 @pytest.mark.usefixtures("fake_components", "added")
-def test_deprecated_force_still_removes_with_a_warning(testbed: Testbed) -> None:
+def test_force_no_longer_skips_the_confirmation(testbed: Testbed) -> None:
     result = invoke(["deployment", "remove", "demo", "--force"])
-    assert result.exit_code == 0
-    assert "use --yes" in result.stderr
-    assert testbed.deployments() == []
+    assert isinstance(result.exception, RefusedError)
+    assert result.exception.hint == "pass --yes"
+    assert [d.name for d in testbed.deployments()] == ["demo"]
 
 
 @pytest.mark.usefixtures("fake_components", "added")
@@ -519,3 +520,36 @@ def test_keep_extends_or_clears_the_ttl(testbed: Testbed) -> None:
     assert testbed.registry.load().deployments["demo"].ttl_s == 2 * 86400
     assert "with no expiry" in invoke(["deployment", "keep", "demo", "--ttl", "none"]).output
     assert testbed.registry.load().deployments["demo"].expires_at is None
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_sessions_only_touch_their_own_deployments(testbed: Testbed) -> None:
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))  # a person's
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "a-one")), agent_session="a")
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "b-one")), agent_session="b")
+    as_a = ["--agent-session", "a", "deployment"]
+    for target in ("mine", "b-one"):
+        for verb in (
+            ["stop", target],
+            ["restart", target],
+            ["remove", target, "--yes"],
+            ["keep", target, "--ttl", "1d"],
+        ):
+            refused = invoke([*as_a, *verb])
+            assert isinstance(refused.exception, RefusedError), (target, verb)
+            assert refused.exception.details["owner"] in {"human", "agent"}
+    assert sorted(d.name for d in testbed.deployments()) == ["a-one", "b-one", "mine"]
+    assert invoke([*as_a, "stop", "a-one"]).exit_code == 0
+    assert invoke([*as_a, "remove", "b-one", "--yes", "--force"]).exit_code == 0
+    assert invoke(["deployment", "remove", "a-one", "--yes"]).exit_code == 0  # a person may remove anything
+    assert [d.name for d in testbed.deployments()] == ["mine"]
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_agent_deployments_are_capped(testbed: Testbed) -> None:
+    testbed.config.max_agent_deployments = 2
+    for name in ("a1", "a2"):
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", name)), agent_session="a")
+    with pytest.raises(ResourceExhaustedError, match="max_agent_deployments"):
+        testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "a3")), agent_session="b")
+    testbed.add(DeploymentSpec.from_yaml(SPEC.replace("demo", "mine")))  # people are not capped

@@ -14,7 +14,7 @@ from qfield_testbed.bisect.runner import Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
-from qfield_testbed.cli._console import confirm, console, deprecated_force, emit, ok, set_json_output, warn
+from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, warn
 from qfield_testbed.deployment import Testbed
 from qfield_testbed.errors import NeedsHumanError, NotFoundError, UsageError
 
@@ -305,14 +305,16 @@ def reset(
 def remove(
     session: Annotated[str, typer.Argument(show_default=False)],
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation")] = False,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Deprecated: use --yes")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="From an agent session: remove it although it owns nothing here")
+    ] = False,
 ) -> None:
     """Delete a session and its deployment."""
-    if force:
-        deprecated_force()
-    current = BisectSession(Testbed(), session)
+    testbed = Testbed()
+    current = BisectSession(testbed, session)
+    testbed.authorize(current.state.deployment_name, "remove", force=force)
     question = f"Remove session '{session}' and deployment '{current.state.deployment_name}'?"
-    if not (yes or force) and not confirm(question, action=f"remove session '{session}'"):
+    if not yes and not confirm(question, action=f"remove session '{session}'"):
         raise typer.Abort
     current.remove()
     ok(f"session [bold]{session}[/] removed")

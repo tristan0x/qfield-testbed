@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import PrerequisiteMissingError
 from qfield_testbed.runtimes.ssh import Ssh
 
 log = logging.getLogger(__name__)
@@ -58,19 +58,21 @@ class IosSimulatorBackend:
                 return device
         types = self.device_types()
         if self.device_name not in types:
-            raise TestbedError(
+            raise PrerequisiteMissingError(
                 f"no simulator device type named '{self.device_name}' on the Mac; one of: {', '.join(sorted(types))}"
             )
         runtimes = self.runtimes()
         if not runtimes:
-            raise TestbedError("no iOS runtime available on the Mac; install one in Xcode")
+            raise PrerequisiteMissingError("no iOS runtime available on the Mac", hint="install one in Xcode")
         runtime = (
             next((r for r in runtimes if self.runtime and r.endswith(self.runtime)), None)
             if self.runtime
             else runtimes[-1]
         )
         if runtime is None:
-            raise TestbedError(f"runtime '{self.runtime}' not available on the Mac; one of: {', '.join(runtimes)}")
+            raise PrerequisiteMissingError(
+                f"runtime '{self.runtime}' not available on the Mac; one of: {', '.join(runtimes)}"
+            )
         udid = self.simctl("create", name, types[self.device_name], runtime).strip()
         log.info("created simulator %s (%s, %s)", name, self.device_name, runtime)
         return SimDevice(udid, name, runtime, "Shutdown")

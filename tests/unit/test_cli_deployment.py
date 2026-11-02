@@ -15,7 +15,7 @@ from qfield_testbed.cli import app, main
 from qfield_testbed.components import REGISTRY, Component, register
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError, UnknownDeploymentError
+from qfield_testbed.errors import MaterializationUnavailableError, RefusedError, TestbedError, UnknownDeploymentError
 from qfield_testbed.revisions import Revision
 from qfield_testbed.runtimes.shell import FakeRunner
 from qfield_testbed.spec import DeploymentSpec
@@ -349,10 +349,9 @@ def test_env_is_shell_quoted(testbed: Testbed) -> None:
 @pytest.mark.usefixtures("fake_components", "added")
 def test_remove_without_a_terminal_names_the_way_out(testbed: Testbed) -> None:
     refused = invoke(["deployment", "remove", "demo"], stdin="")
-    assert refused.exit_code == 1
-    assert str(refused.exception) == (
-        "refusing to remove 'demo' without confirmation: stdin is not a terminal; pass --force"
-    )
+    assert isinstance(refused.exception, RefusedError)
+    assert str(refused.exception) == "refusing to remove 'demo' without confirmation: stdin is not a terminal"
+    assert refused.exception.hint == "pass --force"
     assert [d.name for d in testbed.deployments()] == ["demo"]
     assert invoke(["deployment", "remove", "demo", "--force"]).exit_code == 0
     assert testbed.deployments() == []

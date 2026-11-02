@@ -19,7 +19,14 @@ from qfield_testbed.bisect.algorithm import Result, Search, Verdict
 from qfield_testbed.bisect.runner import ManualTest, Outcome, ScriptTest
 from qfield_testbed.bisect.scenario import BisectScenario
 from qfield_testbed.deployment import Deployment, Testbed
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import (
+    AlreadyExistsError,
+    MaterializationUnavailableError,
+    NeedsHumanError,
+    NotFoundError,
+    SpecError,
+    TestbedError,
+)
 from qfield_testbed.revisions.git import Mirror
 from qfield_testbed.spec import VersionSource
 
@@ -80,9 +87,9 @@ class SessionState(BaseModel):
         return self.scenario.deployment_name
 
 
-class UnknownSessionError(TestbedError):
+class UnknownSessionError(NotFoundError):
     def __init__(self, name: str) -> None:
-        super().__init__(f"No bisect session named '{name}'. Run `qft bisect list`.")
+        super().__init__(f"No bisect session named '{name}'.", hint="run `qft bisect list`")
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -114,7 +121,7 @@ def resolve_candidates(mirror: Mirror, scenario: BisectScenario) -> list[Candida
     else:
         refs = mirror.rev_list_first_parent(rule.good, rule.bad)
     if not refs:
-        raise TestbedError(f"no candidates between {rule.good} and {rule.bad} with rule `{rule.candidates}`")
+        raise SpecError(f"no candidates between {rule.good} and {rule.bad} with rule `{rule.candidates}`")
     candidates = []
     for ref in refs:
         sha = mirror.rev_parse(ref)
@@ -159,7 +166,9 @@ class BisectSession:
         name = name or scenario.name
         directory = testbed.paths.session_dir(name)
         if (directory / "state.json").exists():
-            raise TestbedError(f"bisect session '{name}' already exists; `qft bisect reset {name}` or pick --session")
+            raise AlreadyExistsError(
+                f"bisect session '{name}' already exists", hint=f"`qft bisect reset {name}` or pick --session"
+            )
         repo_url = repository_url(testbed, scenario)
         mirror = Mirror(testbed.runner, testbed.paths, repo_url)
         candidates = resolve_candidates(mirror, scenario)
@@ -257,7 +266,9 @@ class BisectSession:
         log_file = self.log_dir / f"{index:03d}-{self.candidate(index).label.replace('/', '_')}.txt"
         if spec.manual:
             if prompt is None:
-                raise TestbedError("this scenario has a manual test; run it interactively with `qft bisect run`")
+                raise NeedsHumanError(
+                    "this scenario has a manual test", hint="run it interactively with `qft bisect run`", docs="bisect"
+                )
             return ManualTest(prompt).run(self.environment(index, deployment), log_file)
         assert spec.script is not None  # noqa: S101 - validated by TestSpec
         return ScriptTest(spec.script, spec.args, spec.timeout).run(self.environment(index, deployment), log_file)

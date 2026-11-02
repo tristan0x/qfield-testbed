@@ -16,7 +16,7 @@ from typing import Any
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from qfield_testbed.backends.qgis_host import PROFILE_NAME
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import ComponentFailureError
 
 log = logging.getLogger(__name__)
 
@@ -108,4 +108,4 @@ def parse_seed_report(stdout: str) -> dict[str, Any]:
     for raw in reversed(stdout.strip().splitlines()):
         if (line := raw.strip()).startswith("{"):
             return dict(json.loads(line))
-    raise TestbedError(f"the profile seed script printed no report:\n{stdout[-500:]}")
+    raise ComponentFailureError(f"the profile seed script printed no report:\n{stdout[-500:]}")

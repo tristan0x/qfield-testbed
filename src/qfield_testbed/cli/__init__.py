@@ -11,7 +11,7 @@ from rich.logging import RichHandler
 
 from qfield_testbed import __version__
 from qfield_testbed.cli import bisect, cache, config, deployment, doctor, spec
-from qfield_testbed.cli._console import console, error
+from qfield_testbed.cli._console import console, error, hint
 from qfield_testbed.errors import TestbedError
 
 app = typer.Typer(
@@ -55,6 +55,8 @@ def main() -> None:
         code = app(standalone_mode=False)
     except TestbedError as exc:
         error(str(exc))
+        if exc.hint:
+            hint(exc.hint)
         sys.exit(exc.exit_code)
     except typer.Exit as exc:
         sys.exit(exc.exit_code)

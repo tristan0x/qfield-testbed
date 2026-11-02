@@ -34,10 +34,11 @@ def _qft(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     [
         (["deployment", "show"], 2, "Missing argument 'name'"),
         (["spec", "validate", "missing.yaml"], 2, "cannot read spec"),
-        (["deployment", "show", "nothing"], 1, "No deployment named 'nothing'"),
+        (["deployment", "show", "nothing"], 5, "No deployment named 'nothing'"),
+        (["deployment", "remove", "nothing", "--force"], 5, "hint: run `qft deployment list`"),
         (["--version"], 0, "qfield-testbed"),
     ],
-    ids=["usage-error", "spec-error", "testbed-error", "version"],
+    ids=["usage-error", "spec-error", "not-found", "hint", "version"],
 )
 def test_qft_exit_status(tmp_path: Path, args: list[str], code: int, message: str) -> None:
     result = _qft(tmp_path, *args)

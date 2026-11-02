@@ -14,7 +14,7 @@ from typing import Any, ClassVar
 from qfield_testbed.backends.ios_simulator import IosSimulatorBackend
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import MaterializationUnavailableError, PrerequisiteMissingError, SpecError, TestbedError
 from qfield_testbed.provision import ios_settings
 from qfield_testbed.provision.qfield_settings import manual_steps
 from qfield_testbed.revisions import Revision
@@ -33,7 +33,7 @@ class QFieldIos(Component):
         host = self.ctx.config.ios_hosts.get(self.spec.host)
         if host is None:
             configured = ", ".join(sorted(self.ctx.config.ios_hosts)) or "none"
-            raise TestbedError(
+            raise PrerequisiteMissingError(
                 f"iOS host '{self.spec.host}' is not configured (ios_hosts in {self.ctx.config.__class__.file_path()}); "
                 f"configured: {configured}"
             )
@@ -66,7 +66,7 @@ class QFieldIos(Component):
     def resolve(self) -> Revision:
         source = self.spec.version
         if not isinstance(source, BuildSource):
-            raise TestbedError(f"unsupported version source for qfield-ios: {source}")
+            raise SpecError(f"unsupported version source for qfield-ios: {source}")
         result = self.ssh().run("git", "-C", str(source.path), "rev-parse", "HEAD", check=False)
         sha = result.stdout.strip() if result.returncode == 0 else None
         dirty = False

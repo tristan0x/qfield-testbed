@@ -15,7 +15,7 @@ from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
 from qfield_testbed.cli._console import confirm, console, ok, print_json, warn
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import NeedsHumanError, NotFoundError, UsageError
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -28,11 +28,9 @@ def _session(testbed: Testbed, name: str | None) -> BisectSession:
     if name is None:
         names = BisectSession.names(testbed)
         if len(names) != 1:
-            raise TestbedError(
-                "several sessions exist; name one: " + ", ".join(names)
-                if names
-                else "no bisect session yet; `qft bisect start SCENARIO.yaml`"
-            )
+            if not names:
+                raise NotFoundError("no bisect session yet", hint="`qft bisect start SCENARIO.yaml`", docs="bisect")
+            raise UsageError("several sessions exist; name one: " + ", ".join(names))
         name = names[0]
     return BisectSession(testbed, name)
 
@@ -93,9 +91,10 @@ def run(session: SessionArg = None) -> None:
     current = _session(Testbed(), session)
     if current.state.scenario.test.manual and not _console.stdin_is_terminal():
         # checked before the first swap: the prompt would otherwise come after minutes of building and starting
-        raise TestbedError(
-            "the scenario's test is manual and stdin is not a terminal: run 'qft bisect run' in a terminal, "
-            "or use 'qft bisect next' and 'qft bisect good|bad|skip'"
+        raise NeedsHumanError(
+            "the scenario's test is manual and stdin is not a terminal",
+            hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
+            docs="bisect",
         )
     try:
         while True:
@@ -150,7 +149,7 @@ def _verdict(session: str | None, verdict: Verdict) -> None:
     current = _session(Testbed(), session)
     index = current.state.current
     if index is None:
-        raise TestbedError("no candidate is prepared; run `qft bisect next` first")
+        raise UsageError("no candidate is prepared", hint="run `qft bisect next` first")
     current.record(index, Outcome(verdict, None, 0.0, f"manual verdict: {verdict}\n"))
     ok(f"candidate {index} ({current.candidate(index).label}) → {verdict}")
     if current.state.status is SessionStatus.DONE:
@@ -245,7 +244,7 @@ def log(
     if index is not None:
         record = current.state.outcomes.get(index)
         if record is None or not record.log_file:
-            raise TestbedError(f"no log for candidate {index}")
+            raise NotFoundError(f"no log for candidate {index}")
         console.print(Path(record.log_file).read_text(), markup=False, highlight=False)
         return
     for i, record in sorted(current.state.outcomes.items()):

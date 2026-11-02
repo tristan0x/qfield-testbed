@@ -22,7 +22,7 @@ from qfield_testbed.backends.qgis_docker import QgisDockerBackend
 from qfield_testbed.backends.qgis_host import PROFILE_NAME, QgisHostBackend
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import NotFoundError, SpecError, TestbedError
 from qfield_testbed.provision import qgis_profile
 from qfield_testbed.provision.qgis_profile import ProfileLayout
 from qfield_testbed.revisions import Revision
@@ -162,7 +162,7 @@ class Qgis(Component):
         with zipfile.ZipFile(archive) as zf:
             roots = {name.split("/", 1)[0] for name in zf.namelist() if "/" in name}
             if len(roots) != 1:
-                raise TestbedError(
+                raise SpecError(
                     f"plugin zip {plugin.zip} must contain exactly one top-level folder, found {sorted(roots)}"
                 )
             (root,) = roots
@@ -176,7 +176,7 @@ class Qgis(Component):
         if not source.startswith(("http://", "https://")):
             path = Path(source).expanduser()
             if not path.is_file():
-                raise TestbedError(f"plugin zip not found: {source}")
+                raise NotFoundError(f"plugin zip not found: {source}")
             return path
         name = plugin_zip_name(source)
         target = self.ctx.paths.artifacts / "qgis-plugins" / f"{name}.zip"

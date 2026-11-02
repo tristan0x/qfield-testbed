@@ -13,7 +13,7 @@ from typing import Any, ClassVar
 from qfield_testbed.backends.appimage import AppImageBackend
 from qfield_testbed.components import register
 from qfield_testbed.components.base import Component
-from qfield_testbed.errors import TestbedError
+from qfield_testbed.errors import PrerequisiteMissingError, SpecError
 from qfield_testbed.provision.qfield_settings import CONF_RELATIVE_PATH, merge_qfieldcloud_section
 from qfield_testbed.revisions import Revision
 from qfield_testbed.revisions.github import owner_repo, release_download
@@ -50,7 +50,7 @@ class QFieldDesktop(Component):
     def resolve(self) -> Revision:
         source = self.spec.version
         if not isinstance(source, ReleaseSource):
-            raise TestbedError(f"unsupported version source for qfield-desktop: {source}")
+            raise SpecError(f"unsupported version source for qfield-desktop: {source}")
         return Revision(source=source, label=source.tag)
 
     def materialize(self, revision: Revision) -> Path:
@@ -82,7 +82,9 @@ class QFieldDesktop(Component):
         credentials = self.ctx.state.credentials
         url = cloud.get("url")
         if not url or credentials is None:
-            raise TestbedError("qfield-desktop: the qfieldcloud component must be running and provisioned first")
+            raise PrerequisiteMissingError(
+                "qfield-desktop: the qfieldcloud component must be running and provisioned first"
+            )
         conf = self.backend().config_home / CONF_RELATIVE_PATH
         conf.parent.mkdir(parents=True, exist_ok=True)
         existing = conf.read_text() if conf.exists() else ""

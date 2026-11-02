@@ -6,7 +6,7 @@ import json
 import logging
 from pathlib import Path
 
-from qfield_testbed.errors import MaterializationUnavailableError, TestbedError
+from qfield_testbed.errors import MaterializationUnavailableError, UsageError
 from qfield_testbed.runtimes.shell import Runner
 
 log = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def owner_repo(url_or_slug: str) -> str:
     tail = url_or_slug.rstrip("/").removesuffix(".git")
     parts = tail.split("/")
     if len(parts) < 2:  # noqa: PLR2004
-        raise TestbedError(f"expected owner/name or a GitHub URL, got '{url_or_slug}'")
+        raise UsageError(f"expected owner/name or a GitHub URL, got '{url_or_slug}'")
     return "/".join(parts[-2:])
 
 

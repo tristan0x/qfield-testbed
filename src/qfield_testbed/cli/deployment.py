@@ -328,7 +328,8 @@ def launch(
     qgis = deployment.spec.qgis if target == "qgis" else None
     suffix = f" (Qt platform: {qt_platform(qgis, os.environ)})" if qgis is not None else ""
     console.print(f"launching {launcher}{suffix}")
-    completed = subprocess.run([str(launcher)], check=False)
+    # in JSON mode stdout is for the envelope: what the client prints goes to stderr
+    completed = subprocess.run([str(launcher)], check=False, stdout=sys.stderr if OUTPUT.json else None)
     emit({"launcher": str(launcher), "exit_code": completed.returncode}, human=lambda: None)
 
 

@@ -23,7 +23,7 @@ from qfield_testbed.runtimes.docker import (
     published_host_ports,
     remove_network,
 )
-from qfield_testbed.runtimes.shell import Completed, FakeRunner, SubprocessRunner
+from qfield_testbed.runtimes.shell import Completed, FakeRunner, SubprocessRunner, send_uncaptured_output_to_stderr
 from qfield_testbed.runtimes.ssh import Ssh, process_alive, stop_process
 
 
@@ -644,3 +644,19 @@ def test_retrying_does_not_retry_other_errors(monkeypatch: pytest.MonkeyPatch) -
     with pytest.raises(requests.HTTPError):
         http.retrying(bad_request, what="x")
     assert clock.sleeps == []
+
+
+def test_uncaptured_output_leaves_stdout_to_the_json_envelope(capfd: pytest.CaptureFixture[str]) -> None:
+    """In JSON mode a command run without capture (compose up, migrations) must not print on stdout."""
+    runner = SubprocessRunner()
+    runner.run(["sh", "-c", "echo human"], capture=False)
+    send_uncaptured_output_to_stderr(True)
+    try:
+        runner.run(["sh", "-c", "echo progress"], capture=False)
+        captured = runner.run(["sh", "-c", "echo data"])
+    finally:
+        send_uncaptured_output_to_stderr(False)
+    out, err = capfd.readouterr()
+    assert out == "human\n"
+    assert err == "progress\n"
+    assert captured.stdout == "data\n"

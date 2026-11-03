@@ -18,6 +18,7 @@ from pydantic import TypeAdapter
 from rich.console import Console
 
 from qfield_testbed.errors import RefusedError
+from qfield_testbed.runtimes.shell import send_uncaptured_output_to_stderr
 from qfield_testbed.state import Status
 
 # soft_wrap: never fold long URLs/paths; piped output (eval "$(qft deployment env …)") must stay one item per line
@@ -48,6 +49,7 @@ def json_requested(argv: list[str]) -> bool:
 def set_json_output(enabled: bool) -> None:
     """Switch JSON mode on or off; in JSON mode the human console writes to stderr."""
     OUTPUT.json = enabled
+    send_uncaptured_output_to_stderr(enabled)
     OUTPUT.warnings = []
     OUTPUT.emitted = False
     console.stderr = enabled

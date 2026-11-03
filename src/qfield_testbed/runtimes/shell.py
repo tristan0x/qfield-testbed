@@ -12,11 +12,12 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, TextIO
 
 from qfield_testbed.errors import CommandError, NotFoundError
 
@@ -55,6 +56,14 @@ class Runner(Protocol):
     def which(self, program: str) -> str | None: ...
 
 
+_UNCAPTURED: dict[str, TextIO | None] = {"stdout": None}
+
+
+def send_uncaptured_output_to_stderr(enabled: bool) -> None:
+    """In JSON mode stdout is for the envelope only: commands run without capture print on stderr instead."""
+    _UNCAPTURED["stdout"] = sys.stderr if enabled else None
+
+
 class SubprocessRunner:
     """The real thing. ``env`` is merged over the current environment."""
 
@@ -78,7 +87,8 @@ class SubprocessRunner:
                 env=merged,
                 input=stdin,
                 text=True,
-                capture_output=capture,
+                stdout=subprocess.PIPE if capture else _UNCAPTURED["stdout"],
+                stderr=subprocess.PIPE if capture else None,
                 timeout=timeout,
             )
         except FileNotFoundError as exc:

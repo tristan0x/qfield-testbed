@@ -32,6 +32,7 @@ repos:
           - types-PyYAML
           - types-requests
           - filelock
+          - mcp>=2.3,<3
         pass_filenames: false
         args: [src]
 

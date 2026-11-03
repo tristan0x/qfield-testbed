@@ -11,7 +11,8 @@ for almost every failure. #25 makes it something an AI agent (Claude Code first,
 operate on its own, and a script can drive without parsing text. Two adapters will sit on the same core:
 
 - the **CLI**, which an agent with a shell already has, made machine-friendly (this ADR);
-- an **MCP server** (`qft mcp serve`, stdio), added later for clients without a shell.
+- an **MCP server** (`qft mcp serve`, stdio) for clients without a shell, over the same operations
+  (`service.py`) as the CLI ([mcp](../mcp.md)).
 
 The core already exists: `Testbed` and `Deployment` (`deployment.py`), `BisectSession` (`bisect/session.py`),
 `Cache` and the components. CLI handlers in `cli/` only parse arguments and render results. Two pieces of logic

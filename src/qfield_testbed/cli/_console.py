@@ -17,7 +17,7 @@ import typer
 from pydantic import TypeAdapter
 from rich.console import Console
 
-from qfield_testbed.errors import RefusedError
+from qfield_testbed.errors import RefusedError, error_object
 from qfield_testbed.runtimes.shell import send_uncaptured_output_to_stderr
 from qfield_testbed.state import Status
 
@@ -124,7 +124,7 @@ def emit_error(
     docs: str | None = None,
     details: dict[str, Any] | None = None,
 ) -> None:
-    error_ = {"code": code, "message": message, "hint": hint, "docs": docs, "details": details or {}}
+    error_ = error_object(code, message, hint=hint, docs=docs, details=details)
     _write_envelope({"ok": False, "error": error_})
 
 

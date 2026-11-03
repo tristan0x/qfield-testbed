@@ -24,6 +24,8 @@ for questions that reading the code answers.
 ## Golden path
 
 Run every command with `--json`: stdout is then one JSON document, logs go to stderr.
+The plugin also offers the same operations as MCP tools (`deployment_ensure`, `deployment_show`, …): with a
+shell, either works; the CLI's `deployment run` has no MCP counterpart unless the server runs with `--allow-run`.
 
 1. **Install** — `command -v qft || uv tool install git+https://github.com/tristan0x/qfield-testbed`
 2. **Agent session** — one id for the whole conversation. When the session-start context gives one, or

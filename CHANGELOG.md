@@ -103,6 +103,11 @@ All notable changes to this project are documented here. The format follows
 - `qft agent install [--scope user|project]` copies the Claude Code skill shipped with qft into
   `~/.claude/skills/` or `./.claude/skills/`, for setups without the plugin system; it refuses to overwrite a
   copy edited by hand without `--yes` (#37).
+- `qft mcp serve` (extra `qfield-testbed[mcp]`): the operations of qft as MCP tools over stdio — doctor, spec
+  suggest and validate, deployment ensure, list, show, start, stop, restart, keep, remove and logs, bisect start,
+  step and status, cache, gc — with read-only and destructive annotations and the CLI's error codes; the server is
+  one agent session, and `deployment_run` is only offered with `--allow-run`. The Claude Code plugin declares it
+  (#38).
 
 ### Changed
 

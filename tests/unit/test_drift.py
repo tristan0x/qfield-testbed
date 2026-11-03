@@ -35,7 +35,6 @@ _QFT = re.compile(r"(?<![\w./-])qft(?=\s+[-\w])")
 _INLINE = re.compile(r"`([^`]+)`")
 # commands an ADR names on purpose although they do not exist (yet): (file, command line)
 NOT_COMMANDS = {
-    ("docs/adr/0001-agent-interface.md", "qft mcp serve"),  # planned with the MCP server (#38)
     ("docs/adr/0001-agent-interface.md", "qft session"),  # rejected by the ADR
 }
 _STOP = {"--", "#", "|", "||", "&&", ";", ">", "<", "2>&1", "&"}

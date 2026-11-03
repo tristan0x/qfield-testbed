@@ -13,6 +13,9 @@ This page lists `data` for each command. Paths are absolute strings, dates ISO 8
 `qft deployment list` (`created`, `stopped`, `starting`, `running`, `failed`, `wiring failed`). New fields may
 appear in any release; removing or renaming one bumps `schema_version`.
 
+
+The MCP server returns the same `data` as structured content of its tools, and the same `error` object on failure
+([mcp](mcp.md)).
 ## Deployments
 
 **Deployment info** — returned by `deployment add`, `show`, `start`, `stop` and `restart`:

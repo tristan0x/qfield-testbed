@@ -1,0 +1,15 @@
+kind: scenario
+description: UC6 — a throw-away deployment for a PR-style check, a JSON verdict written, guaranteed teardown.
+checkout: {repo: "https://github.com/opengisch/qfieldsync.git"}
+prompt: >-
+  Act as a CI check for this QFieldSync checkout: in a throw-away environment, verify that the plugin can
+  authenticate against QFieldCloud's latest release with the test account. Write the verdict as JSON
+  {"passed": true|false, "details": "..."} to check-result.json, and make sure nothing is left running.
+max_turns: 60
+max_minutes: 40
+expect:
+  skill: true
+  commands_in_order: ["qft .*deployment ensure", "qft .*deployment remove"]
+  never: ["--force"]
+  deployment: {qfieldsync: "^worktree:", qfieldcloud: "^release:"}
+  files: ["check-result.json"]

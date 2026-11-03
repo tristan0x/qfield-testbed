@@ -168,22 +168,22 @@ def _executable(path: Path, body: str) -> str:
     return str(path)
 
 
-FAKE_QFT = """\
+FAKE_QFT = """\\
 import json, os, sys
 from pathlib import Path
-state = Path(os.environ["QFT_HOME"]) / "fake-deployments.json"
-names = json.loads(state.read_text()) if state.exists() else []
+home = Path(os.environ["QFT_HOME"]); home.mkdir(parents=True, exist_ok=True)
+names = sorted(p.stem for p in home.glob("*.deployment"))
 args = [a for a in sys.argv[1:] if a != "--json"]
 if args[:2] == ["deployment", "list"]:
     data = {"deployments": [{"name": n} for n in names]}
 elif args[:2] == ["deployment", "remove"]:
-    names.remove(args[2]); state.parent.mkdir(parents=True, exist_ok=True); state.write_text(json.dumps(names)); data = {}
+    (home / f"{args[2]}.deployment").unlink(); data = {}
 elif args[:1] == ["gc"]:
     data = {"plan": {"orphaned_networks": []}}
 elif args[:1] == ["doctor"]:
     data = {"capabilities": {"qfieldcloud": {"can_run": True}, "qfield-android": {"can_run": False}}}
 elif args[:2] == ["deployment", "add"]:
-    names.append("left-behind"); state.parent.mkdir(parents=True, exist_ok=True); state.write_text(json.dumps(names)); data = {}
+    (home / f"left-{os.getpid()}.deployment").touch(); data = {}
 print(json.dumps({"schema_version": 1, "ok": True, "data": data}))
 """
 
@@ -222,7 +222,8 @@ def test_run_case_and_the_leak_check(fakes: dict[str, str], tmp_path: Path) -> N
     leaky = Case(name="leaky", kind="behaviour", prompt="leave something", copies=2)
     result = runner.run_case(leaky, token="sk-ant-oat-x", qft=fakes["qft"], claude=fakes["claude"])
     assert result.status == "failed"
-    assert result.leaked == ["left-behind", "left-behind"]
+    assert len(result.leaked) == 2
+    assert all(name.startswith("left-") for name in result.leaked)
     assert [c.name for c in result.checks if not c.ok] == ["no leak"]
     assert "work-1" in result.final  # each copy in its own checkout
 

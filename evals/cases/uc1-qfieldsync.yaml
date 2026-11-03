@@ -1,0 +1,15 @@
+kind: scenario
+description: UC1 — a QFieldSync checkout put live against QFieldCloud, a scripted check run, everything cleaned up.
+checkout: {repo: "https://github.com/opengisch/qfieldsync.git"}
+prompt: >-
+  I'm working on this QFieldSync checkout. Check end to end that, with my code, QGIS can log in to a QFieldCloud
+  running the latest release and list the cloud projects of the test user. Run that check for real, tell me the
+  result, and clean up everything afterwards.
+max_turns: 60
+max_minutes: 40
+expect:
+  skill: true
+  commands_in_order: ["qft .*spec suggest", "qft .*deployment ensure", "qft .*deployment (run|logs)", "qft .*deployment remove"]
+  never: ["--force"]
+  deployment: {qfieldsync: "^worktree:", qfieldcloud: "^(release|git):"}
+  final_contains: ["project"]

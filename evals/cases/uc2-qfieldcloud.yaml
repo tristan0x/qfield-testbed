@@ -1,0 +1,14 @@
+kind: scenario
+description: UC2 — a QFieldCloud checkout with a worker, checked through a released QFieldSync, job logs read.
+checkout: {repo: "https://github.com/opengisch/QFieldCloud.git"}
+prompt: >-
+  I'm changing the packaging code of this QFieldCloud checkout. Bring my code up with a worker, have it package a
+  project, and tell me what the worker logged for that job. Clean up afterwards.
+max_turns: 70
+max_minutes: 60
+expect:
+  skill: true
+  commands_in_order: ["qft .*deployment ensure", "qft .*deployment logs", "qft .*deployment remove"]
+  never: ["--force"]
+  deployment: {qfieldcloud: "^worktree:"}
+  final_contains: ["worker"]

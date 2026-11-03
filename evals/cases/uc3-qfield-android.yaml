@@ -1,0 +1,16 @@
+kind: scenario
+description: UC3 — QField on the Android emulator against a QFieldCloud of the same deployment (needs KVM).
+checkout: {fixture: qfield, remote: "https://github.com/opengisch/QField.git"}
+requires: [qfield-android]
+prompt: >-
+  I work on this QField checkout. With the latest QField release on Android (don't build mine), check that the app
+  starts in an emulator next to a QFieldCloud and is pointed at it, then tell me how I could look at the emulator.
+  Clean up afterwards.
+max_turns: 60
+max_minutes: 40
+expect:
+  skill: true
+  commands_in_order: ["qft .*deployment ensure", "qft .*deployment remove"]
+  never: ["--force"]
+  deployment: {qfield-android: "^release:", qfieldcloud: "^(release|git):"}
+  final_contains: ["novnc|vnc|launch"]

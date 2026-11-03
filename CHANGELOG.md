@@ -41,6 +41,10 @@ All notable changes to this project are documented here. The format follows
   and filters both (#32).
 - An agent session may only stop, restart, remove or keep its own deployments unless `--force`, and agent
   sessions own at most `max_agent_deployments` (10) deployments (#32).
+- `qft spec suggest` proposes a spec for the QFieldSync, QFieldCloud, QField or QGIS plugin checkout it runs in
+  (forks and worktrees included): that checkout live, the other components at their latest release, `--need`
+  for more (`android`, `desktop`, `sync`, `worker`, `tls`, `master`), fit to what `qft doctor` says this host can
+  run (#35).
 - `qft deployment ensure SPEC` creates and starts a deployment of a spec, or reuses the one that exists: the
   identity of a spec is its options plus the commits its `git:`/`artifact:` refs point to; another spec under
   the same name is refused with a diff unless `--replace`, and `--name auto` names it after the spec (#34).
@@ -102,6 +106,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- In JSON mode, the output of commands qft runs without capturing it (compose up, database migrations, a
+  launched client) went to stdout and broke the JSON document; it goes to stderr now (#35).
 - `QFT_QFIELDCLOUD_TOKEN` stays valid when a script logs in to QFieldCloud as the test account: the testbed
   now logs in as a `cli` client, whereas QFieldCloud keeps a single token for clients it does not recognise.
 - QFieldCloud images built for `git:` and `worktree:` sources are recorded in the cache, so `qft cache list`

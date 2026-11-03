@@ -295,7 +295,9 @@ def test_logs_follows_components_that_have_logs(testbed: Testbed) -> None:
 def subprocess_calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[list[str], dict[str, str] | None]]:
     calls: list[tuple[list[str], dict[str, str] | None]] = []
 
-    def fake_run(cmd: list[str], *, env: dict[str, str] | None = None, check: bool) -> subprocess.CompletedProcess[str]:
+    def fake_run(
+        cmd: list[str], *, env: dict[str, str] | None = None, check: bool, **_: Any
+    ) -> subprocess.CompletedProcess[str]:
         assert check is False
         calls.append((cmd, env))
         return subprocess.CompletedProcess(cmd, 3)

@@ -131,6 +131,7 @@ def test_no_command_is_left_without_json() -> None:
         "spec example",
         "spec validate",
         "spec schema",
+        "spec suggest",
         *(
             f"deployment {c}"
             for c in (

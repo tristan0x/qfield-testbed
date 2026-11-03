@@ -9,7 +9,10 @@ import typer
 
 from qfield_testbed.bisect.scenario import scenario_json_schema
 from qfield_testbed.cli._console import console, emit, ok
+from qfield_testbed.deployment import Testbed
 from qfield_testbed.spec import EXAMPLE_FULL, EXAMPLE_MINIMAL, DeploymentSpec, spec_json_schema
+from qfield_testbed.suggest.detect import detect
+from qfield_testbed.suggest.propose import NEEDS, Proposal, propose
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -28,6 +31,25 @@ def schema(
     """Print the JSON Schema of deployment specs (or of bisect scenarios), e.g. for editor completion."""
     document = scenario_json_schema() if scenario else spec_json_schema()
     emit({"schema": document}, human=lambda: sys.stdout.write(json.dumps(document, indent=2) + "\n"))
+
+
+@app.command()
+def suggest(
+    path: Annotated[Path, typer.Option("--path", "-p", help="The checkout to put live")] = Path(),
+    need: Annotated[list[str], typer.Option("--need", help=f"Also wanted, repeatable: {', '.join(NEEDS)}")] = [],  # noqa: B006
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Write the proposed spec there")] = None,
+) -> None:
+    """Propose a spec for a QFieldCloud, QFieldSync, QField or QGIS plugin checkout (applied by `ensure`)."""
+    testbed = Testbed()
+    proposal = propose(testbed, detect(testbed.runner, path), set(need))
+    if output is not None:
+        output.write_text(proposal.spec_yaml)
+    emit(proposal, human=lambda: _print_proposal(proposal))
+
+
+def _print_proposal(proposal: Proposal) -> None:
+    comments = [f"# {line}" for line in proposal.rationale] + [f"# note: {line}" for line in proposal.notes]
+    sys.stdout.write("\n".join([*comments, ""]) + proposal.spec_yaml)
 
 
 @app.command()

@@ -124,7 +124,7 @@ ignore_missing_imports = true
 
 [tool.pyright]
 # second type checker next to mypy: it infers differently and catches what decorators hide from mypy
-include = ["src", "tests"]
+include = ["src", "tests", "evals"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 venvPath = "."
@@ -132,7 +132,7 @@ venv = ".venv"
 
 [tool.vulture]
 # dead code; frameworks call what is decorated, pydantic reads `model_config`
-paths = ["src", "tests", "vulture_whitelist.py"]
+paths = ["src", "tests", "evals", "vulture_whitelist.py"]
 min_confidence = 60
 ignore_decorators = ["@app.command", "@app.callback", "@field_validator", "@model_validator", "@register", "@pytest.fixture"]
 ignore_names = ["model_config", "pytestmark", "pytest_*"]  # pytest reads the module marks and its hooks by name

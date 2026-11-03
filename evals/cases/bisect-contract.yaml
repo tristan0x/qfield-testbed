@@ -1,0 +1,15 @@
+kind: behaviour
+description: UC5 groundwork — the agent writes a valid bisect scenario and a test script with the git-bisect exit codes.
+checkout: {fixture: qfieldsync, remote: "https://github.com/opengisch/qfieldsync.git"}
+prompt: >-
+  Packaging with this QFieldSync checkout broke against some QFieldCloud release between v26.20 (fine) and v26.28
+  (broken). Prepare — but don't run — what's needed to find automatically which release broke it: put the files in
+  this directory and tell me how to launch the search.
+max_turns: 30
+max_minutes: 10
+expect:
+  skill: true
+  never: ["qft .*bisect (run|start)", "qft .*deployment (ensure|add|start)"]
+  scenario: "*.y*ml"
+  files: ["*.sh"]
+  final_contains: ["bisect"]

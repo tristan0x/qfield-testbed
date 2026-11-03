@@ -37,6 +37,7 @@ from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary
 from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import TestbedError, UsageError, error_object
+from qfield_testbed.mcp import prompts, resources
 from qfield_testbed.mcp.jobs import Job, JobList, JobLogs, JobManager, JobRef
 from qfield_testbed.runtimes.shell import ProcessResult, send_uncaptured_output_to_stderr
 from qfield_testbed.spec import DeploymentSpec
@@ -437,6 +438,8 @@ def build_server(*, allow_run: bool = False) -> MCPServer:  # noqa: C901, PLR091
             return service.GcData(dry_run=dry_run, plan=plan)
         return service.gc_apply(plan)
 
+    resources.register(mcp)
+    prompts.register(mcp)
     return mcp
 
 

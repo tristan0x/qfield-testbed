@@ -32,7 +32,8 @@ it with `claude --plugin-dir ./plugin`.
 ## MCP server
 
 The plugin also declares the MCP server `qft mcp serve` (extra `qfield-testbed[mcp]`, started with `uvx`): the
-same operations as typed tools, for MCP clients such as Claude Desktop. See [mcp](mcp.md).
+same operations as typed tools, long operations as jobs, the docs as resources and the golden paths as prompts, for
+MCP clients such as Claude Desktop. See [mcp](mcp.md).
 
 ## Without the plugin system
 

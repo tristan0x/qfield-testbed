@@ -111,6 +111,9 @@ All notable changes to this project are documented here. The format follows
 - Long MCP tools (`deployment_ensure`, `deployment_start`, `deployment_restart`, `bisect_step`, and the new
   `bisect_run`) answer within a call ceiling (`QFT_MCP_CALL_CEILING`, 50 s by default) with their result, or with a
   job followed by `job_status` and `job_logs`; progress notifications report each step (#39).
+- MCP resources (`qft://docs/{topic}`, `qft://glossary`, `qft://spec/schema`, `qft://scenario/schema`,
+  `qft://deployments/{name}`) and prompts (`setup_for_repo`, `reproduce_bug`, `bisect_regression`) for MCP clients
+  without skills (#39).
 
 ### Changed
 

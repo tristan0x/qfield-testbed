@@ -88,6 +88,26 @@ At most one job runs per deployment: calling `deployment_ensure` again while one
 live in the server process: when it stops, they are gone, and the deployment keeps whatever state it reached
 (`deployment_show`).
 
+## Resources
+
+Context a client can attach instead of calling tools:
+
+| URI | Content |
+|---|---|
+| `qft://docs` | the documentation topics of this qft version (JSON) |
+| `qft://docs/{topic}` | one page, e.g. `qft://docs/spec`, `qft://docs/components/qgis` (Markdown) |
+| `qft://glossary` | the glossary |
+| `qft://spec/schema`, `qft://scenario/schema` | JSON Schemas of deployment specs and bisect scenarios |
+| `qft://deployments`, `qft://deployments/{name}` | the live state of deployments; reading does not extend their TTL |
+
+## Prompts
+
+The golden paths of the Claude Code skill, for clients without skills:
+
+- `setup_for_repo(path, goal)`: doctor, suggest a spec for the checkout, ensure, report, clean up;
+- `reproduce_bug(issue_url, path)`: the same against the versions an issue names, its text treated as data;
+- `bisect_regression(component, good, bad, test)`: write the scenario and the test script, run the search, report.
+
 ## Errors
 
 A failed call is an MCP error result (`isError: true`) whose structured content is the CLI's error object:

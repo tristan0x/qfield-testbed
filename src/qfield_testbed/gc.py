@@ -72,19 +72,22 @@ def plan_gc(
     return plan
 
 
-def _owned(names: set[str]) -> tuple[set[str], set[str]]:
-    """The compose projects and networks registered deployments own: matched by name, never parsed."""
+def _resources(names: set[str]) -> tuple[set[str], set[str]]:
+    """The compose projects and networks of deployments named ``names``: matched by name, never parsed."""
     projects = {f"{PREFIX}{name}{suffix}" for name in names for suffix in COMPOSE_SUFFIXES}
     return projects, {f"{PREFIX}{name}" for name in names}
 
 
 def _plan_orphans(testbed: Testbed, plan: GcPlan) -> None:
     runner = testbed.runner
-    names = set(testbed.registry.names())
-    projects, networks = _owned(names)
-    plan.orphaned_projects = sorted(docker.compose_projects(runner, PREFIX) - projects)
-    plan.orphaned_containers = sorted(docker.labelled_deployments(runner) - names)
-    plan.orphaned_networks = sorted(docker.networks(runner, PREFIX) - networks)
+    data = testbed.registry.load()
+    names = set(data.deployments)
+    # Docker is shared by every QFT_HOME of the host: only what this home created and lost track of is an orphan
+    lost = set(data.created_here) - names
+    projects, networks = _resources(lost)
+    plan.orphaned_projects = sorted(docker.compose_projects(runner, PREFIX) & projects)
+    plan.orphaned_containers = sorted(docker.labelled_deployments(runner) & lost)
+    plan.orphaned_networks = sorted(docker.networks(runner, PREFIX) & networks)
     deployments_dir = testbed.paths.deployments_dir
     on_disk = {p.name for p in deployments_dir.iterdir() if p.is_dir()} if deployments_dir.is_dir() else set()
     plan.orphaned_directories = sorted(on_disk - names)
@@ -111,7 +114,7 @@ def _apply_orphans(testbed: Testbed, plan: GcPlan, report: GcReport) -> None:
     runner = testbed.runner
     # registered since the plan was made (an `add` running meanwhile): not an orphan any more
     names = set(testbed.registry.names())
-    projects, networks = _owned(names)
+    projects, networks = _resources(names)
     for project in plan.orphaned_projects:
         if project not in projects:
             docker.compose_down_project(runner, project)

@@ -79,6 +79,12 @@ def test_gc_command(three: Testbed, monkeypatch: pytest.MonkeyPatch) -> None:
 # --- orphans ------------------------------------------------------------------------------------------------
 
 
+def _lost(testbed: Testbed, name: str) -> None:
+    """A deployment this home created, whose registry entry is gone (a crash, a hand edit) — its resources remain."""
+    testbed.add(_spec(name))
+    testbed.registry.unregister(name)
+
+
 def _docker_inventory(runner: FakeRunner, *, projects: str, labelled: str, networks: str) -> None:
     runner.reply_when(lambda a: a[:3] == ("docker", "container", "ls") and "com.docker" in " ".join(a), stdout=projects)
     runner.reply_when(lambda a: a[:3] == ("docker", "volume", "ls"), stdout="")
@@ -92,6 +98,7 @@ def _docker_inventory(runner: FakeRunner, *, projects: str, labelled: str, netwo
 def test_orphans_are_matched_against_registered_names(testbed: Testbed, runner: FakeRunner) -> None:
     testbed.add(_spec("demo"))
     testbed.add(_spec("demo-2"))
+    _lost(testbed, "gone")
     _docker_inventory(
         runner,
         projects="qft-demo-qfc\nqft-demo-2-tb\nqft-gone-qfc\nother-project\n",
@@ -103,7 +110,7 @@ def test_orphans_are_matched_against_registered_names(testbed: Testbed, runner: 
     assert plan.orphaned_projects == ["qft-gone-qfc"]
     assert plan.orphaned_containers == ["gone"]
     assert plan.orphaned_networks == ["qft-gone"]
-    assert plan.orphaned_directories == ["ghost"]
+    assert sorted(plan.orphaned_directories) == ["ghost", "gone"]
     assert plan.stale_entries == []
 
 
@@ -111,6 +118,7 @@ def test_orphans_are_matched_against_registered_names(testbed: Testbed, runner: 
 def test_apply_removes_orphans_and_stale_entries(testbed: Testbed, runner: FakeRunner) -> None:
     testbed.add(_spec("demo"))
     testbed.add(_spec("lost"))
+    _lost(testbed, "gone")
     (testbed.paths.deployment_dir("lost") / "state.json").unlink()
     _docker_inventory(runner, projects="qft-gone-qfc\n", labelled="", networks="qft-gone\n")
     runner.reply_when(lambda a: a[:3] == ("docker", "network", "inspect"), returncode=0)
@@ -124,6 +132,7 @@ def test_apply_removes_orphans_and_stale_entries(testbed: Testbed, runner: FakeR
 
 @pytest.mark.usefixtures("fake_components")
 def test_dry_run_changes_nothing(testbed: Testbed, runner: FakeRunner) -> None:
+    _lost(testbed, "gone")
     _docker_inventory(runner, projects="qft-gone-qfc\n", labelled="", networks="")
     data = json.loads(invoke(["--json", "gc", "--orphaned", "--dry-run"]).stdout)["data"]
     assert data["plan"]["orphaned_projects"] == ["qft-gone-qfc"]
@@ -137,3 +146,30 @@ def test_gc_on_start_removes_expired_deployments_quietly(three: Testbed, monkeyp
     monkeypatch.setattr("qfield_testbed.gc._now", lambda: T0 + timedelta(hours=2))
     assert invoke(["deployment", "list"]).exit_code == 0
     assert sorted(three.registry.names()) == ["fresh", "mine"]
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_resources_of_other_homes_are_never_orphans(testbed: Testbed, runner: FakeRunner) -> None:
+    """Docker is shared by every QFT_HOME: what this home never created belongs to someone else."""
+    _docker_inventory(
+        runner, projects="qft-fix-753-qfc\nqft-pre-753-qfc\n", labelled="fix-753\n", networks="qft-fix-753\n"
+    )
+    plan = plan_gc(testbed, expired=False, orphaned=True)
+    assert plan.empty()
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_a_clean_removal_is_forgotten(testbed: Testbed, runner: FakeRunner) -> None:
+    testbed.add(_spec("done"))
+    testbed.deployment("done").remove()
+    _docker_inventory(runner, projects="qft-done-qfc\n", labelled="", networks="")
+    assert plan_gc(testbed, expired=False, orphaned=True).orphaned_projects == []
+    assert "done" not in testbed.registry.load().created_here
+
+
+def test_older_registries_count_their_deployments_as_created_here(testbed: Testbed) -> None:
+    testbed.paths.home.mkdir(parents=True, exist_ok=True)
+    testbed.registry.paths.registry_file.write_text(
+        '{"deployments": {"old": {"slot": 0, "created_at": "2026-10-01T10:00:00Z"}}}'
+    )
+    assert testbed.registry.load().created_here == ["old"]

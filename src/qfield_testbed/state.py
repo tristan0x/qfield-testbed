@@ -112,6 +112,16 @@ class RegistryData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     deployments: dict[str, RegistryEntry] = Field(default_factory=dict)
+    created_here: list[str] = Field(
+        default_factory=list,
+        description="Names of the deployments this home created and has not removed cleanly yet: `qft gc` only "
+        "looks for leftovers of these, since Docker is shared by every QFT_HOME of the host",
+    )
+
+    @model_validator(mode="after")
+    def _registered_were_created_here(self) -> RegistryData:
+        self.created_here = sorted({*self.created_here, *self.deployments})
+        return self
 
 
 class Registry:
@@ -157,6 +167,7 @@ class Registry:
             if slot is None:
                 raise NoFreeSlotError(self.max_slots)
             owner: Owner = "bisect" if session else "agent" if agent_session else "human"
+            data.created_here = sorted({*data.created_here, spec.name})
             data.deployments[spec.name] = RegistryEntry(
                 slot=slot, session=session, owner=owner, agent_session=agent_session, ttl_s=ttl_s
             )
@@ -187,6 +198,11 @@ class Registry:
                 raise UnknownDeploymentError(name)
             data.deployments[name].ttl_s = ttl_s
             data.deployments[name].last_used_at = _now()
+
+    def forget(self, name: str) -> None:
+        """``name`` was removed cleanly: none of its Docker resources remain for `qft gc` to look for."""
+        with self.locked() as data:
+            data.created_here = [known for known in data.created_here if known != name or known in data.deployments]
 
     def unregister(self, name: str) -> None:
         with self.locked() as data:

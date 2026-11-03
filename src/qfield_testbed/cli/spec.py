@@ -7,12 +7,11 @@ from typing import Annotated
 
 import typer
 
+from qfield_testbed import service
 from qfield_testbed.bisect.scenario import scenario_json_schema
 from qfield_testbed.cli._console import console, emit, ok
-from qfield_testbed.deployment import Testbed
 from qfield_testbed.spec import EXAMPLE_FULL, EXAMPLE_MINIMAL, DeploymentSpec, spec_json_schema
-from qfield_testbed.suggest.detect import detect
-from qfield_testbed.suggest.propose import NEEDS, Proposal, propose
+from qfield_testbed.suggest.propose import NEEDS, Proposal
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -40,8 +39,7 @@ def suggest(
     output: Annotated[Path | None, typer.Option("--output", "-o", help="Write the proposed spec there")] = None,
 ) -> None:
     """Propose a spec for a QFieldCloud, QFieldSync, QField or QGIS plugin checkout (applied by `ensure`)."""
-    testbed = Testbed()
-    proposal = propose(testbed, detect(testbed.runner, path), set(need))
+    proposal = service.spec_suggest(path, need)
     if output is not None:
         output.write_text(proposal.spec_yaml)
     emit(proposal, human=lambda: _print_proposal(proposal))
@@ -59,8 +57,5 @@ def validate(
     """Validate a spec without registering a deployment; errors give the path and line of each problem."""
     from_stdin = str(spec_file) == "-"
     spec = DeploymentSpec.from_yaml(sys.stdin.read()) if from_stdin else DeploymentSpec.from_file(spec_file)
-    components = list(spec.components())
-    emit(
-        {"name": spec.name, "components": components},
-        human=lambda: ok(f"valid spec '{spec.name}' with components: {', '.join(components)}"),
-    )
+    result = service.spec_validate(spec)
+    emit(result, human=lambda: ok(f"valid spec '{result.name}' with components: {', '.join(result.components)}"))

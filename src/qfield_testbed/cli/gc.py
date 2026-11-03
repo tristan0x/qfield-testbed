@@ -6,11 +6,9 @@ from typing import Annotated
 
 import typer
 
-from qfield_testbed.caller import CALLER
+from qfield_testbed import service
 from qfield_testbed.cli._console import confirm, console, emit, ok
-from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import RefusedError
-from qfield_testbed.gc import GcPlan, GcReport, apply_gc, plan_gc
+from qfield_testbed.gc import GcPlan, GcReport
 
 
 def gc(
@@ -29,24 +27,15 @@ def gc(
     ] = False,
 ) -> None:
     """Remove expired deployments and leftovers no deployment owns (both without --expired / --orphaned)."""
-    if agent_session and CALLER.agent_session not in {None, agent_session} and not force:
-        raise RefusedError(
-            f"agent session '{CALLER.agent_session}' may not clean up agent session '{agent_session}'",
-            hint="pass --force",
-            docs="isolation",
-        )
-    if not (expired or orphaned or agent_session):
-        expired = orphaned = True
-    testbed = Testbed()
-    plan = plan_gc(testbed, expired=expired, orphaned=orphaned, agent_session=agent_session)
+    plan = service.gc_plan(expired=expired, orphaned=orphaned, agent_session=agent_session, force=force)
     if dry_run or plan.empty():
-        emit({"dry_run": dry_run, "plan": plan}, human=lambda: _print_plan(plan, dry_run=dry_run))
+        emit(service.GcData(dry_run=dry_run, plan=plan), human=lambda: _print_plan(plan, dry_run=dry_run))
         return
     _print_plan(plan, dry_run=True)
     if not yes and not confirm("Remove all of the above?", action="garbage-collect"):
         raise typer.Abort
-    report = apply_gc(testbed, plan)
-    emit({"dry_run": False, "plan": plan, "report": report}, human=lambda: _print_report(report))
+    data = service.gc_apply(plan)
+    emit(data, human=lambda: _print_report(data.report or GcReport()))
 
 
 def _print_plan(plan: GcPlan, *, dry_run: bool) -> None:

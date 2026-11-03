@@ -7,11 +7,11 @@ from typing import Annotated
 import typer
 from rich.table import Table
 
+from qfield_testbed import service
 from qfield_testbed.cli._console import console, emit
 from qfield_testbed.config import GlobalConfig
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.doctor import CAPABILITIES, Capability, Check, HostFacts, capabilities, host_facts, run_checks
-from qfield_testbed.errors import PrerequisiteMissingError, UsageError
+from qfield_testbed.doctor import Capability, Check, HostFacts
 
 
 def doctor(
@@ -25,29 +25,10 @@ def doctor(
     ] = [],  # noqa: B006
 ) -> None:
     """Check the host for Docker, KVM, gh, QGIS, display and iOS hosts, and tell what it can run."""
-    unknown = sorted(set(require) - set(CAPABILITIES))
-    if unknown:
-        raise UsageError(
-            f"unknown capability: {', '.join(unknown)}",
-            hint="one of: " + ", ".join(CAPABILITIES),
-            docs="getting-started",
-        )
-    testbed = Testbed(GlobalConfig.load())
-    checks = run_checks(testbed)
-    matrix = capabilities(checks)
-    host = host_facts(testbed)
-    emit(
-        {"checks": checks, "capabilities": matrix, "host": host},
-        human=lambda: _print_report(checks, matrix, host),
-    )
-    missing = {key: matrix[key] for key in require if not matrix[key].can_run}
-    if missing:
-        hints = list(dict.fromkeys(hint for capability in missing.values() for hint in capability.fix_hints))
-        raise PrerequisiteMissingError(
-            f"this host cannot run: {', '.join(missing)}",
-            hint="; ".join(hints) or None,
-            details={"missing": {key: capability.missing for key, capability in missing.items()}},
-        )
+    service.check_capabilities(require)
+    report = service.doctor(Testbed(GlobalConfig.load()))
+    emit(report, human=lambda: _print_report(report.checks, report.capabilities, report.host))
+    service.require(report, require)
 
 
 def _print_report(checks: list[Check], matrix: dict[str, Capability], host: HostFacts) -> None:

@@ -35,6 +35,17 @@ class TestbedError(Exception):
         self.details = details or {}
 
 
+def error_object(
+    code: str,
+    message: str,
+    *,
+    hint: str | None = None,
+    docs: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {"code": code, "message": message, "hint": hint, "docs": docs, "details": details or {}}
+
+
 # --- intermediate classes: one per exit code -------------------------------------------------------------------
 
 

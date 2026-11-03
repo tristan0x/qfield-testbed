@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 from rich.table import Table
 
+from qfield_testbed import service
 from qfield_testbed.bisect.algorithm import Verdict
-from qfield_testbed.bisect.runner import Outcome
 from qfield_testbed.bisect.scenario import EXAMPLE_SCENARIO, BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
 from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, warn
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import NeedsHumanError, NotFoundError, UsageError
+from qfield_testbed.errors import NeedsHumanError, NotFoundError
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -26,14 +25,7 @@ SessionArg = Annotated[
 
 
 def _session(testbed: Testbed, name: str | None) -> BisectSession:
-    if name is None:
-        names = BisectSession.names(testbed)
-        if len(names) != 1:
-            if not names:
-                raise NotFoundError("no bisect session yet", hint="`qft bisect start SCENARIO.yaml`", docs="bisect")
-            raise UsageError("several sessions exist; name one: " + ", ".join(names))
-        name = names[0]
-    return BisectSession(testbed, name)
+    return service.bisect_session(name, testbed)
 
 
 def _prompt(message: str) -> str:
@@ -75,9 +67,8 @@ def start(
     run_: Annotated[bool, typer.Option("--run", help="Run the search right away")] = False,
 ) -> None:
     """Create a session from a scenario: resolve the candidates and register its deployment."""
-    testbed = Testbed()
     scenario = BisectScenario.from_file(scenario_file)
-    created = BisectSession.create(testbed, scenario, session)
+    created = service.bisect_start(scenario, session=session)
     ok(
         f"session [bold]{created.name}[/]: {len(created.state.candidates)} candidates between "
         f"{scenario.bisect.good} and {scenario.bisect.bad} (≤ {created.search().remaining_steps()} steps)"
@@ -85,7 +76,10 @@ def start(
     if run_:
         run(created.name)
     else:
-        emit(created.summary(), human=lambda: console.print(f"Next: [bold]qft bisect run {created.name}[/]"))
+        emit(
+            service.bisect_summary(created),
+            human=lambda: console.print(f"Next: [bold]qft bisect run {created.name}[/]"),
+        )
 
 
 @app.command()
@@ -117,47 +111,40 @@ def run(session: SessionArg = None) -> None:
                 f"→ [bold]{outcome.verdict}[/]"
                 + (f" (exit {outcome.exit_code})" if outcome.exit_code is not None else "")
             )
-    emit(current.summary(), human=lambda: _print_result(current))
+    emit(service.bisect_summary(current), human=lambda: _print_result(current))
 
 
 @app.command("next")
 def next_(session: SessionArg = None) -> None:
     """Prepare the next candidate in the deployment and wait for `qft bisect good|bad|skip`."""
     current = _session(Testbed(), session)
-    if current.state.current is not None:
-        candidate = current.candidate(current.state.current)
-        message = f"candidate {current.state.current} ({candidate.label}) is already prepared; give a verdict first"
-        _emit_next(current, current.state.current, "already-prepared", lambda: console.print(message))
+    result = service.bisect_next(current)
+    if result.outcome == "already-prepared":
+        candidate = current.candidate(current.state.current or 0)
+        message = f"candidate {result.prepared} ({candidate.label}) is already prepared; give a verdict first"
+        emit(result, human=lambda: console.print(message))
         return
-    index = current.search().next_index()
-    if index is None:
-        _emit_next(current, None, "done", lambda: _print_result(current))
+    if result.outcome == "done":
+        emit(result, human=lambda: _print_result(current))
         return
-    deployment = current.prepare(index)
-    if deployment is None:
-        message = "candidate skipped (not materializable); run `qft bisect next` again"
-        _emit_next(current, None, "skipped", lambda: console.print(message))
+    if result.outcome == "skipped":
+        emit(result, human=lambda: console.print("candidate skipped (not materializable); run `qft bisect next` again"))
         return
-    candidate = current.candidate(index)
-    ok(f"candidate {index} ready: [bold]{candidate.label}[/] — {candidate.subject}")
+    candidate = current.candidate(result.prepared or 0)
+    ok(f"candidate {result.prepared} ready: [bold]{candidate.label}[/] — {candidate.subject}")
 
     def human() -> None:
-        console.print(f"deployment: {deployment.name}  →  qft deployment show {deployment.name}")
+        console.print(
+            f"deployment: {current.state.deployment_name}  →  qft deployment show {current.state.deployment_name}"
+        )
         console.print("then: qft bisect good | bad | skip")
 
-    _emit_next(current, index, "prepared", human)
-
-
-def _emit_next(current: BisectSession, prepared: int | None, outcome: str, human: Callable[[], None]) -> None:
-    emit({"prepared": prepared, "outcome": outcome, "session": current.summary()}, human=human)
+    emit(result, human=human)
 
 
 def _verdict(session: str | None, verdict: Verdict) -> None:
     current = _session(Testbed(), session)
-    index = current.state.current
-    if index is None:
-        raise UsageError("no candidate is prepared", hint="run `qft bisect next` first")
-    current.record(index, Outcome(verdict, None, 0.0, f"manual verdict: {verdict}\n"))
+    index = service.bisect_verdict(current, verdict)
     ok(f"candidate {index} ({current.candidate(index).label}) → {verdict}")
 
     def human() -> None:
@@ -166,7 +153,7 @@ def _verdict(session: str | None, verdict: Verdict) -> None:
         else:
             console.print(f"≤ {current.search().remaining_steps()} steps left — qft bisect next")
 
-    emit(current.summary(), human=human)
+    emit(service.bisect_summary(current), human=human)
 
 
 @app.command()
@@ -196,7 +183,7 @@ def status(
         set_json_output(True)
     current = _session(Testbed(), session)
     info = current.summary()
-    emit(info, human=lambda: _print_status(current, info))
+    emit(service.bisect_summary(current), human=lambda: _print_status(current, info))
 
 
 def _print_status(current: BisectSession, info: dict[str, Any]) -> None:

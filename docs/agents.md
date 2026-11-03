@@ -29,6 +29,14 @@ The `qfield-testbed` plugin brings:
 Check a local copy with `claude plugin validate . --strict` and `claude plugin validate ./plugin --strict`, and try
 it with `claude --plugin-dir ./plugin`.
 
+## Without the plugin system
+
+`qft agent install` copies the skill of the installed qft into `~/.claude/skills/qfield-testbed/`
+(`--scope project`: `./.claude/skills/qfield-testbed/`), for Claude Code setups that cannot install plugins.
+The copy has no SessionStart hook: give the agent an `--agent-session` id yourself. Running it again after
+upgrading qft replaces the copy; a copy edited by hand is only overwritten with `--yes`. Do not install both the
+plugin and the copy: the skill would be listed twice.
+
 ## Other agents
 
 [`AGENTS.md`](../AGENTS.md) describes how to work *on* this repository and [`llms.txt`](../llms.txt) indexes the

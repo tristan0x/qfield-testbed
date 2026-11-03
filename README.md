@@ -86,6 +86,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft bisect start \| run \| next \| good \| bad \| skip \| status \| log \| reset` | Bisect sessions |
 | `qft gc [--expired] [--orphaned] [--dry-run]` | Remove expired deployments and leftovers no deployment owns |
 | `qft cache list \| prune` | The shared cache of checkouts, downloads and images |
+| `qft agent install [--scope user\|project]` | Copy the Claude Code skill, when the plugin cannot be installed |
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 
 ## Coding agents
@@ -99,6 +100,7 @@ use and tear down deployments on its own, in its own agent session:
 
 On Claude Code before 2.1.275: `/plugin marketplace add tristan0x/qfield-testbed`, then
 `/plugin install qfield-testbed@qfield-testbed`.
+Without the plugin system, `qft agent install` copies the skill into `~/.claude/skills/`.
 
 Opened in a QFieldCloud, QFieldSync, QField or QGIS plugin checkout, Claude Code then knows that the testbed applies
 and drives `qft --json` without being told. See [docs/agents.md](docs/agents.md).

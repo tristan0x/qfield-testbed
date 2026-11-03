@@ -100,6 +100,10 @@ All notable changes to this project are documented here. The format follows
 - `AGENTS.md` and `CLAUDE.md` for agents working on this repository, `llms.txt` indexing the documentation,
   [docs/agents.md](docs/agents.md), and a pointer text for upstream projects (#36).
 
+- `qft agent install [--scope user|project]` copies the Claude Code skill shipped with qft into
+  `~/.claude/skills/` or `./.claude/skills/`, for setups without the plugin system; it refuses to overwrite a
+  copy edited by hand without `--yes` (#37).
+
 ### Changed
 
 - The project lives at [tristan0x/qfield-testbed](https://github.com/tristan0x/qfield-testbed): install

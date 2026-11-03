@@ -99,4 +99,5 @@ A manual test cannot run without a terminal: `NEEDS_HUMAN` (exit 3).
 | `spec schema [--scenario]` | `{schema}`: the JSON Schema of specs (or scenarios) |
 | `doctor` | `{checks: [{name, ok, detail, needed_by: [keys], fix_hint}], capabilities: {key: {can_run, missing: [check names], fix_hints}}, host: {free_disk_gib, slots: {used, max}, deployments, home, cache, config}}`; `--require KEY` makes a missing capability a `PREREQ_MISSING` error whose `details.missing` maps each key to its failing checks |
 | `docs [TOPIC]` | `{topic, title, markdown}`; without a topic (or with `--list`), `{topics: [{topic, title}]}` |
+| `agent install [--scope user\|project] [--dry-run]` | `{scope, target, files: [paths], replaced, modified: [paths changed by hand], dry_run}`; a copy edited by hand or not made by qft is a `REFUSED` error without `--yes` |
 | `--version` | `{version}` |

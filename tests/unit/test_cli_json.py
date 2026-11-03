@@ -51,6 +51,8 @@ def test_every_command_answers_in_json(tmp_path: Path, monkeypatch: pytest.Monke
     spec_file.write_text(SPEC)
 
     assert _json("docs", "glossary")["title"] == "Glossary"
+    monkeypatch.chdir(tmp_path)
+    assert _json("agent", "install", "--scope", "project", "--dry-run")["dry_run"] is True
     doctor = _json("doctor")
     assert set(doctor) == {"checks", "capabilities", "host"}
     assert doctor["host"]["slots"] == {"used": 0, "max": 5}
@@ -126,6 +128,7 @@ def test_no_command_is_left_without_json() -> None:
         "doctor",
         "docs",
         "gc",
+        "agent install",
         "config show",
         "config path",
         "spec example",

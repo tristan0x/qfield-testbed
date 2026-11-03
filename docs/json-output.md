@@ -95,6 +95,7 @@ A manual test cannot run without a terminal: `NEEDS_HUMAN` (exit 3).
 | `config path` | `{path, exists}` |
 | `spec example` | `{yaml}` |
 | `spec validate FILE\|-` | `{name, components: [names]}`; an invalid spec is an `INVALID_SPEC` error whose `details.issues` lists `{path, message, line, column}` (dotted path in the spec, 1-based YAML position, `null` when unknown) |
+| `spec suggest [--path P] [--need N…]` | `{project, path, spec, spec_yaml, rationale: [...], notes: [...]}`; an unrecognized checkout is a `USAGE` error, an unmet `--need` a `PREREQ_MISSING` one |
 | `spec schema [--scenario]` | `{schema}`: the JSON Schema of specs (or scenarios) |
 | `doctor` | `{checks: [{name, ok, detail, needed_by: [keys], fix_hint}], capabilities: {key: {can_run, missing: [check names], fix_hints}}, host: {free_disk_gib, slots: {used, max}, deployments, home, cache, config}}`; `--require KEY` makes a missing capability a `PREREQ_MISSING` error whose `details.missing` maps each key to its failing checks |
 | `docs [TOPIC]` | `{topic, title, markdown}`; without a topic (or with `--list`), `{topics: [{topic, title}]}` |

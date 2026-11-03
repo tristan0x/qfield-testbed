@@ -41,7 +41,10 @@ def detect(runner: Runner, path: Path) -> Detection:
     by_layout, plugin_dir, why = _layout(root)
     if why:
         evidence.append(why)
-    if by_remote and by_layout and by_remote != by_layout:
+    # a specific layout wins over the remote; "some QGIS plugin" is too generic to overrule it
+    if by_layout == "qgis-plugin" and by_remote:
+        by_layout = None
+    elif by_remote and by_layout and by_remote != by_layout:
         evidence.append(f"the files say {by_layout}, the remote {by_remote}: going by the files")
     project: Project = by_layout or by_remote or "unknown"
     return Detection(project, root, remote, plugin_dir if project == "qgis-plugin" else None, evidence)
@@ -62,8 +65,8 @@ def _remote(runner: Runner, root: Path) -> str | None:
 
 def _layout(root: Path) -> tuple[Project | None, Path | None, str | None]:
     """The project the files of ``root`` look like, the plugin folder for a QGIS plugin, and why."""
-    if _plugin_name(root / "qfieldsync" / "metadata.txt") == "QFieldSync":
-        return "qfieldsync", None, "qfieldsync/metadata.txt names the QFieldSync plugin"
+    if _squashed(_plugin_name(root / "qfieldsync" / "metadata.txt")) == "qfieldsync":
+        return "qfieldsync", None, "qfieldsync/metadata.txt is the QFieldSync plugin"
     if (root / "docker-compose.yml").is_file() and (root / "docker-app" / "qfieldcloud").is_dir():
         return "qfieldcloud", None, "docker-compose.yml and docker-app/qfieldcloud/ are QFieldCloud's"
     if (root / "CMakeLists.txt").is_file() and (root / "src" / "qml").is_dir():
@@ -73,6 +76,11 @@ def _layout(root: Path) -> tuple[Project | None, Path | None, str | None]:
         if name:
             return "qgis-plugin", candidate, f"{(candidate / 'metadata.txt').relative_to(root)} is QGIS plugin '{name}'"
     return None, None, None
+
+
+def _squashed(name: str | None) -> str:
+    """`QField Sync` and `QFieldSync` alike."""
+    return re.sub(r"[\s_-]+", "", name or "").lower()
 
 
 def _plugin_name(metadata: Path) -> str | None:

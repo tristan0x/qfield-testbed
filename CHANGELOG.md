@@ -41,6 +41,10 @@ All notable changes to this project are documented here. The format follows
   and filters both (#32).
 - An agent session may only stop, restart, remove or keep its own deployments unless `--force`, and agent
   sessions own at most `max_agent_deployments` (10) deployments (#32).
+- `qft spec suggest` proposes a spec for the QFieldSync, QFieldCloud, QField or QGIS plugin checkout it runs in
+  (forks and worktrees included): that checkout live, the other components at their latest release, `--need`
+  for more (`android`, `desktop`, `sync`, `worker`, `tls`, `master`), fit to what `qft doctor` says this host can
+  run (#35).
 - `qft deployment ensure SPEC` creates and starts a deployment of a spec, or reuses the one that exists: the
   identity of a spec is its options plus the commits its `git:`/`artifact:` refs point to; another spec under
   the same name is refused with a diff unless `--replace`, and `--name auto` names it after the spec (#34).

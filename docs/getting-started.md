@@ -101,6 +101,30 @@ These are the same variables a bisect [test script](bisect.md) receives.
 
 `QFT_HOME`, `QFT_CACHE_DIR` and `QFT_CONFIG` override these.
 
+## Let qft suggest a spec
+
+In a checkout of QFieldSync, QFieldCloud, QField or a QGIS plugin — a fork or a worktree too — `qft spec suggest`
+proposes a deployment that runs that checkout live and the rest from releases:
+
+```sh
+cd ~/src/qfieldsync-fix-806
+qft spec suggest                       # the YAML, with why each choice was made as comments
+qft spec suggest --need android --output spec.yaml && qft deployment ensure spec.yaml
+```
+
+| Checkout | Proposed |
+|---|---|
+| QFieldSync | `qfieldsync: worktree:<it>`, `qgis: host`, `qfieldcloud` at its latest release |
+| QFieldCloud | `qfieldcloud: worktree:<it>`, `qgis: host`, `qfieldsync` at its latest release |
+| QField | `qfield-android: build:<it>` (or the CI artifact of its branch when the disk is short), `qfieldcloud` |
+| a QGIS plugin | `qgis: host` with the plugin installed from its folder |
+
+`--need` adds what the task needs: `android`, `desktop` (QField apps from their latest release), `sync`
+(QFieldCloud + QFieldSync), `worker`, `tls`, and `master` (QFieldCloud / QFieldSync from `git:master` instead of
+releases). The proposal follows `qft doctor`: what this host cannot run is left out with a note, and a `--need`
+it cannot meet exits 3 with how to fix it. Detection is best effort: the files of the checkout and the name of
+its git remote; check the proposal before using it.
+
 ## From a script or an agent: `ensure`
 
 `qft deployment ensure SPEC` makes sure a deployment of that spec exists and is ready, and returns it: it creates

@@ -114,6 +114,9 @@ All notable changes to this project are documented here. The format follows
 - MCP resources (`qft://docs/{topic}`, `qft://glossary`, `qft://spec/schema`, `qft://scenario/schema`,
   `qft://deployments/{name}`) and prompts (`setup_for_repo`, `reproduce_bug`, `bisect_regression`) for MCP clients
   without skills (#39).
+- Agent-in-the-loop evals (`scripts/evals.sh`, `evals/`): behaviour cases and UC1–UC8 scenarios run a fresh
+  Claude Code session with only the plugin and check what it did and that it left nothing behind; local and on
+  the Claude subscription only (#40).
 
 ### Changed
 

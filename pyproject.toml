@@ -40,6 +40,10 @@ Changelog = "https://github.com/tristan0x/qfield-testbed/blob/master/CHANGELOG.m
 qft = "qfield_testbed.cli:main"
 qfield-testbed = "qfield_testbed.cli:main"
 
+[project.optional-dependencies]
+# `qft mcp serve`
+mcp = ["mcp>=2.3,<3", "anyio>=4.5"]
+
 [dependency-groups]
 dev = [
   "pre-commit>=4",
@@ -55,6 +59,7 @@ dev = [
   "deptry>=0.25.1",
   "jsonschema>=4.26.0",
   "types-jsonschema>=4.26.0.20261006",
+  "mcp>=2.3,<3",
 ]
 
 [build-system]

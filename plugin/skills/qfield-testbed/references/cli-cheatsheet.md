@@ -19,4 +19,5 @@ Global options go before the command: `qft [--json] [--agent-session ID] [--non-
 | `qft deployment remove NAME --yes` | tear it down |
 | `qft gc [--expired] [--orphaned] [--agent-session ID] [--dry-run] [--yes]` | clean up |
 | `qft bisect example\|start\|run\|next\|good\|bad\|skip\|status\|list\|log\|reset\|remove` | bisect sessions |
+| `qft mcp serve [--allow-run]` | the same operations as MCP tools (extra `[mcp]`) |
 | `qft cache list\|prune [--dry-run]`, `qft config show\|path` | shared cache, configuration |

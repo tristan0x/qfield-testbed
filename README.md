@@ -86,6 +86,7 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft bisect start \| run \| next \| good \| bad \| skip \| status \| log \| reset` | Bisect sessions |
 | `qft gc [--expired] [--orphaned] [--dry-run]` | Remove expired deployments and leftovers no deployment owns |
 | `qft cache list \| prune` | The shared cache of checkouts, downloads and images |
+| `qft mcp serve [--allow-run]` | The MCP server (extra `qfield-testbed[mcp]`) |
 | `qft agent install [--scope user\|project]` | Copy the Claude Code skill, when the plugin cannot be installed |
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 
@@ -112,6 +113,7 @@ they ship with the package, so they always match the installed version and work 
 
 - [Glossary](docs/glossary.md) — the terms, used consistently everywhere
 - [Coding agents](docs/agents.md) — the Claude Code plugin and skill
+- [MCP server](docs/mcp.md) — `qft mcp serve`, the same operations as MCP tools
 - [Getting started](docs/getting-started.md)
 - [Deployment spec](docs/spec.md)
 - [Bisect](docs/bisect.md)

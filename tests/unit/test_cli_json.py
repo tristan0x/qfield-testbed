@@ -129,6 +129,7 @@ def test_no_command_is_left_without_json() -> None:
         "docs",
         "gc",
         "agent install",
+        "mcp serve",  # speaks MCP on stdout instead (tests/unit/test_mcp.py)
         "config show",
         "config path",
         "spec example",

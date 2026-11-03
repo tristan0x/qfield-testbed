@@ -3,6 +3,8 @@
 Listed in `[tool.vulture] paths`; a name only goes here with the reason it is used.
 """
 
+from types import SimpleNamespace
+
 from qfield_testbed.bisect.scenario import BisectScenario
 from qfield_testbed.provision.qfield_settings import _CaseSensitiveParser
 from qfield_testbed.runtimes.shell import ProcessResult
@@ -18,3 +20,9 @@ _CaseSensitiveParser.optionxform  # noqa: B018
 # serialized into the JSON result of `qft deployment run` and the details of its timeout error
 ProcessResult.stdout_tail  # noqa: B018
 ProcessResult.stderr_tail  # noqa: B018
+
+# MCP tools: registered by the @mcp.tool decorator, called by MCP clients by name
+_mcp_tools = SimpleNamespace()
+_mcp_tools.testbed_doctor  # noqa: B018
+_mcp_tools.bisect_step  # noqa: B018
+_mcp_tools.bisect_status  # noqa: B018

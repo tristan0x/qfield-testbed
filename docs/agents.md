@@ -29,6 +29,11 @@ The `qfield-testbed` plugin brings:
 Check a local copy with `claude plugin validate . --strict` and `claude plugin validate ./plugin --strict`, and try
 it with `claude --plugin-dir ./plugin`.
 
+## MCP server
+
+The plugin also declares the MCP server `qft mcp serve` (extra `qfield-testbed[mcp]`, started with `uvx`): the
+same operations as typed tools, for MCP clients such as Claude Desktop. See [mcp](mcp.md).
+
 ## Without the plugin system
 
 `qft agent install` copies the skill of the installed qft into `~/.claude/skills/qfield-testbed/`

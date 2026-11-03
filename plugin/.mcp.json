@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "qfield-testbed": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed",
+        "qft",
+        "mcp",
+        "serve"
+      ]
+    }
+  }
+}

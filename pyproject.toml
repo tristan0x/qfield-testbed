@@ -32,9 +32,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/opengisch/qfield-testbed"
-Documentation = "https://github.com/opengisch/qfield-testbed/tree/master/docs"
-Changelog = "https://github.com/opengisch/qfield-testbed/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/tristan0x/qfield-testbed"
+Documentation = "https://github.com/tristan0x/qfield-testbed/tree/master/docs"
+Changelog = "https://github.com/tristan0x/qfield-testbed/blob/master/CHANGELOG.md"
 
 [project.scripts]
 qft = "qfield_testbed.cli:main"

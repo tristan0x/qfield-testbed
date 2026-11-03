@@ -3,7 +3,7 @@
 ## Install
 
 ```sh
-uv tool install git+https://github.com/opengisch/qfield-testbed
+uv tool install git+https://github.com/tristan0x/qfield-testbed
 # or, from a checkout:
 uv sync && alias qft="uv run qft"
 ```

@@ -1,0 +1,27 @@
+# qfield-testbed
+
+> Sandboxed, reproducible deployments of the QField stack (QFieldCloud, QGIS + QFieldSync, QField on Android, iOS or desktop) driven by the `qft` CLI, with a bisect mode to find the revision that introduced a regression. Every command answers in JSON with `--json`; `qft docs TOPIC` prints these pages for the installed version.
+
+## Docs
+
+- [ADR 0001 — Machine interface for agents](https://github.com/tristan0x/qfield-testbed/blob/master/docs/adr/0001-agent-interface.md): `qft docs adr/0001-agent-interface`
+- [Pointer for upstream projects](https://github.com/tristan0x/qfield-testbed/blob/master/docs/agents/upstream-pointer.md): `qft docs agents/upstream-pointer`
+- [Coding agents](https://github.com/tristan0x/qfield-testbed/blob/master/docs/agents.md): `qft docs agents`
+- [Bisect](https://github.com/tristan0x/qfield-testbed/blob/master/docs/bisect.md): `qft docs bisect`
+- [Component `qfield-android`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qfield-android.md): `qft docs components/qfield-android`
+- [Component `qfield-desktop`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qfield-desktop.md): `qft docs components/qfield-desktop`
+- [Component `qfield-ios`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qfield-ios.md): `qft docs components/qfield-ios`
+- [Component `qfieldcloud`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qfieldcloud.md): `qft docs components/qfieldcloud`
+- [Component `qfieldsync`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qfieldsync.md): `qft docs components/qfieldsync`
+- [Component `qgis`](https://github.com/tristan0x/qfield-testbed/blob/master/docs/components/qgis.md): `qft docs components/qgis`
+- [The `QFT_*` environment](https://github.com/tristan0x/qfield-testbed/blob/master/docs/environment.md): `qft docs environment`
+- [Getting started](https://github.com/tristan0x/qfield-testbed/blob/master/docs/getting-started.md): `qft docs getting-started`
+- [Glossary](https://github.com/tristan0x/qfield-testbed/blob/master/docs/glossary.md): `qft docs glossary`
+- [Isolation: slots, ports, names, cache](https://github.com/tristan0x/qfield-testbed/blob/master/docs/isolation.md): `qft docs isolation`
+- [JSON output](https://github.com/tristan0x/qfield-testbed/blob/master/docs/json-output.md): `qft docs json-output`
+- [Deployment spec](https://github.com/tristan0x/qfield-testbed/blob/master/docs/spec.md): `qft docs spec`
+
+## Agents
+
+- [Claude Code skill](https://github.com/tristan0x/qfield-testbed/blob/master/plugin/skills/qfield-testbed/SKILL.md): the golden path for agents
+- [AGENTS.md](https://github.com/tristan0x/qfield-testbed/blob/master/AGENTS.md): working on this repository

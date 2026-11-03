@@ -91,8 +91,19 @@ All notable changes to this project are documented here. The format follows
 - Slot allocation: each deployment owns a block of 100 host ports and a Docker network.
 - Glossary and documentation skeleton.
 
+- A Claude Code plugin, installed with `/plugin install qfield-testbed --marketplace tristan0x/qfield-testbed`:
+  the `qfield-testbed` skill teaches an agent to check the host, propose a spec, create or reuse a deployment,
+  use it and clean up, in its own agent session; a `testbed-operator` sub-agent runs that lifecycle for a task
+  (#36).
+- In a QFieldCloud, QFieldSync, QField or QGIS plugin checkout, the plugin's SessionStart hook tells Claude Code
+  that the skill applies and exports `QFT_AGENT_SESSION` for the conversation (#36).
+- `AGENTS.md` and `CLAUDE.md` for agents working on this repository, `llms.txt` indexing the documentation,
+  [docs/agents.md](docs/agents.md), and a pointer text for upstream projects (#36).
+
 ### Changed
 
+- The project lives at [tristan0x/qfield-testbed](https://github.com/tristan0x/qfield-testbed): install
+  with `uv tool install git+https://github.com/tristan0x/qfield-testbed` (#36).
 - Breaking: failures exit with a code per kind instead of 1 — 2 usage or invalid spec, 3 missing prerequisite,
   4 exhausted resource, 5 not found, 6 timeout, 7 component failure, 8 refused (declining a confirmation used to
   exit 130) (#26).

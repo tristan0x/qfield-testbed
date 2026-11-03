@@ -30,6 +30,9 @@ gives the identifier that carries the concept in the code base.
 | **Error code** | The stable, upper-case name of a failure kind (`NOT_FOUND`, `PREREQ_MISSING`…), reported with `--json`; each maps to one exit code. | `TestbedError.code`, `errors.py` |
 | **JSON envelope** | The single document `qft --json` writes on stdout: `schema_version`, `ok`, `data` or `error`, `warnings`. | `emit()`, `cli/_console.py` |
 | **Swap** | Replacing one component's revision inside a running deployment: stop, reset, materialize, render, start, health, wire. The bisect primitive. | `Deployment.swap()` |
+| **Agent session** | The identity of one coding-agent conversation (`--agent-session`, `QFT_AGENT_SESSION`). It owns the deployments it creates, which expire 24 h after their last use and which other sessions cannot stop or remove without `--force`. | `CALLER.agent_session`, `RegistryEntry.agent_session` |
+| **Skill** | The instructions that teach a coding agent to drive qft: golden path, JSON contract, safety rules. Ships in the Claude Code plugin. | `plugin/skills/qfield-testbed/` |
+| **Plugin** | The Claude Code package of this repository's marketplace: the skill, the `testbed-operator` sub-agent and the SessionStart hook. | `plugin/`, `.claude-plugin/marketplace.json` |
 
 Conventions: component names are lowercase with hyphens (`qfield-android`), the same in specs, CLI output,
 environment variables (`QFT_QFIELD_ANDROID_*`), directories and documentation. "Server" means QFieldCloud;

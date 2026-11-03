@@ -21,7 +21,7 @@ release and CI-artifact downloads), QGIS on the host (or Docker for `qgis: docke
 script it without a display, `/dev/kvm` for the Android emulator.
 
 ```sh
-uv tool install git+https://github.com/opengisch/qfield-testbed      # or: uv sync && uv run qft …
+uv tool install git+https://github.com/tristan0x/qfield-testbed      # or: uv sync && uv run qft …
 qft doctor                                                           # what this host can run
 qft deployment add examples/minimal.yaml --start                     # QFieldCloud v26.28 + host QGIS + QFieldSync v4.23.1
 qft deployment show smoke                                            # URLs, ports, test account
@@ -88,12 +88,28 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft cache list \| prune` | The shared cache of checkouts, downloads and images |
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 
+## Coding agents
+
+The repository is a [Claude Code](https://code.claude.com/) plugin marketplace. Its plugin teaches an agent to set up,
+use and tear down deployments on its own, in its own agent session:
+
+```text
+/plugin install qfield-testbed --marketplace tristan0x/qfield-testbed
+```
+
+On Claude Code before 2.1.275: `/plugin marketplace add tristan0x/qfield-testbed`, then
+`/plugin install qfield-testbed@qfield-testbed`.
+
+Opened in a QFieldCloud, QFieldSync, QField or QGIS plugin checkout, Claude Code then knows that the testbed applies
+and drives `qft --json` without being told. See [docs/agents.md](docs/agents.md).
+
 ## Documentation
 
 `qft docs` lists the pages below and `qft docs TOPIC` prints one (`qft docs spec`, `qft docs components/qgis`):
 they ship with the package, so they always match the installed version and work offline.
 
 - [Glossary](docs/glossary.md) — the terms, used consistently everywhere
+- [Coding agents](docs/agents.md) — the Claude Code plugin and skill
 - [Getting started](docs/getting-started.md)
 - [Deployment spec](docs/spec.md)
 - [Bisect](docs/bisect.md)

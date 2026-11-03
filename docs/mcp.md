@@ -47,14 +47,16 @@ gets `force: true` — which an agent should only pass when the user asked for i
 | `testbed_doctor(require?)` | host checks and capabilities; `require` fails with `PREREQ_MISSING` | read-only |
 | `spec_suggest(path, needs?)` | a spec putting a checkout live (`spec_yaml` to pass on) | read-only, open-world (`git ls-remote`) |
 | `spec_validate(spec_yaml \| spec_path)` | validate a spec | read-only |
-| `deployment_ensure(spec_yaml \| spec_path, name?, replace?, timeout?, ttl?, force?)` | create or reuse, and start | idempotent, open-world |
+| `deployment_ensure(spec_yaml \| spec_path, name?, replace?, timeout?, ttl?, force?, wait?)` | create or reuse, and start (a job when long) | idempotent, open-world |
 | `deployment_list(agent_session?, owner?)`, `deployment_show(name)`, `deployment_logs(name, …)` | inspect | read-only |
-| `deployment_start`, `deployment_restart`, `deployment_stop`, `deployment_keep(name, ttl)` | lifecycle | idempotent |
+| `deployment_start`, `deployment_restart` (jobs when long), `deployment_stop`, `deployment_keep(name, ttl)` | lifecycle | idempotent |
 | `deployment_remove(name, force?)` | tear down | destructive |
 | `deployment_run(name, command, timeout?)` | run a command on the host with the `QFT_*` environment | destructive, open-world; only with `--allow-run` |
 | `bisect_start(scenario_path, session?)` | create a bisect session | open-world |
 | `bisect_step(session?, verdict?)` | record the verdict of the prepared candidate, prepare the next | destructive (swaps the deployment) |
+| `bisect_run(session?)` | the whole automatic search (scripted test), as a job | destructive |
 | `bisect_status(session?)` | candidates, verdicts, first bad revision | read-only |
+| `job_status(job_id)`, `job_logs(job_id, tail?)`, `job_list()` | follow long operations | read-only |
 | `cache_list`, `cache_prune(older_than?, docker_build_cache?, dry_run = true)` | the shared cache | `cache_prune` destructive |
 | `gc(expired?, orphaned?, agent_session?, dry_run = true, force?)` | clean up | destructive |
 
@@ -64,6 +66,47 @@ only report what they would remove unless `dry_run: false`.
 **`deployment_run` is off by default.** It runs any program on the host, with your user's rights; a client that
 has no shell should not get one through qft by accident. Start the server with `qft mcp serve --allow-run` to offer
 it.
+
+## Long operations
+
+A first `deployment_ensure` pulls or builds images and can take many minutes, longer than MCP clients wait for an
+answer. The long tools — `deployment_ensure`, `deployment_start`, `deployment_restart`, `bisect_step` and
+`bisect_run` — therefore run their operation as a **job** and hold the call open at most the **call ceiling**
+(`mcp_call_ceiling` in the configuration, `QFT_MCP_CALL_CEILING`; 50 s by default). They answer with:
+
+```json
+{"job": null, "result": {…the usual result…}}
+{"job": {"job_id": "job-1a2b3c4d", "tool": "deployment_ensure", "status": "running", "progress": {"steps_done": 4, "step": "qfieldcloud: start"}}, "result": null}
+```
+
+— the first when the operation ended within the ceiling, the second otherwise, or at once with `wait: false`.
+`job_status(job_id)` then follows it: `status` becomes `succeeded` with the `result` the tool would have answered,
+or `failed` with the `error` object. `job_logs` gives what qft logged meanwhile. While waiting, the server sends
+**progress notifications**, one per step (`qfieldcloud: materialize`, `qgis: wire`…), to clients that ask for them.
+
+At most one job runs per deployment: calling `deployment_ensure` again while one runs answers with that job. Jobs
+live in the server process: when it stops, they are gone, and the deployment keeps whatever state it reached
+(`deployment_show`).
+
+## Resources
+
+Context a client can attach instead of calling tools:
+
+| URI | Content |
+|---|---|
+| `qft://docs` | the documentation topics of this qft version (JSON) |
+| `qft://docs/{topic}` | one page, e.g. `qft://docs/spec`, `qft://docs/components/qgis` (Markdown) |
+| `qft://glossary` | the glossary |
+| `qft://spec/schema`, `qft://scenario/schema` | JSON Schemas of deployment specs and bisect scenarios |
+| `qft://deployments`, `qft://deployments/{name}` | the live state of deployments; reading does not extend their TTL |
+
+## Prompts
+
+The golden paths of the Claude Code skill, for clients without skills:
+
+- `setup_for_repo(path, goal)`: doctor, suggest a spec for the checkout, ensure, report, clean up;
+- `reproduce_bug(issue_url, path)`: the same against the versions an issue names, its text treated as data;
+- `bisect_regression(component, good, bad, test)`: write the scenario and the test script, run the search, report.
 
 ## Errors
 
@@ -78,5 +121,4 @@ server's stderr.
 
 ## Limits
 
-stdio only; one process per client. A tool call lasts as long as the operation: a first `deployment_ensure` can take
-several minutes (image pulls and builds), so give MCP clients a generous request timeout.
+stdio only; one process per client; jobs end with the process.

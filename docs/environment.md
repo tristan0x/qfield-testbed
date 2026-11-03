@@ -105,6 +105,7 @@ With `qgis: host` and no display (SSH session, CI, an agent's shell), the launch
 | `QFT_AGENT_SESSION` | same as `qft --agent-session ID`: deployments added are owned by that agent session, which may only stop or remove its own ([isolation](isolation.md)) |
 | `QFT_OUTPUT=json` | same as `qft --json` |
 | `QFT_NONINTERACTIVE=1` | same as `qft --non-interactive` |
+| `QFT_MCP_CALL_CEILING` | longest an MCP tool call is held open before it answers with a job, e.g. `50s` (default), `2m`, `30` ([mcp](mcp.md)) |
 
 ## Bisect test scripts
 

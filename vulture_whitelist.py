@@ -26,3 +26,19 @@ _mcp_tools = SimpleNamespace()
 _mcp_tools.testbed_doctor  # noqa: B018
 _mcp_tools.bisect_step  # noqa: B018
 _mcp_tools.bisect_status  # noqa: B018
+_mcp_tools.job_logs  # noqa: B018
+_mcp_tools.job_list  # noqa: B018
+
+# MCP prompts and resources: registered by decorators, fetched by MCP clients
+_mcp_tools.setup_for_repo  # noqa: B018
+_mcp_tools.reproduce_bug  # noqa: B018
+_mcp_tools.bisect_regression  # noqa: B018
+_mcp_tools.docs_index  # noqa: B018
+_mcp_tools.docs_page  # noqa: B018
+_mcp_tools.glossary  # noqa: B018
+_mcp_tools.spec_schema  # noqa: B018
+_mcp_tools.scenario_schema  # noqa: B018
+
+# serialized into job_status answers
+_mcp_tools.started_at  # noqa: B018
+_mcp_tools.finished_at  # noqa: B018

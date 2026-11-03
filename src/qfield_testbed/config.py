@@ -58,6 +58,9 @@ class GlobalConfig(BaseModel):
     agent_ttl: str = Field(
         default="24h", description="TTL of deployments an agent session creates (sliding; `none` for no expiry)"
     )
+    mcp_call_ceiling: str = Field(
+        default="50s", description="Longest an MCP tool call is held open before it answers with a job to poll"
+    )
 
     @classmethod
     def load(cls, path: Path | None = None) -> GlobalConfig:
@@ -70,6 +73,8 @@ class GlobalConfig(BaseModel):
             data["home"] = home
         if cache_dir := os.environ.get("QFT_CACHE_DIR"):
             data["cache_dir"] = cache_dir
+        if ceiling := os.environ.get("QFT_MCP_CALL_CEILING"):
+            data["mcp_call_ceiling"] = ceiling
         config = cls.model_validate(data)
         config.home = config.home.expanduser()
         config.cache_dir = config.cache_dir.expanduser()

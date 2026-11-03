@@ -15,7 +15,7 @@ from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cli import _console
 from qfield_testbed.cli._console import confirm, console, emit, ok, set_json_output, warn
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import NeedsHumanError, NotFoundError
+from qfield_testbed.errors import NotFoundError
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -86,32 +86,26 @@ def start(
 def run(session: SessionArg = None) -> None:
     """Swap, test and record candidates until the first bad one is known (resumes where it stopped)."""
     current = _session(Testbed(), session)
-    if current.state.scenario.test.manual and not _console.is_interactive():
-        # checked before the first swap: the prompt would otherwise come after minutes of building and starting
-        raise NeedsHumanError(
-            "the scenario's test is manual and nobody can answer (no terminal, --json or --non-interactive)",
-            hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
-            docs="bisect",
-        )
-    while True:
-        search = current.search()
-        index = search.next_index()
-        if index is None:
-            break
+
+    def before(current: BisectSession, index: int) -> None:
         candidate = current.candidate(index)
         console.rule(
-            f"step {len(current.state.outcomes) + 1} · candidate {index} · {candidate.label} · ≤ {search.remaining_steps()} steps left"
+            f"step {len(current.state.outcomes) + 1} · candidate {index} · {candidate.label} · "
+            f"≤ {current.search().remaining_steps()} steps left"
         )
         console.print(f"{candidate.subject}  [dim]{candidate.date}[/]")
-        if not current.step(_prompt):
-            break
+
+    def after(current: BisectSession, index: int) -> None:
         outcome = current.state.outcomes.get(index)
         if outcome:
             console.print(
                 f"→ [bold]{outcome.verdict}[/]"
                 + (f" (exit {outcome.exit_code})" if outcome.exit_code is not None else "")
             )
-    emit(service.bisect_summary(current), human=lambda: _print_result(current))
+
+    prompt = _prompt if _console.is_interactive() else None
+    summary = service.bisect_run(current, prompt=prompt, before=before, after=after)
+    emit(summary, human=lambda: _print_result(current))
 
 
 @app.command("next")

@@ -33,5 +33,6 @@ claude plugin validate . --strict && claude plugin validate ./plugin --strict   
 - A change that touches processes, Docker or the CLI output is checked for real before merging (a deployment with
   `qgis: host` and a QFieldCloud release, run with `--json`): unit tests with `FakeRunner` have missed bugs that
   only showed end to end.
-- Commands quoted in `plugin/skills/` and `docs/` must exist in the CLI.
+- Commands quoted in `plugin/`, `docs/`, the README and `llms.txt` must exist in the CLI: `tests/unit/test_drift.py`
+  checks every `qft …` line and every `qft docs TOPIC`, and keeps the skill within its size budget.
 - Commits follow Conventional Commits; every user-facing change gets a line under *Unreleased* in `CHANGELOG.md`.

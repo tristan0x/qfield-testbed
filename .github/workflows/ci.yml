@@ -40,6 +40,16 @@ jobs:
           python3 -m zipfile -l dist/*.whl | grep -q 'qfield_testbed/_docs/spec.md'
           python3 -m zipfile -l dist/*.whl | grep -q 'qfield_testbed/_skill/SKILL.md'
 
+  plugin:
+    name: Claude Code plugin (validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: npm install --global @anthropic-ai/claude-code@2.1.317
+      # a marketplace run does not check the plugin's own files: validate both
+      - run: claude plugin validate . --strict
+      - run: claude plugin validate ./plugin --strict
+
   test:
     name: unit tests (py${{ matrix.python }})
     runs-on: ubuntu-latest

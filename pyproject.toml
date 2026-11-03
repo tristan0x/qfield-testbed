@@ -67,6 +67,8 @@ packages = ["src/qfield_testbed"]
 [tool.hatch.build.targets.wheel.force-include]
 # `qft docs` reads the documentation of the installed version
 "docs" = "qfield_testbed/_docs"
+# `qft agent install` copies the skill of the installed version
+"plugin/skills/qfield-testbed" = "qfield_testbed/_skill"
 
 [tool.ruff]
 line-length = 120

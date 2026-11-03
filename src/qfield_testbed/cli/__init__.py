@@ -12,7 +12,7 @@ from rich.logging import RichHandler
 
 from qfield_testbed import __version__
 from qfield_testbed.caller import set_agent_session
-from qfield_testbed.cli import bisect, cache, config, deployment, docs, doctor, gc, spec
+from qfield_testbed.cli import agent, bisect, cache, config, deployment, docs, doctor, gc, spec
 from qfield_testbed.cli._console import (
     OUTPUT,
     console,
@@ -45,6 +45,7 @@ app.add_typer(bisect.app, name="bisect", help="Find the revision of a component 
 app.add_typer(cache.app, name="cache", help="Inspect and prune the shared cache of materializations.")
 app.add_typer(config.app, name="config", help="Show the global configuration.")
 app.add_typer(spec.app, name="spec", help="Help writing deployment specs.")
+app.add_typer(agent.app, name="agent", help="Set up coding agents to drive qft.")
 app.command()(doctor.doctor)
 app.command()(docs.docs)
 app.command()(gc.gc)

@@ -33,11 +33,22 @@ jobs:
       - run: uv python install 3.12
       - run: uv sync --group dev
       - run: SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure
-      # `qft docs` reads the documentation from the wheel: make sure it is in there
-      - name: Wheel carries the documentation
+      # `qft docs` and `qft agent install` read the documentation and the skill from the wheel
+      - name: Wheel carries the documentation and the skill
         run: |
           uv build --wheel --out-dir dist
           python3 -m zipfile -l dist/*.whl | grep -q 'qfield_testbed/_docs/spec.md'
+          python3 -m zipfile -l dist/*.whl | grep -q 'qfield_testbed/_skill/SKILL.md'
+
+  plugin:
+    name: Claude Code plugin (validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: npm install --global @anthropic-ai/claude-code@2.1.317
+      # a marketplace run does not check the plugin's own files: validate both
+      - run: claude plugin validate . --strict
+      - run: claude plugin validate ./plugin --strict
 
   test:
     name: unit tests (py${{ matrix.python }})

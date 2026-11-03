@@ -1,0 +1,10 @@
+{
+  "name": "qfield-testbed",
+  "version": "0.1.0",
+  "description": "Set up, use and tear down sandboxed QField-stack deployments (QFieldCloud, QGIS + QFieldSync, QField on Android/iOS/desktop) with the qft CLI",
+  "author": { "name": "Tristan Carel" },
+  "homepage": "https://github.com/tristan0x/qfield-testbed",
+  "repository": "https://github.com/tristan0x/qfield-testbed",
+  "license": "MIT",
+  "keywords": ["qfield", "qfieldcloud", "qfieldsync", "qgis", "testing", "bisect"]
+}

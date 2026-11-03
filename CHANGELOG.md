@@ -106,6 +106,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qft gc --orphaned` from one `QFT_HOME` took the Docker resources of another home's deployments for
+  orphans; it now only looks for leftovers of deployments the same home created (#33).
 - In JSON mode, the output of commands qft runs without capturing it (compose up, database migrations, a
   launched client) went to stdout and broke the JSON document; it goes to stderr now (#35).
 - `QFT_QFIELDCLOUD_TOKEN` stays valid when a script logs in to QFieldCloud as the test account: the testbed

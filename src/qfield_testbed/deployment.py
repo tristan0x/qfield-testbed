@@ -502,6 +502,7 @@ class Deployment:
         docker.remove_network(self.testbed.runner, self.context().network)
         self.testbed.cache.release(self.name)
         self.testbed.registry.unregister(self.name)
+        self.testbed.registry.forget(self.name)
         shutil.rmtree(self.directory, ignore_errors=True)
 
     def swap(self, component_name: str, version: VersionSource) -> None:

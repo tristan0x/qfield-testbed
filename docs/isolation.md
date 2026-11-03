@@ -76,8 +76,10 @@ Agent sessions own at most `max_agent_deployments` deployments in all (10 by def
   `qft-<name>-tb`, networks `qft-<name>`, containers labelled `qft.deployment=<name>`, deployment directories
   without a registry entry, and registry entries whose directory is gone (their slot is freed).
 
-Without option it does `--expired --orphaned`. A resource is orphaned only when no registered deployment has its
-exact name; nothing outside `qft-*` is ever touched. A deployment in use (being started, for example) is skipped.
+Without option it does `--expired --orphaned`. Docker is shared by every `QFT_HOME` of the host, so a resource is
+orphaned only when it belongs to a deployment **this home created** and no longer has in its registry (the
+registry keeps those names until a deployment is removed cleanly); resources of deployments made from another
+home are never touched, nor anything outside `qft-*`. A deployment in use (being started, for example) is skipped.
 With `gc_on_start: true` in the config, every `qft` invocation first removes expired deployments.
 
 ## Locks

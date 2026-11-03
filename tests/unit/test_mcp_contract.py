@@ -71,7 +71,13 @@ async def mcp(client: Client, tool: str, **arguments: Any) -> dict[str, Any]:
     caller.set_agent_session(SESSION)  # what `qft mcp serve --agent-session SESSION` does once
     result = await client.call_tool(tool, arguments)
     assert result.structured_content is not None
-    return dict(result.structured_content) if result.is_error else {"data": result.structured_content}
+    content = dict(result.structured_content)
+    if result.is_error:
+        return content
+    if set(content) == {"job", "result"}:  # a long tool that finished within the call
+        assert content["job"] is None
+        content = content["result"]
+    return {"data": content}
 
 
 async def same(client: Client, cli_args: list[str], tool: str, **arguments: Any) -> dict[str, Any]:

@@ -39,6 +39,10 @@ TOOLS = {
     "deployment_logs": "read-only",
     "bisect_start": "changes",
     "bisect_step": "destructive",
+    "bisect_run": "destructive",
+    "job_status": "read-only",
+    "job_logs": "read-only",
+    "job_list": "read-only",
     "bisect_status": "read-only",
     "cache_list": "read-only",
     "cache_prune": "destructive",
@@ -75,6 +79,15 @@ async def call(client: Client, tool: str, **arguments: Any) -> dict[str, Any]:
     return result.structured_content
 
 
+async def done(client: Client, tool: str, **arguments: Any) -> dict[str, Any]:
+    """A long tool that finishes within the call: its result, unwrapped from `{job, result}`."""
+    answer = await call(client, tool, **arguments)
+    if "error" in answer:
+        return answer
+    assert answer["job"] is None, answer
+    return answer["result"]
+
+
 async def test_every_tool_is_listed_with_its_annotations_and_schemas(client: Client) -> None:
     tools = {tool.name: tool for tool in (await client.list_tools()).tools}
     assert set(tools) == set(TOOLS)
@@ -100,26 +113,26 @@ async def test_deployment_run_only_with_allow_run(home: Path) -> None:
         assert run.annotations.open_world_hint
         spec = home / "demo.yaml"
         spec.write_text(SPEC)
-        await call(connected, "deployment_ensure", spec_path=str(spec))
+        await done(connected, "deployment_ensure", spec_path=str(spec))
         result = await call(connected, "deployment_run", name="demo", command=[sys.executable, "-c", "print('hi')"])
         assert (result["exit_code"], result["stdout_tail"]) == (0, "hi\n")
 
 
 async def test_a_deployment_lifecycle(client: Client, home: Path) -> None:
-    ensured = await call(client, "deployment_ensure", spec_yaml=SPEC, timeout="1m")
+    ensured = await done(client, "deployment_ensure", spec_yaml=SPEC, timeout="1m")
     assert (ensured["name"], ensured["created"], ensured["status"], ensured["warnings"]) == (
         "demo",
         True,
         "running",
         [],
     )
-    assert (await call(client, "deployment_ensure", spec_yaml=SPEC))["created"] is False
+    assert (await done(client, "deployment_ensure", spec_yaml=SPEC))["created"] is False
     assert (await call(client, "deployment_show", name="demo"))["components"]["qgis"]["profile"] == "testbed"
     assert [d["name"] for d in (await call(client, "deployment_list"))["deployments"]] == ["demo"]
     assert (await call(client, "deployment_logs", name="demo"))["components"] == {"qgis": "qgis says hi\n"}
     assert (await call(client, "deployment_stop", name="demo"))["status"] == "stopped"
-    assert (await call(client, "deployment_start", name="demo"))["status"] == "running"
-    assert (await call(client, "deployment_restart", name="demo"))["status"] == "running"
+    assert (await done(client, "deployment_start", name="demo"))["status"] == "running"
+    assert (await done(client, "deployment_restart", name="demo"))["status"] == "running"
     assert (await call(client, "deployment_keep", name="demo", ttl="3d"))["ttl_s"] == 3 * 86400
     assert (await call(client, "gc"))["dry_run"] is True
     assert (await call(client, "cache_prune"))["dry_run"] is True
@@ -138,7 +151,7 @@ async def test_specs_from_a_file_or_text(client: Client, home: Path) -> None:
     invalid = await call(client, "spec_validate", spec_yaml="name: demo\nqgis: {version: nope:1}\n")
     assert invalid["error"]["code"] == "INVALID_SPEC"
     assert invalid["error"]["details"]["issues"]
-    renamed = await call(client, "deployment_ensure", spec_yaml=SPEC, name="other")
+    renamed = await done(client, "deployment_ensure", spec_yaml=SPEC, name="other")
     assert renamed["name"] == "other"
 
 
@@ -170,7 +183,7 @@ async def test_the_server_is_one_agent_session(home: Path) -> None:
     assert session.startswith("mcp-")
     assert OUTPUT.non_interactive
     async with Client(build_server()) as connected:
-        ensured = await call(connected, "deployment_ensure", spec_yaml=SPEC)
+        ensured = await done(connected, "deployment_ensure", spec_yaml=SPEC)
         assert ensured["status"] == "running"
         listed = (await call(connected, "deployment_list", agent_session=session))["deployments"]
         assert [(d["owner"], d["agent_session"]) for d in listed] == [("agent", session)]
@@ -266,6 +279,7 @@ OFFERED_BY = {
     "bisect_start": "bisect_start",
     "bisect_next": "bisect_step",
     "bisect_verdict": "bisect_step",
+    "bisect_run": "bisect_run",
     "seconds": None,  # a helper of the others
 }
 

@@ -108,6 +108,9 @@ All notable changes to this project are documented here. The format follows
   step and status, cache, gc — with read-only and destructive annotations and the CLI's error codes; the server is
   one agent session, and `deployment_run` is only offered with `--allow-run`. The Claude Code plugin declares it
   (#38).
+- Long MCP tools (`deployment_ensure`, `deployment_start`, `deployment_restart`, `bisect_step`, and the new
+  `bisect_run`) answer within a call ceiling (`QFT_MCP_CALL_CEILING`, 50 s by default) with their result, or with a
+  job followed by `job_status` and `job_logs`; progress notifications report each step (#39).
 
 ### Changed
 

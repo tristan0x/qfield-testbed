@@ -12,8 +12,9 @@ import os
 import secrets
 import shutil
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -56,6 +57,9 @@ from qfield_testbed.state import (
 )
 
 log = logging.getLogger(__name__)
+
+# who wants to hear about each step of bringing a component up, as (component, step): the MCP server's jobs
+STEP_SINK: ContextVar[Callable[[str, str], None] | None] = ContextVar("STEP_SINK", default=None)
 
 
 class Testbed:
@@ -291,6 +295,11 @@ def _step(component: Component, step: str, deadline: Deadline) -> Iterator[float
     time spent and the component's last log lines in its ``details``, and the component name in its message.
     """
     remaining = deadline.remaining(component.name, step)
+    if (sink := STEP_SINK.get()) is not None:
+        try:
+            sink(component.name, step)
+        except Exception:
+            log.debug("step sink failed", exc_info=True)
     try:
         yield remaining
     except TestbedError as exc:

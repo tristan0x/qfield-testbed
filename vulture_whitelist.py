@@ -26,3 +26,9 @@ _mcp_tools = SimpleNamespace()
 _mcp_tools.testbed_doctor  # noqa: B018
 _mcp_tools.bisect_step  # noqa: B018
 _mcp_tools.bisect_status  # noqa: B018
+_mcp_tools.job_logs  # noqa: B018
+_mcp_tools.job_list  # noqa: B018
+
+# serialized into job_status answers
+_mcp_tools.started_at  # noqa: B018
+_mcp_tools.finished_at  # noqa: B018

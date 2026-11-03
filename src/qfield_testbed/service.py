@@ -9,6 +9,7 @@ is what keeps both adapters' semantics and error codes identical (docs/adr/0001-
 from __future__ import annotations
 
 import shlex
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -26,6 +27,7 @@ from qfield_testbed.deployment import DeploymentInfo, DeploymentSummary, Testbed
 from qfield_testbed.doctor import CAPABILITIES, Capability, Check, HostFacts, capabilities, host_facts, run_checks
 from qfield_testbed.durations import parse_duration
 from qfield_testbed.errors import (
+    NeedsHumanError,
     NotFoundError,
     PrerequisiteMissingError,
     RefusedError,
@@ -456,6 +458,31 @@ def bisect_next(session: BisectSession) -> BisectNext:
     if session.prepare(index) is None:
         return BisectNext(prepared=None, outcome="skipped", session=bisect_summary(session))
     return BisectNext(prepared=index, outcome="prepared", session=bisect_summary(session))
+
+
+def bisect_run(
+    session: BisectSession,
+    *,
+    prompt: Callable[[str], str] | None = None,
+    before: Callable[[BisectSession, int], None] | None = None,
+    after: Callable[[BisectSession, int], None] | None = None,
+) -> BisectSummary:
+    """Swap, test and record candidates until the first bad one is known; ``prompt`` answers a manual test."""
+    if session.state.scenario.test.manual and prompt is None:
+        # checked before the first swap: the prompt would otherwise come after minutes of building and starting
+        raise NeedsHumanError(
+            "the scenario's test is manual and nobody can answer (no terminal, --json or --non-interactive)",
+            hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
+            docs="bisect",
+        )
+    while (index := session.search().next_index()) is not None:
+        if before is not None:
+            before(session, index)
+        if not session.step(prompt):
+            break
+        if after is not None:
+            after(session, index)
+    return bisect_summary(session)
 
 
 def bisect_verdict(session: BisectSession, verdict: Verdict) -> int:

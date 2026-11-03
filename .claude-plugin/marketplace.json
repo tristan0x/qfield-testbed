@@ -1,0 +1,14 @@
+{
+  "name": "qfield-testbed",
+  "owner": { "name": "Tristan Carel" },
+  "metadata": {
+    "description": "Sandboxed QField-stack deployments (QFieldCloud, QGIS + QFieldSync, QField) for coding agents"
+  },
+  "plugins": [
+    {
+      "name": "qfield-testbed",
+      "source": "./plugin",
+      "description": "Set up, use and tear down QField-stack deployments with the qft CLI to reproduce bugs, test changes live and bisect regressions"
+    }
+  ]
+}

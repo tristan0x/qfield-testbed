@@ -90,21 +90,24 @@ deployment as `QFT_*` environment variables, or `manual: true` to be prompted af
 | `qft agent install [--scope user\|project]` | Copy the Claude Code skill, when the plugin cannot be installed |
 | `qft config show \| path` | Global configuration (`~/.config/qfield-testbed/config.yaml`) |
 
-## Coding agents
+## Using qft with Claude
 
-The repository is a [Claude Code](https://code.claude.com/) plugin marketplace. Its plugin teaches an agent to set up,
-use and tear down deployments on its own, in its own agent session:
+Install the [Claude Code](https://code.claude.com/) plugin from this repository:
 
 ```text
 /plugin install qfield-testbed --marketplace tristan0x/qfield-testbed
 ```
 
-On Claude Code before 2.1.275: `/plugin marketplace add tristan0x/qfield-testbed`, then
-`/plugin install qfield-testbed@qfield-testbed`.
-Without the plugin system, `qft agent install` copies the skill into `~/.claude/skills/`.
+(Claude Code before 2.1.275: `/plugin marketplace add tristan0x/qfield-testbed`, then
+`/plugin install qfield-testbed@qfield-testbed`.) Then open Claude Code in a QFieldCloud, QFieldSync, QField or QGIS
+plugin checkout and ask, without naming qft:
 
-Opened in a QFieldCloud, QFieldSync, QField or QGIS plugin checkout, Claude Code then knows that the testbed applies
-and drives `qft --json` without being told. See [docs/agents.md](docs/agents.md).
+> Check end to end that, with my code, QGIS can log in to a QFieldCloud running the latest release and list the
+> cloud projects of the test user. Clean up everything afterwards.
+
+The agent installs qft if needed, checks the host, deploys the stack with your checkout live, runs the check and
+removes what it created. Its deployments belong to its session and expire on their own. The
+[coding agents guide](docs/agents.md) covers the eight use cases, the MCP server, the limits and the safety model.
 
 ## Documentation
 
@@ -112,7 +115,7 @@ and drives `qft --json` without being told. See [docs/agents.md](docs/agents.md)
 they ship with the package, so they always match the installed version and work offline.
 
 - [Glossary](docs/glossary.md) — the terms, used consistently everywhere
-- [Coding agents](docs/agents.md) — the Claude Code plugin and skill
+- [Coding agents](docs/agents.md) — the Claude Code plugin, MCP server, use cases and safety model
 - [MCP server](docs/mcp.md) — `qft mcp serve`, the same operations as MCP tools
 - [Getting started](docs/getting-started.md)
 - [Deployment spec](docs/spec.md)

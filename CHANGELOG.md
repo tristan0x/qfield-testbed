@@ -125,6 +125,8 @@ All notable changes to this project are documented here. The format follows
   the checkout.
 
 - `qft spec validate --scenario FILE` checks a bisect scenario, and its test script, without starting anything.
+- [docs/agents.md](docs/agents.md) is the guide for coding agents: install and check, the use cases, the limits and
+  the safety model; `examples/agents/` has one page per use case (UC1–UC8), with the prompt of its eval (#41).
 
 ### Changed
 

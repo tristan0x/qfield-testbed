@@ -1,0 +1,15 @@
+kind: scenario
+description: UC5 — which QFieldCloud release changed a behaviour, found with a bisect the agent sets up itself.
+checkout: {fixture: qfieldsync, remote: "https://github.com/opengisch/qfieldsync.git"}
+prompt: >-
+  Find the first QFieldCloud release between v26.25 and v26.29 whose /api/v1/status/ answer differs from v26.25's
+  in its set of top-level keys (if none does, say so). Do it automatically with official releases, report the
+  result, and clean up.
+max_turns: 70
+max_minutes: 60
+expect:
+  skill: true
+  # the scenario lives where the skill puts it (/tmp/qft-SESSION/), and `bisect start` validates it
+  commands_in_order: ["qft .*bisect start", "qft .*bisect (run|next|status)", "qft .*bisect remove"]
+  never: ["--force"]
+  final_contains: ["v26\\.29"]  # the first release to add a top-level key (`version`)

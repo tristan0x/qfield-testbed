@@ -196,7 +196,7 @@ def build_server(*, allow_run: bool = False) -> MCPServer:  # noqa: C901, PLR091
     def spec_suggest(path: str = ".", needs: list[str] | None = None) -> Proposal:
         """Propose a deployment spec putting the QFieldCloud, QFieldSync, QField or QGIS plugin checkout at `path` live.
 
-        `needs`: android, sync, worker, tls, desktop, master. Pass the returned `spec_yaml` to deployment_ensure.
+        `needs`: android, sync, worker, tls, desktop, master, release. Pass the returned `spec_yaml` to deployment_ensure.
         """
         return service.spec_suggest(Path(path).expanduser(), needs or [])
 
@@ -322,6 +322,12 @@ def build_server(*, allow_run: bool = False) -> MCPServer:  # noqa: C901, PLR091
             The output tails are returned; a command that outlives `timeout` is killed (TIMEOUT).
             """
             return service.deployment_run(name, command, timeout=timeout, tail_lines=tail_lines)
+
+    @mcp.tool(annotations=READ_ONLY)
+    @contract
+    def scenario_validate(scenario_path: str) -> service.ScenarioValidation:
+        """Check a bisect scenario file without starting it; `problems` lists what `bisect_run` would refuse."""
+        return service.scenario_validate(BisectScenario.from_file(Path(scenario_path).expanduser()))
 
     @mcp.tool(annotations=CREATES)
     @contract

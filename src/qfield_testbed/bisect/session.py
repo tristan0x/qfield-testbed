@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from qfield_testbed.bisect.algorithm import Result, Search, Verdict
 from qfield_testbed.bisect.runner import ManualTest, Outcome, ScriptTest
 from qfield_testbed.bisect.scenario import BisectScenario
+from qfield_testbed.caller import CALLER
 from qfield_testbed.deployment import Deployment, Testbed
 from qfield_testbed.errors import (
     AlreadyExistsError,
@@ -223,7 +224,9 @@ class BisectSession:
         try:
             deployment = self.deployment()
             if deployment is None:
-                deployment = self.testbed.add(scenario.deployment_spec(version), session=self.name)
+                deployment = self.testbed.add(
+                    scenario.deployment_spec(version), session=self.name, agent_session=CALLER.agent_session
+                )
                 deployment.start()
             else:
                 deployment.swap(scenario.bisect.component, _VERSION.validate_python(version))

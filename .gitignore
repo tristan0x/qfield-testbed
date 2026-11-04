@@ -19,3 +19,6 @@ htmlcov/
 # Local scratch
 /tmp/
 .hypothesis/
+
+# Local eval runs (evals/runner.py)
+/evals/results/

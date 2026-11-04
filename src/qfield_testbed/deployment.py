@@ -185,7 +185,8 @@ class Testbed:
         if caller is None or force:
             return
         entry = self.registry.load().deployments.get(name)
-        if entry is None or (entry.owner == "agent" and entry.agent_session == caller):
+        # its own deployments, and those of the bisect sessions it started
+        if entry is None or (entry.owner in {"agent", "bisect"} and entry.agent_session == caller):
             return
         whose = {
             "human": "a person",
@@ -348,6 +349,7 @@ class ComponentInfo(BaseModel):
     status: Status
     version: str
     revision: str | None
+    source: str  # the spec's `version` (`release:v26.29`, `worktree:…`), whatever the component reports
 
 
 class DeploymentInfo(BaseModel):
@@ -554,12 +556,14 @@ class Deployment:
         for name in self.spec.components():
             component_state = self.state.component(name)
             # the component's own facts win, as `version` (the QGIS version of `qgis: host`, for example)
+            source = str(getattr(self.spec.component(name), "version", "?"))
             components[name] = ComponentInfo.model_validate(
                 {
                     "status": component_state.status,
-                    "version": str(getattr(self.spec.component(name), "version", "?")),
+                    "version": source,
                     "revision": str(component_state.revision) if component_state.revision else None,
                     **component_state.summary,
+                    "source": source,
                 }
             )
         return DeploymentInfo(

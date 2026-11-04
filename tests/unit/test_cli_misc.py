@@ -98,6 +98,26 @@ def test_main_reports_interrupts(monkeypatch: pytest.MonkeyPatch, capsys: pytest
     assert "error: interrupted" in capsys.readouterr().err
 
 
+def test_main_answers_a_bug_with_an_envelope_in_json(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def broken(**_: Any) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("qfield_testbed.cli.app", broken)
+    assert _main(monkeypatch, "--json", "doctor") == 1
+    captured = capsys.readouterr()
+    envelope = json.loads(captured.out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "ERROR"
+    assert envelope["error"]["message"] == "RuntimeError: boom"
+    assert "bug in qft" in envelope["error"]["hint"]
+    assert "Traceback" in captured.err
+    # a person still gets the bare traceback
+    with pytest.raises(RuntimeError, match="boom"):
+        _main(monkeypatch, "doctor")
+
+
 @pytest.mark.parametrize("code", [0, 3])
 def test_main_propagates_explicit_exits(monkeypatch: pytest.MonkeyPatch, code: int) -> None:
     import typer  # noqa: PLC0415

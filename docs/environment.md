@@ -30,8 +30,8 @@ name upper-cased with `-` turned into `_`, then the fact upper-cased. A fact the
 
 | Variable | Content |
 |---|---|
-| `QFT_QFIELDCLOUD_URL` | base URL from the host |
-| `QFT_QFIELDCLOUD_URL_INTERNAL` | base URL from the deployment's Docker network |
+| `QFT_QFIELDCLOUD_URL` | base URL from the host, **ending with `/`** (`http://127.0.0.1:20000/`): `${QFT_QFIELDCLOUD_URL}api/v1/status/` |
+| `QFT_QFIELDCLOUD_URL_INTERNAL` | base URL from the deployment's Docker network, ending with `/` (`http://app:8000/`) |
 | `QFT_QFIELDCLOUD_ADMIN_URL` | Django admin |
 | `QFT_QFIELDCLOUD_VERSION` | the revision label it runs |
 | `QFT_QFIELDCLOUD_COMPOSE_PROJECT` | Docker Compose project name (`docker compose -p …`) |

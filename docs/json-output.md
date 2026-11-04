@@ -29,7 +29,7 @@ The MCP server returns the same `data` as structured content of its tools, and t
 | `network` | the Docker network of the deployment |
 | `ports` | service name → host port, in the slot's port block |
 | `test_account` | `{username, password, token}` of the QFieldCloud test account, or `null` |
-| `components` | component name → `{status, version, revision, …}`, plus the facts the component reports (URLs, profile path, QGIS version, emulator serial…) |
+| `components` | component name → `{status, version, revision, source, …}`, plus the facts the component reports (URLs, profile path, QGIS version, emulator serial…); `source` is the spec's version (`release:v26.29`, `worktree:…`) while `version` may be what the component reports (`v26.29`, the host QGIS version) |
 
 | Command | `data` |
 |---|---|
@@ -97,6 +97,7 @@ A manual test cannot run without a terminal: `NEEDS_HUMAN` (exit 3).
 | `config show` | the effective configuration, as `qft config show` prints it |
 | `config path` | `{path, exists}` |
 | `spec example` | `{yaml}` |
+| `spec validate --scenario FILE` | `{name, component, good, bad, deployment, script, problems: [...]}`; an invalid scenario is an `INVALID_SPEC` error; `problems` (also in `warnings`) is what `bisect run` would refuse, such as a missing or non-executable script |
 | `spec validate FILE\|-` | `{name, components: [names]}`; an invalid spec is an `INVALID_SPEC` error whose `details.issues` lists `{path, message, line, column}` (dotted path in the spec, 1-based YAML position, `null` when unknown) |
 | `spec suggest [--path P] [--need N…]` | `{project, path, spec, spec_yaml, rationale: [...], notes: [...]}`; an unrecognized checkout is a `USAGE` error, an unmet `--need` a `PREREQ_MISSING` one |
 | `spec schema [--scenario]` | `{schema}`: the JSON Schema of specs (or scenarios) |

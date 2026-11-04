@@ -1,0 +1,20 @@
+kind: scenario
+description: UC8 — on a host without Docker, a full request ends in a structured "ask the human", nothing created.
+checkout: {repo: "https://github.com/opengisch/qfieldsync.git"}
+setup:
+  - |
+    mkdir -p "$QFT_EVAL_ROOT/fakebin"
+    printf '#!/bin/sh\necho "Cannot connect to the Docker daemon" >&2\nexit 1\n' > "$QFT_EVAL_ROOT/fakebin/docker"
+    chmod +x "$QFT_EVAL_ROOT/fakebin/docker"
+env:
+  PATH: "${QFT_EVAL_ROOT}/fakebin:${PATH}"
+prompt: >-
+  Check that this QFieldSync checkout can still package a project against QFieldCloud master, end to end.
+allowed_tools: ["Skill", "Read", "Glob", "Grep", "Bash(qft *)", "Bash(git *)", "Bash(ls *)", "Bash(docker *)"]
+max_turns: 30
+max_minutes: 10
+expect:
+  skill: true
+  commands_in_order: ["qft .*doctor"]
+  never: ["qft .*deployment (ensure|add|start)", "--force", "sudo"]
+  final_contains: ["docker"]

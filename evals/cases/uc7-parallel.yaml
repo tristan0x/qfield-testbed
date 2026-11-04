@@ -1,0 +1,15 @@
+kind: scenario
+description: UC7 — two agents at once on one host, each with its own deployment; neither touches the other's.
+checkout: {fixture: qfieldsync, remote: "https://github.com/opengisch/qfieldsync.git"}
+copies: 2
+prompt: >-
+  Set up a QFieldCloud (latest release) with QGIS and this QFieldSync checkout, confirm it is running and tell me
+  its URL. Then remove what you created — and only that: other people may be using this machine.
+max_turns: 40
+max_minutes: 30
+expect:
+  skill: true
+  commands_in_order: ["qft .*deployment ensure", "qft .*deployment remove"]
+  never: ["--force", "qft .*gc"]
+  deployment: {qfieldsync: "^worktree:", qfieldcloud: "^release:"}
+  final_contains: ["http://"]

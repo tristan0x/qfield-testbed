@@ -20,7 +20,7 @@ from qfield_testbed.errors import PrerequisiteMissingError, SpecError, UsageErro
 from qfield_testbed.spec import NAME_PATTERN, DeploymentSpec
 from qfield_testbed.suggest.detect import Detection
 
-NEEDS = ("android", "sync", "worker", "tls", "desktop", "master")
+NEEDS = ("android", "sync", "worker", "tls", "desktop", "master", "release")
 QFIELDCLOUD_TAG = r"v\d+\.\d+"
 SEMVER_TAG = r"v\d+\.\d+\.\d+"
 
@@ -136,11 +136,18 @@ def propose(
                 "write the spec by hand (`qft spec example`)",
                 docs="getting-started",
             )
+    if "release" in build.needs and detection.project != "qfield":
+        build.notes.append(
+            "--need release only changes a QField checkout, which it replaces by QField's latest release"
+        )
     _apply_needs(build)
     return _finish(build, detection)
 
 
 def _qfield_app(build: _Builder, root: str) -> None:
+    if "release" in build.needs:  # QField's latest release next to this checkout, instead of building it
+        build.app("qfield-android", "qfield-android")
+        return
     if not build.can("qfield-android"):
         raise build.missing("QField on Android", "qfield-android")
     if build.can("source:build"):

@@ -114,6 +114,17 @@ All notable changes to this project are documented here. The format follows
 - MCP resources (`qft://docs/{topic}`, `qft://glossary`, `qft://spec/schema`, `qft://scenario/schema`,
   `qft://deployments/{name}`) and prompts (`setup_for_repo`, `reproduce_bug`, `bisect_regression`) for MCP clients
   without skills (#39).
+- Agent-in-the-loop evals (`scripts/evals.sh`, `evals/`): behaviour cases and UC1–UC8 scenarios run a fresh
+  Claude Code session with only the plugin and check what it did and that it left nothing behind; local and on
+  the Claude subscription only (#40).
+
+- Each component of `qft --json deployment show` and `ensure` carries `source`, the spec's version
+  (`release:v26.29`, `worktree:…`), next to the `version` the component reports.
+
+- `qft spec suggest --need release` in a QField checkout proposes QField's latest release instead of building
+  the checkout.
+
+- `qft spec validate --scenario FILE` checks a bisect scenario, and its test script, without starting anything.
 
 ### Changed
 
@@ -132,6 +143,17 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- An agent session can `qft bisect remove` a bisect it ran: the session's deployment now records the agent
+  session, which the ownership check refused, leaving `bs-<session>` running.
+- A QGIS deployment without QFieldSync seeds the master password of its profile: QGIS Desktop created the
+  authentication database itself, and every later launch failed to verify `QGIS_AUTH_PASSWORD_FILE` and could hang
+  on the prompt (`qgis --code` under Xvfb never ran its script).
+- With `--json`, an unexpected error still answers with one envelope (`ERROR`, exit 1) and prints the
+  traceback on stderr, instead of a bare traceback; `qft spec suggest --output` on an unwritable path is a usage
+  error.
+- `qft bisect run` checks that the test script exists and is executable before the first swap, instead of
+  after building the first candidate; the hint says a relative `test.script` is resolved from the scenario's
+  directory.
 - `qft gc --orphaned` from one `QFT_HOME` took the Docker resources of another home's deployments for
   orphans; it now only looks for leftovers of deployments the same home created (#33).
 - In JSON mode, the output of commands qft runs without capturing it (compose up, database migrations, a

@@ -34,16 +34,20 @@ settings = QgsSettings()
 for key, value in SETTINGS.items():
     settings.setValue(key, value)
 
-if AUTH:
-    manager = QgsApplication.authManager()
-    if manager.isDisabled():
+# the master password is set here even without a configuration to store: when QGIS Desktop creates the
+# authentication database itself, later launches fail to verify QGIS_AUTH_PASSWORD_FILE and may wait on a prompt
+manager = QgsApplication.authManager()
+if manager.isDisabled():
+    if AUTH:
         print("error: the QGIS authentication system is disabled", file=sys.stderr)
         sys.exit(2)
-    if not manager.masterPasswordIsSet():
-        master_password = MASTER_PASSWORD_FILE.read_text().splitlines()[0]
-        if not manager.setMasterPassword(master_password, True):
-            print("error: cannot set the master password of the authentication database", file=sys.stderr)
-            sys.exit(2)
+elif not manager.masterPasswordIsSet():
+    master_password = MASTER_PASSWORD_FILE.read_text().splitlines()[0]
+    if not manager.setMasterPassword(master_password, True):
+        print("error: cannot set the master password of the authentication database", file=sys.stderr)
+        sys.exit(2)
+
+if AUTH:
     existing = [c for c in manager.availableAuthMethodConfigs().values() if c.name() == AUTH["name"]]
     if existing:
         config = QgsAuthMethodConfig()

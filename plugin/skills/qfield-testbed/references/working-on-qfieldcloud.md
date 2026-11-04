@@ -4,8 +4,8 @@ A QFieldCloud checkout runs with its own Docker Compose files, images built from
 the worker bind-mounted for live reload.
 
 ```sh
-qft --json spec suggest --path . [--need worker] --output "$TMPDIR/qft-spec.yaml"   # qfieldcloud: worktree:<checkout>, qgis + qfieldsync release
-qft --json deployment ensure "$TMPDIR/qft-spec.yaml" --timeout 30m
+qft --json spec suggest --path . [--need worker] --output /tmp/qft-SESSION/spec.yaml   # qfieldcloud: worktree:<checkout>, qgis + qfieldsync release
+qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 30m
 ```
 
 - The first `worktree:` start builds the images (several minutes); every start rebuilds them, so code changes to

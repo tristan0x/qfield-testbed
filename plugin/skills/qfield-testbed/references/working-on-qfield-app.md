@@ -8,8 +8,9 @@
 
 ```sh
 qft --json doctor --require qfield-android
-qft --json spec suggest --path . --output "$TMPDIR/qft-spec.yaml"   # qfield-android: build:<checkout> or artifact:<branch>, plus qfieldcloud
-qft --json deployment ensure "$TMPDIR/qft-spec.yaml" --timeout 30m
+qft --json spec suggest --path . --output /tmp/qft-SESSION/spec.yaml   # qfield-android: build:<checkout> or artifact:<branch>, plus qfieldcloud
+qft --json spec suggest --path . --need release --output /tmp/qft-SESSION/spec.yaml   # QField's latest release instead
+qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 30m
 ```
 
 - Version sources: `release:vX.Y.Z` (fast), `artifact:<ref>` (the `android.yml` CI build of a pushed ref; needs
@@ -17,8 +18,10 @@ qft --json deployment ensure "$TMPDIR/qft-spec.yaml" --timeout 30m
   user before choosing it).
 - The app is installed and pointed at the deployment's QFieldCloud (`http://10.0.2.2:8000/` inside the
   emulator) with the test account's username; the password is typed in the app.
-- `$QFT_QFIELD_ANDROID_ADB` is the `adb` command line for the emulator (inside `qft deployment run`): install,
-  `logcat`, screenshots (`… exec-out screencap -p > shot.png`), input events.
+- `data.components.qfield-android.adb` is the `adb` command line for the emulator: run it as
+  `qft --json deployment run NAME -- docker exec <container> adb shell pidof ch.opengis.qfield`, words written out
+  (not `$QFT_QFIELD_ANDROID_ADB`, which only exists inside the command). Install, `logcat`, screenshots
+  (`exec-out screencap -p`), input events; `adb shell su 0 cat <settings_file>` shows the app's settings.
 - A human can watch and drive it: `qft deployment launch NAME android` opens noVNC.
 
 Details: `qft docs components/qfield-android`, `components/qfield-desktop`, `components/qfield-ios`.

@@ -570,11 +570,19 @@ def test_replace_with_symlink_over_dir_and_file(tmp_path: Path) -> None:
     assert target.resolve() == source
 
 
-def test_qgis_wire_without_plugins_seeds_nothing_and_describe_defaults(
+def test_qgis_wire_without_plugins_still_seeds_the_master_password_and_describe_defaults(
     testbed: Testbed, runner_with_qgis: FakeRunner
 ) -> None:
     qgis = _qgis(testbed)
     qgis.wire()
+    # without QFieldSync, QGIS Desktop would create the authentication database itself, and later launches
+    # fail to verify the master password file
+    python = [call for call in runner_with_qgis.calls if call.args[0] == "/usr/bin/python3"]
+    assert len(python) == 1
+    seed = qgis.layout.seed_script.read_text()
+    assert "manager.setMasterPassword(master_password, True)" in seed
+    assert "PythonPlugins" not in seed
+    runner_with_qgis.calls.clear()
     qgis.start()
     qgis.stop()
     qgis.remove()

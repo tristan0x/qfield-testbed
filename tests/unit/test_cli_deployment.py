@@ -218,6 +218,7 @@ def test_show_text_and_json(testbed: Testbed) -> None:
         info = envelope["data"]
         assert info["name"] == "demo"
     assert info["components"]["qgis"]["version"] == "host"
+    assert info["components"]["qgis"]["source"] == "host"
 
 
 @pytest.mark.usefixtures("fake_components", "testbed")

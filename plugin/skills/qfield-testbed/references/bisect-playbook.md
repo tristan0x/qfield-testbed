@@ -3,12 +3,20 @@
 Find the first revision of **one** component (`qfieldcloud`, `qfieldsync` or `qfield-android`) that breaks a
 test, the other components staying fixed.
 
-1. Write a test script that reproduces the bug against `$QFT_QFIELDCLOUD_URL` / `$QFT_QGIS_LAUNCHER` / … and exits
+1. Write a test script that reproduces the bug against `$QFT_QFIELDCLOUD_URL` (it ends with `/`:
+   `${QFT_QFIELDCLOUD_URL}api/v1/…`) / `$QFT_QGIS_LAUNCHER` / … and exits
    like `git bisect run`: **0 good, 125 skip (untestable candidate), 1–124 bad, ≥ 128 aborts the session**.
    Make it fail for the reason of the bug only; a setup error should exit 125 or ≥ 128, not 1.
+   Write it with your file tool (not a heredoc), then `chmod +x` it as a command of its own.
 2. Start from `qft bisect example`, set `deployment:` (fixed components), `bisect:` (component, `good`, `bad`,
    `candidates: first-parent | tags:"v26.*" | [list]`, `source: git | release | artifact`) and `test.script`.
-   `qft spec schema --scenario` is its JSON Schema; `bisect start` reports an invalid scenario with path and line.
+   A relative `test.script` is resolved **from the scenario file's directory**; keep both files side by side
+   (`script: ./repro.sh`) and make the script executable.
+   `candidates: tags:"v26.*"` takes the matching tags between `good` and `bad` itself: no need to list releases
+   (`gh`, `git ls-remote`), `bisect start` answers how many candidates it found.
+   `name` has 16 characters at most (it prefixes the deployment `bs-<name>`).
+   `qft --json spec validate --scenario FILE` checks the scenario and its script without starting anything (an
+   invalid one comes with path and line); `qft spec schema --scenario` is its JSON Schema.
 3. `qft --json bisect start scenario.yaml`, then `qft --json bisect run` (resumes where it stopped).
    Each step swaps the candidate in the deployment `bs-<name>` and runs the script with `QFT_BISECT_COMPONENT`,
    `QFT_BISECT_INDEX`, `QFT_BISECT_CANDIDATE`, `QFT_BISECT_SHA` set.

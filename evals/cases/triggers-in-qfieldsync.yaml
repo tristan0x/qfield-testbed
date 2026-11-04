@@ -1,0 +1,15 @@
+kind: behaviour
+description: In a QFieldSync checkout, a testing request leads to the skill and a spec of the checkout — without naming qft.
+checkout: {fixture: qfieldsync, remote: "https://github.com/opengisch/qfieldsync.git"}
+prompt: >-
+  I'm about to fix a cloud-sync bug in this plugin. Before I touch the code, prepare what I need to test it live against
+  QFieldCloud master: write the deployment description to spec.yaml in this directory, but don't start anything yet.
+  Tell me what it will run.
+max_turns: 25
+max_minutes: 8
+expect:
+  skill: true
+  commands_in_order: ["qft .*spec suggest"]
+  never: ["qft .*deployment (ensure|add|start)", "--force"]
+  files: ["spec.yaml"]
+  final_contains: ["worktree", "master"]

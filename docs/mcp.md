@@ -47,6 +47,7 @@ gets `force: true` — which an agent should only pass when the user asked for i
 | `testbed_doctor(require?)` | host checks and capabilities; `require` fails with `PREREQ_MISSING` | read-only |
 | `spec_suggest(path, needs?)` | a spec putting a checkout live (`spec_yaml` to pass on) | read-only, open-world (`git ls-remote`) |
 | `spec_validate(spec_yaml \| spec_path)` | validate a spec | read-only |
+| `scenario_validate(scenario_path)` | validate a bisect scenario and its script, without starting it | read-only |
 | `deployment_ensure(spec_yaml \| spec_path, name?, replace?, timeout?, ttl?, force?, wait?)` | create or reuse, and start (a job when long) | idempotent, open-world |
 | `deployment_list(agent_session?, owner?)`, `deployment_show(name)`, `deployment_logs(name, …)` | inspect | read-only |
 | `deployment_start`, `deployment_restart` (jobs when long), `deployment_stop`, `deployment_keep(name, ttl)` | lifecycle | idempotent |

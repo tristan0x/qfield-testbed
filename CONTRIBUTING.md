@@ -40,6 +40,11 @@ not in the message. The contract and its tables are in
 [docs/adr/0001-agent-interface.md](docs/adr/0001-agent-interface.md); a new error class goes into the table test
 of `tests/unit/test_errors.py`.
 
+## Agent evals
+
+After changing the skill (`plugin/skills/`), the hook or the agent-facing output of a command, run the behaviour
+evals locally: `scripts/evals.sh behaviour` (on your Claude subscription; see [docs/agents.md](docs/agents.md)).
+
 ## Commit messages
 
 Conventional-Commits subjects: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`. The subject is short and

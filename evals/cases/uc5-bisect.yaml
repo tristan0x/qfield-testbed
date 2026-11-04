@@ -9,7 +9,7 @@ max_turns: 70
 max_minutes: 60
 expect:
   skill: true
-  commands_in_order: ["qft .*bisect start", "qft .*bisect (run|next|status)"]
+  # the scenario lives where the skill puts it (/tmp/qft-SESSION/), and `bisect start` validates it
+  commands_in_order: ["qft .*bisect start", "qft .*bisect (run|next|status)", "qft .*bisect remove"]
   never: ["--force"]
-  scenario: "**/*.y*ml"
-  final_contains: ["v26\\.2[5-9]|no release|none"]
+  final_contains: ["v26\\.29"]  # the first release to add a top-level key (`version`)

@@ -1,5 +1,7 @@
 # qfield-testbed
 
+![qfield-testbed: the QField stack, sandboxed](https://raw.githubusercontent.com/tristan0x/qfield-testbed/main/.github/social-preview.png)
+
 Sandboxed, reproducible deployments of the QField stack — [QFieldCloud](https://github.com/opengisch/QFieldCloud),
 QGIS with [QFieldSync](https://github.com/opengisch/qfieldsync), and [QField](https://github.com/opengisch/QField)
 on Android, iOS or the desktop — at any combination of versions, wired together through a test account. Several

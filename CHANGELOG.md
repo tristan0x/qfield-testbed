@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+
+- The default branch is `main`: the documentation and changelog links of the package and `llms.txt` point to it.
+
 ### Fixed
 
 - A release carries only the wheel and the sdist, not the `.gitignore` that `uv build` leaves in `dist/`.

@@ -193,10 +193,9 @@ class Qgis(Component):
         """QGIS is interactive: nothing runs until `qft deployment launch <name> qgis`."""
 
     def wire(self) -> None:
-        """Enable the extra plugins in the profile (QFieldSync seeds its own settings)."""
+        """Seed the profile: its master password, and the extra plugins enabled (QFieldSync seeds its own settings)."""
         plugins = self.state.facts.get("extra_plugin_ids", [])
-        if plugins:
-            self.seed({f"PythonPlugins/{plugin_id}": True for plugin_id in plugins}, None)
+        self.seed({f"PythonPlugins/{plugin_id}": True for plugin_id in plugins}, None)
 
     def seed(self, settings: dict[str, Any], auth: qgis_profile.AuthConfig | None) -> dict[str, Any]:
         """Run the headless seed script with the backend's interpreter; other components call this too."""

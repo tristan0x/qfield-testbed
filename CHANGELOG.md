@@ -138,6 +138,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A QGIS deployment without QFieldSync seeds the master password of its profile: QGIS Desktop created the
+  authentication database itself, and every later launch failed to verify `QGIS_AUTH_PASSWORD_FILE` and could hang
+  on the prompt (`qgis --code` under Xvfb never ran its script).
 - With `--json`, an unexpected error still answers with one envelope (`ERROR`, exit 1) and prints the
   traceback on stderr, instead of a bare traceback; `qft spec suggest --output` on an unwritable path is a usage
   error.

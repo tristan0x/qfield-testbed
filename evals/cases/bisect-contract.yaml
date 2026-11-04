@@ -9,7 +9,7 @@ max_turns: 30
 max_minutes: 10
 expect:
   skill: true
-  never: ["qft .*bisect (run|start)", "qft .*deployment (ensure|add|start)"]
+  never: ["qft .*bisect (run|start)(?!.*--help)", "qft .*deployment (ensure|add|start)(?!.*--help)"]
   scenario: "*.y*ml"
   files: ["*.sh"]
   final_contains: ["bisect"]

@@ -250,7 +250,10 @@ def _deployment_shape(expected: dict[str, str], trace: Trace) -> Check:
     ready = [
         envelope["data"]
         for envelope in trace.envelopes()
-        if envelope.get("ok") and isinstance(envelope.get("data"), dict) and "components" in envelope["data"]
+        # deployment data (ensure, show), not the per-component lines of `deployment logs`
+        if envelope.get("ok")
+        and isinstance(envelope.get("data"), dict)
+        and {"components", "slot"} <= envelope["data"].keys()
     ]
     if not ready:
         return Check("deployment", ok=False, detail="no successful deployment in the trace")

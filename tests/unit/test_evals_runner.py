@@ -37,6 +37,7 @@ ENSURED = json.dumps(
         "ok": True,
         "data": {
             "name": "qfieldsync",
+            "slot": 0,
             "components": {
                 "qfieldsync": {"version": "worktree:/w", "status": "running"},
                 "qfieldcloud": {"version": "v26.29", "source": "release:v26.29", "status": "running"},
@@ -55,6 +56,9 @@ STREAM = [
     _use("3", "Bash", command="qft --json spec suggest --path . --output spec.yaml"),
     _use("4", "Bash", command="qft --json deployment ensure spec.yaml --timeout 20m"),
     _result_of("4", "starting…\n" + ENSURED),
+    # `deployment logs` also answers `components`, which must not count as the deployment
+    _use("4b", "Bash", command="qft --json deployment logs qfieldsync --tail 10"),
+    _result_of("4b", '{"schema_version": 1, "ok": true, "data": {"components": {}}, "warnings": []}'),
     _use("5", "Bash", command="git status"),
     "not json",
     json.dumps(
@@ -77,8 +81,9 @@ def test_parse_stream() -> None:
         "qft --json doctor",
         "qft --json spec suggest --path . --output spec.yaml",
         "qft --json deployment ensure spec.yaml --timeout 20m",
+        "qft --json deployment logs qfieldsync --tail 10",
     ]
-    assert len(trace.tool_uses) == 5
+    assert len(trace.tool_uses) == 6
     assert (trace.cost_usd, trace.turns, trace.is_error) == (0.42, 7, False)
     assert [envelope["data"].get("name") for envelope in trace.envelopes()] == [None, "qfieldsync"]
 

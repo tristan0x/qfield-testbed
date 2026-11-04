@@ -9,6 +9,7 @@
 ```sh
 qft --json doctor --require qfield-android
 qft --json spec suggest --path . --output /tmp/qft-SESSION/spec.yaml   # qfield-android: build:<checkout> or artifact:<branch>, plus qfieldcloud
+qft --json spec suggest --path . --need release --output /tmp/qft-SESSION/spec.yaml   # QField's latest release instead
 qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 30m
 ```
 

@@ -42,7 +42,7 @@ shell, either works; the CLI's `deployment run` has no MCP counterpart unless th
    `--require qfield-android` (or `source:build`, `qgis:headless`, …) to fail fast when the task needs it. On
    `PREREQ_MISSING`, stop and tell the human the `hint`: installing Docker, KVM or QGIS is theirs to do.
 4. **Spec** — in the checkout to test: `qft --json spec suggest --path . --output /tmp/qft-SESSION/spec.yaml`
-   proposes a deployment with the checkout live (`--need sync|worker|android|tls|desktop|master` adds what the
+   proposes a deployment with the checkout live (`--need sync|worker|android|tls|desktop|master|release` adds what the
    task needs). Read `data.rationale` and `data.notes`; edit the YAML when the task asks for specific versions
    (`qft docs spec`, `qft spec schema`). `qft --json spec validate FILE` checks an edited spec.
 5. **Deploy** — `qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 20m` creates and starts it, or

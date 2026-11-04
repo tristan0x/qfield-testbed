@@ -50,6 +50,8 @@ shell, either works; the CLI's `deployment run` has no MCP counterpart unless th
    are fast. `ALREADY_EXISTS` means the name holds another spec: read `error.details.diff`, then rename
    (`--name auto`) or, if it is yours, `--replace`.
 6. **Use** — `data` of `ensure` / `qft --json deployment show NAME` has URLs, credentials and revisions.
+   `ensure` answers once every component passed its health check: `status: running` is the proof it runs, no
+   `curl` needed (to probe a URL anyway, `qft --json deployment run NAME -- curl …`).
    - `qft --json deployment run NAME --timeout 10m -- CMD …` runs a command with the `QFT_*` variables
      (`qft docs environment`), e.g. a script that reads `$QFT_QFIELDCLOUD_URL`, or the QGIS launcher
      (`data.components.qgis.launcher`) with `--code DIR/scratch/check.py` to drive QGIS headless. Pass

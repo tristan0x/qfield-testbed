@@ -323,6 +323,12 @@ def build_server(*, allow_run: bool = False) -> MCPServer:  # noqa: C901, PLR091
             """
             return service.deployment_run(name, command, timeout=timeout, tail_lines=tail_lines)
 
+    @mcp.tool(annotations=READ_ONLY)
+    @contract
+    def scenario_validate(scenario_path: str) -> service.ScenarioValidation:
+        """Check a bisect scenario file without starting it; `problems` lists what `bisect_run` would refuse."""
+        return service.scenario_validate(BisectScenario.from_file(Path(scenario_path).expanduser()))
+
     @mcp.tool(annotations=CREATES)
     @contract
     def bisect_start(scenario_path: str, session: str | None = None) -> service.BisectSummary:

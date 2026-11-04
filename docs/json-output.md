@@ -97,6 +97,7 @@ A manual test cannot run without a terminal: `NEEDS_HUMAN` (exit 3).
 | `config show` | the effective configuration, as `qft config show` prints it |
 | `config path` | `{path, exists}` |
 | `spec example` | `{yaml}` |
+| `spec validate --scenario FILE` | `{name, component, good, bad, deployment, script, problems: [...]}`; an invalid scenario is an `INVALID_SPEC` error; `problems` (also in `warnings`) is what `bisect run` would refuse, such as a missing or non-executable script |
 | `spec validate FILE\|-` | `{name, components: [names]}`; an invalid spec is an `INVALID_SPEC` error whose `details.issues` lists `{path, message, line, column}` (dotted path in the spec, 1-based YAML position, `null` when unknown) |
 | `spec suggest [--path P] [--need N…]` | `{project, path, spec, spec_yaml, rationale: [...], notes: [...]}`; an unrecognized checkout is a `USAGE` error, an unmet `--need` a `PREREQ_MISSING` one |
 | `spec schema [--scenario]` | `{schema}`: the JSON Schema of specs (or scenarios) |

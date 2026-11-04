@@ -10,7 +10,7 @@ import yaml
 from qfield_testbed.bisect.runner import BisectAbortError
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import NeedsHumanError, TestbedError
+from qfield_testbed.errors import NeedsHumanError, SpecError, TestbedError, UsageError
 from qfield_testbed.runtimes.shell import FakeRunner
 from tests.unit.test_cli_deployment import fake_components, invoke, isolate  # noqa: F401
 
@@ -296,3 +296,26 @@ def test_an_agent_removes_the_bisect_it_ran(manual: BisectSession, testbed: Test
     assert invoke(["--agent-session", "s1", "bisect", "remove", "m", "--yes"]).exit_code == 0
     assert BisectSession.names(testbed) == []
     assert testbed.deployments() == []
+
+
+def test_spec_validate_checks_a_scenario_without_starting_it(testbed: Testbed, tmp_path: Path) -> None:
+    # bisect-contract: an agent asked not to start the bisect had no way to catch a too long `name`
+    import json  # noqa: PLC0415
+
+    long_name = tmp_path / "long.yaml"
+    long_name.write_text(_scenario("qfc-packaging-regression", SCRIPT))
+    invalid = invoke(["--json", "spec", "validate", "--scenario", str(long_name)]).exception
+    assert isinstance(invalid, SpecError)
+    assert "name must match" in str(invalid)
+
+    scenario = tmp_path / "s.yaml"
+    scenario.write_text(_scenario("pkg", SCRIPT))
+    envelope = json.loads(invoke(["--json", "spec", "validate", "--scenario", str(scenario)]).stdout)
+    assert envelope["data"]["deployment"] == "bs-pkg"
+    assert envelope["data"]["problems"] == [envelope["warnings"][0]]  # no script yet
+    assert "test script not found" in envelope["warnings"][0]
+    _script(tmp_path, {0: 0})
+    envelope = json.loads(invoke(["--json", "spec", "validate", "--scenario", str(scenario)]).stdout)
+    assert (envelope["data"]["problems"], envelope["warnings"]) == ([], [])
+    assert testbed.deployments() == []  # nothing started
+    assert isinstance(invoke(["spec", "validate", "--scenario", "-"]).exception, UsageError)

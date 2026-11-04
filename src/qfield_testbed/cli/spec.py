@@ -8,8 +8,8 @@ from typing import Annotated
 import typer
 
 from qfield_testbed import service
-from qfield_testbed.bisect.scenario import scenario_json_schema
-from qfield_testbed.cli._console import console, emit, ok
+from qfield_testbed.bisect.scenario import BisectScenario, scenario_json_schema
+from qfield_testbed.cli._console import console, emit, ok, warn
 from qfield_testbed.errors import UsageError
 from qfield_testbed.spec import EXAMPLE_FULL, EXAMPLE_MINIMAL, DeploymentSpec, spec_json_schema
 from qfield_testbed.suggest.propose import NEEDS, Proposal
@@ -60,9 +60,22 @@ def _print_proposal(proposal: Proposal) -> None:
 @app.command()
 def validate(
     spec_file: Annotated[Path, typer.Argument(help="Spec (YAML); `-` reads stdin", show_default=False)],
+    scenario: Annotated[
+        bool, typer.Option("--scenario", help="A bisect scenario instead, checked as `bisect start` would")
+    ] = False,
 ) -> None:
     """Validate a spec without registering a deployment; errors give the path and line of each problem."""
     from_stdin = str(spec_file) == "-"
+    if scenario:
+        if from_stdin:
+            raise UsageError(
+                "a scenario is read from its file", hint="its relative `test.script` is resolved from there"
+            )
+        checked = service.scenario_validate(BisectScenario.from_file(spec_file))
+        for problem in checked.problems:
+            warn(problem)
+        emit(checked, human=lambda: ok(f"valid scenario '{checked.name}' (deployment {checked.deployment})"))
+        return
     spec = DeploymentSpec.from_yaml(sys.stdin.read()) if from_stdin else DeploymentSpec.from_file(spec_file)
     result = service.spec_validate(spec)
     emit(result, human=lambda: ok(f"valid spec '{result.name}' with components: {', '.join(result.components)}"))

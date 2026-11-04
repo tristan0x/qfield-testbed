@@ -124,6 +124,8 @@ All notable changes to this project are documented here. The format follows
 - `qft spec suggest --need release` in a QField checkout proposes QField's latest release instead of building
   the checkout.
 
+- `qft spec validate --scenario FILE` checks a bisect scenario, and its test script, without starting anything.
+
 ### Changed
 
 - The project lives at [tristan0x/qfield-testbed](https://github.com/tristan0x/qfield-testbed): install

@@ -31,6 +31,7 @@ from qfield_testbed.errors import (
     NotFoundError,
     PrerequisiteMissingError,
     RefusedError,
+    TestbedError,
     TimeoutExceededError,
     UsageError,
 )
@@ -53,6 +54,16 @@ class DoctorData(BaseModel):
 class SpecValidation(BaseModel):
     name: str
     components: list[str]
+
+
+class ScenarioValidation(BaseModel):
+    name: str
+    component: str
+    good: str
+    bad: str
+    deployment: str  # the session's deployment, `bs-<name>`
+    script: Path | None
+    problems: list[str]  # what `bisect run` would refuse before its first swap
 
 
 class EnsureData(DeploymentInfo):
@@ -198,6 +209,26 @@ def spec_suggest(path: Path, needs: list[str], testbed: Testbed | None = None) -
 
 def spec_validate(spec: DeploymentSpec) -> SpecValidation:
     return SpecValidation(name=spec.name, components=list(spec.components()))
+
+
+def scenario_validate(scenario: BisectScenario) -> ScenarioValidation:
+    """A loaded scenario, plus what its test script still lacks; nothing is cloned, resolved or started."""
+    test = scenario.test
+    problems = []
+    if test.script is not None:
+        try:
+            ScriptTest(test.script, test.args, test.timeout).check()
+        except TestbedError as exc:
+            problems.append(f"{exc.message or exc}" + (f" ({exc.hint})" if exc.hint else ""))
+    return ScenarioValidation(
+        name=scenario.name,
+        component=scenario.bisect.component,
+        good=scenario.bisect.good,
+        bad=scenario.bisect.bad,
+        deployment=scenario.deployment_name,
+        script=test.script,
+        problems=problems,
+    )
 
 
 # --- deployments -----------------------------------------------------------------------------------------------

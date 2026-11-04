@@ -28,6 +28,7 @@ TOOLS = {
     "testbed_doctor": "read-only",
     "spec_suggest": "read-only",
     "spec_validate": "read-only",
+    "scenario_validate": "read-only",
     "deployment_ensure": "changes",
     "deployment_list": "read-only",
     "deployment_show": "read-only",
@@ -151,6 +152,13 @@ async def test_specs_from_a_file_or_text(client: Client, home: Path) -> None:
     invalid = await call(client, "spec_validate", spec_yaml="name: demo\nqgis: {version: nope:1}\n")
     assert invalid["error"]["code"] == "INVALID_SPEC"
     assert invalid["error"]["details"]["issues"]
+    scenario = home / "s.yaml"
+    scenario.write_text(
+        "name: s\nbisect: {component: qfieldcloud, good: v1, bad: v2, candidates: [a, b]}\ntest: {script: ./t.sh}\n"
+    )
+    checked = await call(client, "scenario_validate", scenario_path=str(scenario))
+    assert checked["deployment"] == "bs-s"
+    assert "test script not found" in checked["problems"][0]
     renamed = await done(client, "deployment_ensure", spec_yaml=SPEC, name="other")
     assert renamed["name"] == "other"
 
@@ -258,6 +266,7 @@ OFFERED_BY = {
     "require": "testbed_doctor",
     "spec_suggest": "spec_suggest",
     "spec_validate": "spec_validate",
+    "scenario_validate": "scenario_validate",
     "deployment_ensure": "deployment_ensure",
     "deployment_list": "deployment_list",
     "deployment_show": "deployment_show",

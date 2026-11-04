@@ -1,6 +1,6 @@
 kind: scenario
 description: UC4 — any QGIS plugin loaded in an isolated profile, its startup checked headless.
-checkout: {fixture: qgis-plugin, remote: "https://github.com/opengisch/qgis-swiss-locator.git"}
+checkout: {repo: "https://github.com/opengisch/qgis-swiss-locator.git"}  # a plugin that can load, not the metadata-only fixture
 prompt: >-
   Check that this QGIS plugin loads in a clean QGIS profile without errors, and report what QGIS says about it.
   Don't touch my own QGIS profile, and clean up afterwards.

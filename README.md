@@ -16,9 +16,10 @@ The vocabulary used in the docs, the CLI and the code is defined once in the [gl
 
 ## Quick start
 
-Requirements: Linux, Docker with Compose v2, `git`, the [`gh`](https://cli.github.com/) CLI logged in (for
-release and CI-artifact downloads), QGIS on the host (or Docker for `qgis: docker:<tag>`) with `xvfb-run` to
-script it without a display, `/dev/kvm` for the Android emulator.
+Requirements: Linux, Docker with Compose v2, `git`, QGIS on the host (or Docker for `qgis: docker:<tag>`) with
+`xvfb-run` to script it without a display, `/dev/kvm` for the Android emulator. To test a published QField
+or QFieldSync release, or a QField commit or pull request through the build its CI made, you also need the
+[`gh`](https://cli.github.com/) CLI logged in.
 
 ```sh
 uv tool install git+https://github.com/tristan0x/qfield-testbed@v0.2.0  # or: uv sync && uv run qft …

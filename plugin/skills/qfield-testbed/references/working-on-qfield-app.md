@@ -8,8 +8,8 @@
 
 ```sh
 qft --json doctor --require qfield-android
-qft --json spec suggest --path . --output "$TMPDIR/qft-spec.yaml"   # qfield-android: build:<checkout> or artifact:<branch>, plus qfieldcloud
-qft --json deployment ensure "$TMPDIR/qft-spec.yaml" --timeout 30m
+qft --json spec suggest --path . --output /tmp/qft-SESSION/spec.yaml   # qfield-android: build:<checkout> or artifact:<branch>, plus qfieldcloud
+qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 30m
 ```
 
 - Version sources: `release:vX.Y.Z` (fast), `artifact:<ref>` (the `android.yml` CI build of a pushed ref; needs

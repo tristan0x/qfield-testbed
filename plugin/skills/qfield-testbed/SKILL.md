@@ -26,7 +26,10 @@ for questions that reading the code answers.
 Run every command with `--json`: stdout is then one JSON document, logs go to stderr. **One command per shell
 call**, `qft` or any other, from the current directory: no `cd …;`, `| head`, `;` or `&&` chains. Each part of
 a chain needs a permission of its own, which the user is then asked for, and `| head` cuts the JSON. Read and
-write files (specs, scripts, metadata) with your file tools, not `cat` or heredocs.
+write files (specs, scripts, metadata) with your file tools, not `cat` or heredocs. Write paths out literally,
+not `$TMPDIR`: the spec in `/tmp/qft-SESSION/` (SESSION: your agent session, below), the scripts you run in a
+deployment in `DIR/scratch/`, DIR being its `data.directory` — QGIS in Docker sees them there, and removing the
+deployment removes them.
 The plugin also offers the same operations as MCP tools (`deployment_ensure`, `deployment_show`, …): with a
 shell, either works; the CLI's `deployment run` has no MCP counterpart unless the server runs with `--allow-run`.
 
@@ -38,18 +41,19 @@ shell, either works; the CLI's `deployment run` has no MCP counterpart unless th
 3. **Host** — `qft --json doctor` lists what this host can run (`data.capabilities`). Add
    `--require qfield-android` (or `source:build`, `qgis:headless`, …) to fail fast when the task needs it. On
    `PREREQ_MISSING`, stop and tell the human the `hint`: installing Docker, KVM or QGIS is theirs to do.
-4. **Spec** — in the checkout to test: `qft --json spec suggest --path . --output "$TMPDIR/qft-spec.yaml"`
+4. **Spec** — in the checkout to test: `qft --json spec suggest --path . --output /tmp/qft-SESSION/spec.yaml`
    proposes a deployment with the checkout live (`--need sync|worker|android|tls|desktop|master` adds what the
    task needs). Read `data.rationale` and `data.notes`; edit the YAML when the task asks for specific versions
    (`qft docs spec`, `qft spec schema`). `qft --json spec validate FILE` checks an edited spec.
-5. **Deploy** — `qft --json deployment ensure "$TMPDIR/qft-spec.yaml" --timeout 20m` creates and starts it, or
+5. **Deploy** — `qft --json deployment ensure /tmp/qft-SESSION/spec.yaml --timeout 20m` creates and starts it, or
    reuses the deployment of the same spec. The first run pulls images and can take several minutes; later ones
    are fast. `ALREADY_EXISTS` means the name holds another spec: read `error.details.diff`, then rename
    (`--name auto`) or, if it is yours, `--replace`.
 6. **Use** — `data` of `ensure` / `qft --json deployment show NAME` has URLs, credentials and revisions.
    - `qft --json deployment run NAME --timeout 10m -- CMD …` runs a command with the `QFT_*` variables
-     (`qft docs environment`), e.g. a script against `$QFT_QFIELDCLOUD_URL`, or
-     `"$QFT_QGIS_LAUNCHER" --code script.py` to drive QGIS headless.
+     (`qft docs environment`), e.g. a script that reads `$QFT_QFIELDCLOUD_URL`, or the QGIS launcher
+     (`data.components.qgis.launcher`) with `--code DIR/scratch/check.py` to drive QGIS headless. Pass
+     literal paths: the `QFT_*` variables exist inside the command qft runs, not in your shell.
    - `qft --json deployment logs NAME --tail 100 [--component C] [--service worker_wrapper] [--since 10m]`.
    - Edits in a `worktree:` checkout are live; `qft deployment restart NAME --component C` when the component
      needs to reload them.

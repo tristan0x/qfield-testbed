@@ -29,7 +29,7 @@ The MCP server returns the same `data` as structured content of its tools, and t
 | `network` | the Docker network of the deployment |
 | `ports` | service name → host port, in the slot's port block |
 | `test_account` | `{username, password, token}` of the QFieldCloud test account, or `null` |
-| `components` | component name → `{status, version, revision, …}`, plus the facts the component reports (URLs, profile path, QGIS version, emulator serial…) |
+| `components` | component name → `{status, version, revision, source, …}`, plus the facts the component reports (URLs, profile path, QGIS version, emulator serial…); `source` is the spec's version (`release:v26.29`, `worktree:…`) while `version` may be what the component reports (`v26.29`, the host QGIS version) |
 
 | Command | `data` |
 |---|---|

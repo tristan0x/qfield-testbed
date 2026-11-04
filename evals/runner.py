@@ -254,7 +254,9 @@ def _deployment_shape(expected: dict[str, str], trace: Trace) -> Check:
     ]
     if not ready:
         return Check("deployment", ok=False, detail="no successful deployment in the trace")
-    components = {name: str(info.get("version", "")) for name, info in ready[-1]["components"].items()}
+    components = {
+        name: str(info.get("source") or info.get("version", "")) for name, info in ready[-1]["components"].items()
+    }
     wrong = {
         name: components.get(name)
         for name, pattern in expected.items()

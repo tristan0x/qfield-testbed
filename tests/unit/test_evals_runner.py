@@ -39,7 +39,7 @@ ENSURED = json.dumps(
             "name": "qfieldsync",
             "components": {
                 "qfieldsync": {"version": "worktree:/w", "status": "running"},
-                "qfieldcloud": {"version": "release:v26.29", "status": "running"},
+                "qfieldcloud": {"version": "v26.29", "source": "release:v26.29", "status": "running"},
             },
         },
         "warnings": [],

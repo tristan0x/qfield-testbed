@@ -348,6 +348,7 @@ class ComponentInfo(BaseModel):
     status: Status
     version: str
     revision: str | None
+    source: str  # the spec's `version` (`release:v26.29`, `worktree:…`), whatever the component reports
 
 
 class DeploymentInfo(BaseModel):
@@ -554,12 +555,14 @@ class Deployment:
         for name in self.spec.components():
             component_state = self.state.component(name)
             # the component's own facts win, as `version` (the QGIS version of `qgis: host`, for example)
+            source = str(getattr(self.spec.component(name), "version", "?"))
             components[name] = ComponentInfo.model_validate(
                 {
                     "status": component_state.status,
-                    "version": str(getattr(self.spec.component(name), "version", "?")),
+                    "version": source,
                     "revision": str(component_state.revision) if component_state.revision else None,
                     **component_state.summary,
+                    "source": source,
                 }
             )
         return DeploymentInfo(

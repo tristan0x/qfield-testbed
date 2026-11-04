@@ -118,6 +118,9 @@ All notable changes to this project are documented here. The format follows
   Claude Code session with only the plugin and check what it did and that it left nothing behind; local and on
   the Claude subscription only (#40).
 
+- Each component of `qft --json deployment show` and `ensure` carries `source`, the spec's version
+  (`release:v26.29`, `worktree:…`), next to the `version` the component reports.
+
 ### Changed
 
 - The project lives at [tristan0x/qfield-testbed](https://github.com/tristan0x/qfield-testbed): install

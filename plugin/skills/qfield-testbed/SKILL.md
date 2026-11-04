@@ -8,7 +8,7 @@ when_to_use: >-
   change end to end, project packaging, cloud sync, offline editing, deltas, QFieldCloud workers and jobs, QField
   on an emulator, or finding which release or commit broke something (bisect). Not for unit tests of the upstream
   repository or for reading code.
-allowed-tools: Bash(qft *) Bash(uv tool install *) Bash(command -v qft)
+allowed-tools: Bash(qft *) Bash(uv tool install *)
 ---
 
 # QField-stack deployments with qft
@@ -23,11 +23,14 @@ for questions that reading the code answers.
 
 ## Golden path
 
-Run every command with `--json`: stdout is then one JSON document, logs go to stderr.
+Run every command with `--json`: stdout is then one JSON document, logs go to stderr. Give each `qft` call a
+shell command of its own and read the whole envelope: no `| head`, no `;` or `&&` chains, which cut the JSON and
+need permissions a plain `qft` call does not. Read and write files (specs, scripts) with your file tools, not
+`cat` or heredocs.
 The plugin also offers the same operations as MCP tools (`deployment_ensure`, `deployment_show`, …): with a
 shell, either works; the CLI's `deployment run` has no MCP counterpart unless the server runs with `--allow-run`.
 
-1. **Install** — `command -v qft || uv tool install git+https://github.com/tristan0x/qfield-testbed`
+1. **Install** — when `qft --version` is not found: `uv tool install git+https://github.com/tristan0x/qfield-testbed`
 2. **Agent session** — one id for the whole conversation. When the session-start context gives one, or
    `QFT_AGENT_SESSION` is already exported, use it; otherwise pick `claude-<something unique>` and pass
    `--agent-session ID` on every call. Deployments you create are yours, expire 24 h after their last use, and

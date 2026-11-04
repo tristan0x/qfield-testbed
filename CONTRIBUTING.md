@@ -61,7 +61,7 @@ deployment network; the app is pre-configured with the deployment's QFieldCloud 
 
 ## Branches and releases
 
-Work happens on branches merged into `master` through pull requests. Releases are tags `vX.Y.Z`; every
+Work happens on branches merged into `main` through pull requests. Releases are tags `vX.Y.Z`; every
 user-facing change gets a line in [CHANGELOG.md](CHANGELOG.md) under *Unreleased*.
 
 ## Layout

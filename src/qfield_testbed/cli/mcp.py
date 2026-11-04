@@ -11,7 +11,7 @@ from qfield_testbed.errors import PrerequisiteMissingError
 
 app = typer.Typer(no_args_is_help=True)
 
-INSTALL_HINT = "uv tool install 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed'"
+INSTALL_HINT = "uv tool install 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed@v0.2.0'"
 
 
 @app.command()

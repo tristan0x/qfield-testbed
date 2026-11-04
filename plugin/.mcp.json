@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed",
+        "qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed@v0.2.0",
         "qft",
         "mcp",
         "serve"

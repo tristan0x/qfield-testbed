@@ -21,7 +21,7 @@ release and CI-artifact downloads), QGIS on the host (or Docker for `qgis: docke
 script it without a display, `/dev/kvm` for the Android emulator.
 
 ```sh
-uv tool install git+https://github.com/tristan0x/qfield-testbed      # or: uv sync && uv run qft …
+uv tool install git+https://github.com/tristan0x/qfield-testbed@v0.2.0  # or: uv sync && uv run qft …
 qft doctor                                                           # what this host can run
 qft deployment add examples/minimal.yaml --start                     # QFieldCloud v26.28 + host QGIS + QFieldSync v4.23.1
 qft deployment show smoke                                            # URLs, ports, test account

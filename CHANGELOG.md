@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.2.0 — 2026-11-04
+
+Agent interoperability: every command answers `--json` with stable error codes, deployments belong to the agent
+session that created them and expire on their own, and a Claude Code plugin (skill, sub-agent, hook) and an MCP
+server let a coding agent set up, use and tear down the QField stack by itself, measured by local evals (#25).
+
 ### Added
 
 - `qft --json …` (or `QFT_OUTPUT=json`) answers with one JSON envelope on stdout — `schema_version`, `ok`,

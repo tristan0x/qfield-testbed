@@ -14,7 +14,9 @@ test, the other components staying fixed.
    (`script: ./repro.sh`) and make the script executable.
    `candidates: tags:"v26.*"` takes the matching tags between `good` and `bad` itself: no need to list releases
    (`gh`, `git ls-remote`), `bisect start` answers how many candidates it found.
-   `qft spec schema --scenario` is its JSON Schema; `bisect start` reports an invalid scenario with path and line.
+   `name` has 16 characters at most (it prefixes the deployment `bs-<name>`).
+   `qft --json spec validate --scenario FILE` checks the scenario and its script without starting anything (an
+   invalid one comes with path and line); `qft spec schema --scenario` is its JSON Schema.
 3. `qft --json bisect start scenario.yaml`, then `qft --json bisect run` (resumes where it stopped).
    Each step swaps the candidate in the deployment `bs-<name>` and runs the script with `QFT_BISECT_COMPONENT`,
    `QFT_BISECT_INDEX`, `QFT_BISECT_CANDIDATE`, `QFT_BISECT_SHA` set.

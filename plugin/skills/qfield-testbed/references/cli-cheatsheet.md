@@ -7,7 +7,7 @@ Global options go before the command: `qft [--json] [--agent-session ID] [--non-
 | `qft doctor [--require CAP]` | host checks and capabilities |
 | `qft docs [TOPIC]` | documentation of this version |
 | `qft spec suggest [--path P] [--need N] [--output F]` | propose a spec for a checkout |
-| `qft spec example`, `qft spec schema [--scenario]`, `qft spec validate FILE` | write and check specs |
+| `qft spec example`, `qft spec schema [--scenario]`, `qft spec validate [--scenario] FILE` | write and check specs and bisect scenarios |
 | `qft deployment ensure SPEC [--name N\|auto] [--replace] [--timeout T] [--ttl T]` | create or reuse, and start |
 | `qft deployment add SPEC`, `start NAME`, `stop NAME`, `restart NAME [--component C]` | step by step |
 | `qft deployment list`, `show NAME` | what exists, URLs, credentials, revisions, owner, expiry |

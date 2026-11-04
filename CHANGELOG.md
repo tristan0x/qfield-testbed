@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+
+- A release carries only the wheel and the sdist, not the `.gitignore` that `uv build` leaves in `dist/`.
+
 ## 0.2.0 — 2026-11-04
 
 Agent interoperability: every command answers `--json` with stable error codes, deployments belong to the agent

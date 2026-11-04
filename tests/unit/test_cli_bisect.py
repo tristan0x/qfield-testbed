@@ -283,3 +283,16 @@ def test_remove_session_needs_yes_and_agents_need_force(manual: BisectSession, t
     assert "belongs to bisect session 'm'" in str(agent.exception)
     assert invoke(["--agent-session", "s1", "bisect", "remove", "m", "--yes", "--force"]).exit_code == 0
     assert BisectSession.names(testbed) == []
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_an_agent_removes_the_bisect_it_ran(manual: BisectSession, testbed: Testbed) -> None:
+    # UC5: the agent that ran the bisect was refused `bisect remove`, which left `bs-<session>` running
+    assert invoke(["--agent-session", "s1", "bisect", "next"]).exit_code == 0  # creates the session's deployment
+    entry = testbed.registry.load().deployments[manual.state.deployment_name]
+    assert (entry.owner, entry.session, entry.agent_session) == ("bisect", "m", "s1")
+    other = invoke(["--agent-session", "s2", "bisect", "remove", "m", "--yes"])
+    assert "belongs to bisect session 'm'" in str(other.exception)
+    assert invoke(["--agent-session", "s1", "bisect", "remove", "m", "--yes"]).exit_code == 0
+    assert BisectSession.names(testbed) == []
+    assert testbed.deployments() == []

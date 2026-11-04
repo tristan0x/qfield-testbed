@@ -138,6 +138,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- An agent session can `qft bisect remove` a bisect it ran: the session's deployment now records the agent
+  session, which the ownership check refused, leaving `bs-<session>` running.
 - A QGIS deployment without QFieldSync seeds the master password of its profile: QGIS Desktop created the
   authentication database itself, and every later launch failed to verify `QGIS_AUTH_PASSWORD_FILE` and could hang
   on the prompt (`qgis --code` under Xvfb never ran its script).

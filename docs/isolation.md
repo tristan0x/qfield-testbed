@@ -61,8 +61,9 @@ The TTL slides: `start`, `restart`, `show`, `env`, `run` and `logs` count as a u
 `qft deployment keep NAME --ttl 3d|none` later. `qft deployment list` shows OWNER and EXPIRES, and filters on
 `--owner` and `--agent-session`.
 
-An agent session may only stop, restart, remove or keep **its own** deployments: anything a person, a bisect
-session or another agent session owns is refused (exit 8) unless `--force`. People are never restricted.
+An agent session may only stop, restart, remove or keep **its own** deployments, and those of the bisect sessions
+it ran (`qft bisect remove`): anything a person, another agent session or a bisect it did not run owns is refused
+(exit 8) unless `--force`. People are never restricted.
 Agent sessions own at most `max_agent_deployments` deployments in all (10 by default; exit 4 beyond).
 
 ## Cleaning up: `qft gc`

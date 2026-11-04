@@ -185,7 +185,8 @@ class Testbed:
         if caller is None or force:
             return
         entry = self.registry.load().deployments.get(name)
-        if entry is None or (entry.owner == "agent" and entry.agent_session == caller):
+        # its own deployments, and those of the bisect sessions it started
+        if entry is None or (entry.owner in {"agent", "bisect"} and entry.agent_session == caller):
             return
         whose = {
             "human": "a person",

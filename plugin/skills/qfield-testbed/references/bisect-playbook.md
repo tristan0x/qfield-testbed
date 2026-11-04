@@ -6,6 +6,7 @@ test, the other components staying fixed.
 1. Write a test script that reproduces the bug against `$QFT_QFIELDCLOUD_URL` / `$QFT_QGIS_LAUNCHER` / … and exits
    like `git bisect run`: **0 good, 125 skip (untestable candidate), 1–124 bad, ≥ 128 aborts the session**.
    Make it fail for the reason of the bug only; a setup error should exit 125 or ≥ 128, not 1.
+   Write it with your file tool (not a heredoc), then `chmod +x` it as a command of its own.
 2. Start from `qft bisect example`, set `deployment:` (fixed components), `bisect:` (component, `good`, `bad`,
    `candidates: first-parent | tags:"v26.*" | [list]`, `source: git | release | artifact`) and `test.script`.
    A relative `test.script` is resolved **from the scenario file's directory**; keep both files side by side

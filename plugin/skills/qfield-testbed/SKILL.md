@@ -59,7 +59,9 @@ shell, either works; the CLI's `deployment run` has no MCP counterpart unless th
      needs to reload them.
 7. **Report and clean up** — tell the user the deployment name, its URLs and the versions it runs, and what you
    found. Remove it when the task is done (`qft --json deployment remove NAME --yes`) unless the user wants to look
-   at it: then `qft deployment keep NAME --ttl 3d`, or let it expire.
+   at it: then `qft deployment keep NAME --ttl 3d`, or let it expire. Removing the deployment is the whole
+   cleanup: the scripts in its directory go with it; leave `/tmp/qft-SESSION/`, which holds only the spec (deleting
+   outside the checkout asks the user for a permission).
 
 ## The contract
 

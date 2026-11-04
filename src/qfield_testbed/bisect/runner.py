@@ -34,11 +34,19 @@ class ScriptTest:
         self.args = args
         self.timeout = timeout
 
-    def run(self, env: Mapping[str, str], log_file: Path) -> Outcome:
+    def check(self) -> None:
+        """Fail now on a script that is missing or not executable, rather than after building a candidate."""
         if not self.script.exists():
-            raise NotFoundError(f"test script not found: {self.script}")
+            raise NotFoundError(
+                f"test script not found: {self.script}",
+                hint="a relative `test.script` is resolved from the scenario file's directory",
+                docs="bisect",
+            )
         if not os.access(self.script, os.X_OK):
-            raise UsageError(f"test script is not executable: {self.script} (chmod +x)")
+            raise UsageError(f"test script is not executable: {self.script}", hint=f"chmod +x {self.script}")
+
+    def run(self, env: Mapping[str, str], log_file: Path) -> Outcome:
+        self.check()
         started = time.monotonic()
         log_file.parent.mkdir(parents=True, exist_ok=True)
         with log_file.open("w") as log:

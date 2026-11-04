@@ -11,7 +11,7 @@ from qfield_testbed.bisect.scenario import BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus, repository_url, resolve_candidates
 from qfield_testbed.components import REGISTRY, register
 from qfield_testbed.deployment import Testbed
-from qfield_testbed.errors import NeedsHumanError, SpecError, TestbedError
+from qfield_testbed.errors import NeedsHumanError, NotFoundError, SpecError, TestbedError, UsageError
 from qfield_testbed.revisions.git import Mirror
 from qfield_testbed.runtimes.shell import FakeRunner
 from tests.unit.test_deployment import FakeQgis
@@ -352,3 +352,34 @@ def test_repository_url_of_qfield_follows_the_configuration(testbed: Testbed) ->
     assert repository_url(testbed, scenario) == "https://github.com/opengisch/QField"
     testbed.config.repositories.qfield = "me/QField"
     assert repository_url(testbed, scenario) == "https://github.com/me/QField"
+
+
+@pytest.mark.usefixtures("fake_components")
+def test_run_checks_the_script_before_the_first_swap(testbed: Testbed, runner: FakeRunner, tmp_path: Path) -> None:
+    from qfield_testbed import service  # noqa: PLC0415
+
+    testbed.paths.ensure()
+    mirror = Mirror(runner, testbed.paths, "https://github.com/opengisch/QFieldCloud")
+    git = ["git", "-C", str(mirror.path)]
+    runner.reply([*git, "rev-parse"], stdout="d" * 40 + "\n")
+    runner.reply([*git, "log"], stdout="x\n")
+    (tmp_path / "bisect").mkdir()
+    scenario_file = tmp_path / "bisect" / "s.yaml"
+    # the mistake agents make: a path relative to the checkout, while it is resolved from the scenario's directory
+    scenario_file.write_text(
+        "name: p\nbisect:\n  component: qfieldcloud\n  good: v1\n  bad: v2\n  candidates: [c1, c2, c3]\n"
+        "test:\n  script: ./bisect/repro.sh\n"
+    )
+    session = BisectSession.create(testbed, BisectScenario.from_file(scenario_file))
+    with pytest.raises(NotFoundError, match="test script not found") as missing:
+        service.bisect_run(session)
+    assert missing.value.hint is not None
+    assert "scenario file's directory" in missing.value.hint
+
+    script = tmp_path / "bisect" / "bisect" / "repro.sh"
+    script.parent.mkdir()
+    script.write_text("#!/bin/sh\nexit 0\n")
+    with pytest.raises(UsageError, match="not executable") as not_executable:
+        service.bisect_run(session)
+    assert not_executable.value.hint == f"chmod +x {script}"
+    assert testbed.deployments() == []  # nothing was swapped in

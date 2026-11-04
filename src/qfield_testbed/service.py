@@ -18,7 +18,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from qfield_testbed.bisect.algorithm import Verdict
-from qfield_testbed.bisect.runner import Outcome
+from qfield_testbed.bisect.runner import Outcome, ScriptTest
 from qfield_testbed.bisect.scenario import BisectScenario
 from qfield_testbed.bisect.session import BisectSession, SessionStatus
 from qfield_testbed.cache import dir_size
@@ -475,6 +475,9 @@ def bisect_run(
             hint="run `qft bisect run` in a terminal, or use `qft bisect next` and `qft bisect good|bad|skip`",
             docs="bisect",
         )
+    test = session.state.scenario.test
+    if test.script is not None:
+        ScriptTest(test.script, test.args, test.timeout).check()
     while (index := session.search().next_index()) is not None:
         if before is not None:
             before(session, index)

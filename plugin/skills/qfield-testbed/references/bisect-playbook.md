@@ -8,6 +8,8 @@ test, the other components staying fixed.
    Make it fail for the reason of the bug only; a setup error should exit 125 or ≥ 128, not 1.
 2. Start from `qft bisect example`, set `deployment:` (fixed components), `bisect:` (component, `good`, `bad`,
    `candidates: first-parent | tags:"v26.*" | [list]`, `source: git | release | artifact`) and `test.script`.
+   A relative `test.script` is resolved **from the scenario file's directory**; keep both files side by side
+   (`script: ./repro.sh`) and make the script executable.
    `qft spec schema --scenario` is its JSON Schema; `bisect start` reports an invalid scenario with path and line.
 3. `qft --json bisect start scenario.yaml`, then `qft --json bisect run` (resumes where it stopped).
    Each step swaps the candidate in the deployment `bs-<name>` and runs the script with `QFT_BISECT_COMPONENT`,

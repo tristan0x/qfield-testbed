@@ -135,6 +135,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `qft bisect run` checks that the test script exists and is executable before the first swap, instead of
+  after building the first candidate; the hint says a relative `test.script` is resolved from the scenario's
+  directory.
 - `qft gc --orphaned` from one `QFT_HOME` took the Docker resources of another home's deployments for
   orphans; it now only looks for leftovers of deployments the same home created (#33).
 - In JSON mode, the output of commands qft runs without capturing it (compose up, database migrations, a

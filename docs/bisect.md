@@ -66,6 +66,9 @@ in [The QFT_* environment](environment.md) — plus the candidate under test:
 
 Exit codes follow `git bisect run`: 0 good, 125 skip, 1–124 and 126–127 bad, 128 and above abort.
 
+A relative `test.script` is resolved from the scenario file's directory, not the current one. `qft bisect run`
+checks that the script exists and is executable before the first swap.
+
 ## Report
 
 When the search ends, `report.md` in the session directory (and the terminal) names the first bad revision

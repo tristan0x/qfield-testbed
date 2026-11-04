@@ -40,7 +40,10 @@ PLUGIN = REPO / "plugin"
 FIXTURES = REPO / "tests" / "fixtures" / "repos"
 TOKEN_FILE = Path(os.environ.get("QFT_EVAL_TOKEN_FILE", "~/.config/qfield-testbed/claude-token")).expanduser()
 PORT_BASE = 40000  # far from the default 20000 of your own deployments
-DEFAULT_TOOLS = ["Skill", "Read", "Write", "Edit", "Glob", "Grep", "Bash(qft *)", "Bash(git *)", "Bash(ls *)"]
+DEFAULT_TOOLS = [
+    *("Skill", "Read", "Write", "Edit", "Glob", "Grep"),
+    *("Bash(qft *)", "Bash(git *)", "Bash(ls *)", "Bash(chmod +x *)"),
+]
 # what the child must not inherit: a paid key, this session's identity, and the agent session of whoever runs us
 STRIPPED_ENV = (
     "ANTHROPIC_API_KEY",
@@ -210,7 +213,7 @@ def check(case: Case, trace: Trace, checkout: Path) -> list[Check]:
     )
     if expect.deployment is not None:
         checks.append(_deployment_shape(expect.deployment, trace))
-    checks.extend(Check(f"file {pattern}", any(checkout.glob(pattern))) for pattern in expect.files)
+    checks.extend(Check(f"file {pattern}", bool(_matches(checkout, pattern))) for pattern in expect.files)
     if expect.scenario is not None:
         checks.append(_scenario_valid(checkout, expect.scenario))
     checks.append(Check("no denied tool", not trace.permission_denials, json.dumps(trace.permission_denials)[:300]))
@@ -218,18 +221,28 @@ def check(case: Case, trace: Trace, checkout: Path) -> list[Check]:
     return checks
 
 
+def _matches(checkout: Path, pattern: str) -> list[Path]:
+    """The files matching ``pattern`` anywhere in the checkout, outside `.git`."""
+    return sorted(path for path in checkout.rglob(pattern) if ".git" not in path.relative_to(checkout).parts)
+
+
 def _scenario_valid(checkout: Path, pattern: str) -> Check:
     from qfield_testbed.bisect.scenario import BisectScenario  # noqa: PLC0415 - only for this check
     from qfield_testbed.errors import TestbedError  # noqa: PLC0415
 
     problems = []
-    for path in sorted(checkout.glob(pattern)):
+    for path in _matches(checkout, pattern):
+        name = str(path.relative_to(checkout))
         try:
-            BisectScenario.from_file(path)
+            scenario = BisectScenario.from_file(path)
         except TestbedError as exc:
-            problems.append(f"{path.name}: {exc.message[:200]}")
-        else:
-            return Check("valid scenario", ok=True, detail=path.name)
+            problems.append(f"{name}: {exc.message[:200]}")
+            continue
+        script = scenario.test.script
+        if script is not None and not script.is_file():
+            problems.append(f"{name}: test.script {script} does not exist")
+            continue
+        return Check("valid scenario", ok=True, detail=name)
     return Check("valid scenario", ok=False, detail="; ".join(problems) or f"no file matches {pattern}")
 
 

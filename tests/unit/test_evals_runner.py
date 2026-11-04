@@ -135,9 +135,16 @@ def test_scenario_check(tmp_path: Path) -> None:
 
     (tmp_path / "bad.yaml").write_text("name: x\n")
     assert _failed(check(_case(scenario="*.yaml"), Trace(), tmp_path)) == ["valid scenario"]
-    (tmp_path / "repro.sh").write_text("#!/bin/sh\nexit 0\n")
-    (tmp_path / "s.yaml").write_text(_scenario("s", SCRIPT))
-    assert _failed(check(_case(scenario="*.yaml"), Trace(), tmp_path)) == []
+    # in a subdirectory, with a script path that does not resolve from there
+    (tmp_path / "bisect").mkdir()
+    (tmp_path / "bisect" / "s.yaml").write_text(_scenario("s", "  script: ./bisect/repro.sh\n"))
+    (tmp_path / "bisect" / "repro.sh").write_text("#!/bin/sh\nexit 0\n")
+    failed = check(_case(scenario="*.yaml", files=["*.sh"]), Trace(), tmp_path)
+    assert _failed(failed) == ["valid scenario"]
+    assert "bisect/bisect/repro.sh does not exist" in next(c.detail for c in failed if not c.ok)
+
+    (tmp_path / "bisect" / "s.yaml").write_text(_scenario("s", SCRIPT))
+    assert _failed(check(_case(scenario="*.yaml", files=["*.sh"]), Trace(), tmp_path)) == []
 
 
 def test_the_cases_load() -> None:

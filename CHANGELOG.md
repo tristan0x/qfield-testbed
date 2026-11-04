@@ -135,6 +135,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- With `--json`, an unexpected error still answers with one envelope (`ERROR`, exit 1) and prints the
+  traceback on stderr, instead of a bare traceback; `qft spec suggest --output` on an unwritable path is a usage
+  error.
 - `qft bisect run` checks that the test script exists and is executable before the first swap, instead of
   after building the first candidate; the hint says a relative `test.script` is resolved from the scenario's
   directory.

@@ -10,6 +10,7 @@ import typer
 from qfield_testbed import service
 from qfield_testbed.bisect.scenario import scenario_json_schema
 from qfield_testbed.cli._console import console, emit, ok
+from qfield_testbed.errors import UsageError
 from qfield_testbed.spec import EXAMPLE_FULL, EXAMPLE_MINIMAL, DeploymentSpec, spec_json_schema
 from qfield_testbed.suggest.propose import NEEDS, Proposal
 
@@ -41,7 +42,12 @@ def suggest(
     """Propose a spec for a QFieldCloud, QFieldSync, QField or QGIS plugin checkout (applied by `ensure`)."""
     proposal = service.spec_suggest(path, need)
     if output is not None:
-        output.write_text(proposal.spec_yaml)
+        try:
+            output.write_text(proposal.spec_yaml)
+        except OSError as exc:
+            raise UsageError(
+                f"cannot write the spec to {output}: {exc.strerror}", hint="pass `--output` a writable path"
+            ) from exc
     emit(proposal, human=lambda: _print_proposal(proposal))
 
 

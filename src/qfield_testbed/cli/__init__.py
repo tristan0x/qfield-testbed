@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import traceback
 from typing import Annotated, Any, NoReturn
 
 import typer
@@ -150,6 +151,17 @@ def main() -> None:
         _fail("REFUSED", "aborted", RefusedError.exit_code)
     except KeyboardInterrupt:
         _fail("INTERRUPTED", "interrupted", INTERRUPTED_EXIT_CODE)
+    except Exception as exc:
+        if not OUTPUT.json:
+            raise  # a person gets the traceback to report
+        # stdout still carries one envelope; the traceback goes to stderr for the bug report
+        traceback.print_exception(exc, file=sys.stderr)
+        _fail(
+            "ERROR",
+            f"{type(exc).__name__}: {exc}",
+            1,
+            hint="this is a bug in qft: report it with the traceback printed on stderr",
+        )
     if not code:
         emit_default()
     if isinstance(code, int) and code:

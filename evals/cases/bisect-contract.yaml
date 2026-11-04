@@ -13,3 +13,5 @@ expect:
   scenario: "*.y*ml"
   files: ["*.sh"]
   final_contains: ["bisect"]
+# a syntax check of the script it wrote is fair: the defaults plus `bash -n`
+allowed_tools: [Skill, Read, Write, Edit, Glob, Grep, "Bash(qft *)", "Bash(git *)", "Bash(ls *)", "Bash(chmod +x *)", "Bash(bash -n *)"]

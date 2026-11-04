@@ -43,6 +43,7 @@ def suggest(
     proposal = service.spec_suggest(path, need)
     if output is not None:
         try:
+            output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(proposal.spec_yaml)
         except OSError as exc:
             raise UsageError(

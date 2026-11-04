@@ -207,9 +207,11 @@ def test_suggest_command(testbed: Testbed, tmp_path: Path) -> None:
     as_json = json.loads(invoke(["--json", "spec", "suggest", "--path", str(root)]).stdout)["data"]
     assert as_json["project"] == "qfieldsync"
     assert isinstance(invoke(["spec", "suggest", "--path", str(tmp_path / "qft")]).exception, UsageError)
-    unwritable = invoke(
-        ["spec", "suggest", "--path", str(root), "--output", str(tmp_path / "no" / "such" / "dir.yaml")]
-    )
+    nested = tmp_path / "qft-claude-x" / "spec.yaml"  # the directory is created
+    assert invoke(["spec", "suggest", "--path", str(root), "--output", str(nested)]).exit_code == 0
+    assert nested.is_file()
+    (tmp_path / "a-file").write_text("")
+    unwritable = invoke(["spec", "suggest", "--path", str(root), "--output", str(tmp_path / "a-file" / "s.yaml")])
     assert isinstance(unwritable.exception, UsageError)
     assert "cannot write the spec" in str(unwritable.exception)
     assert "unknown need" in str(invoke(["spec", "suggest", "--path", str(root), "--need", "jetpack"]).exception)

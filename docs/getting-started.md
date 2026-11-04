@@ -120,8 +120,9 @@ qft spec suggest --need android --output spec.yaml && qft deployment ensure spec
 | a QGIS plugin | `qgis: host` with the plugin installed from its folder |
 
 `--need` adds what the task needs: `android`, `desktop` (QField apps from their latest release), `sync`
-(QFieldCloud + QFieldSync), `worker`, `tls`, and `master` (QFieldCloud / QFieldSync from `git:master` instead of
-releases). The proposal follows `qft doctor`: what this host cannot run is left out with a note, and a `--need`
+(QFieldCloud + QFieldSync), `worker`, `tls`, `master` (QFieldCloud / QFieldSync from `git:master` instead of
+releases), and `release` (in a QField checkout: QField's latest release instead of building the checkout).
+The proposal follows `qft doctor`: what this host cannot run is left out with a note, and a `--need`
 it cannot meet exits 3 with how to fix it. Detection is best effort: the files of the checkout and the name of
 its git remote; check the proposal before using it.
 

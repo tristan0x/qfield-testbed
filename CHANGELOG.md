@@ -121,6 +121,9 @@ All notable changes to this project are documented here. The format follows
 - Each component of `qft --json deployment show` and `ensure` carries `source`, the spec's version
   (`release:v26.29`, `worktree:…`), next to the `version` the component reports.
 
+- `qft spec suggest --need release` in a QField checkout proposes QField's latest release instead of building
+  the checkout.
+
 ### Changed
 
 - The project lives at [tristan0x/qfield-testbed](https://github.com/tristan0x/qfield-testbed): install

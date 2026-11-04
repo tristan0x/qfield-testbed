@@ -161,6 +161,15 @@ def test_qfield_checkout_builds_or_falls_back_to_the_ci_artifact(testbed: Testbe
     assert any("CI artifact" in note for note in artifact.notes)
 
 
+def test_release_instead_of_building_the_qfield_checkout(testbed: Testbed, tmp_path: Path) -> None:
+    # UC3: "the latest QField release, don't build mine" had no answer in qft; the agent went to `gh`
+    _, proposal = _propose(testbed, tmp_path, "qfield", "release")
+    assert proposal.spec["qfield-android"] == {"version": "release:v4.4.0"}
+    assert proposal.spec["qfieldcloud"] == {"version": "release:v26.29"}
+    _, ignored = _propose(testbed, tmp_path / "sync", "qfieldsync", "release")
+    assert any("only changes a QField checkout" in note for note in ignored.notes)
+
+
 def test_no_kvm_no_android(testbed: Testbed, tmp_path: Path) -> None:
     with pytest.raises(PrerequisiteMissingError) as missing:
         _propose(testbed, tmp_path, "qfieldsync", "android", matrix=_matrix("qfield-android"))

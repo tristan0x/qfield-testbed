@@ -196,7 +196,7 @@ def build_server(*, allow_run: bool = False) -> MCPServer:  # noqa: C901, PLR091
     def spec_suggest(path: str = ".", needs: list[str] | None = None) -> Proposal:
         """Propose a deployment spec putting the QFieldCloud, QFieldSync, QField or QGIS plugin checkout at `path` live.
 
-        `needs`: android, sync, worker, tls, desktop, master. Pass the returned `spec_yaml` to deployment_ensure.
+        `needs`: android, sync, worker, tls, desktop, master, release. Pass the returned `spec_yaml` to deployment_ensure.
         """
         return service.spec_suggest(Path(path).expanduser(), needs or [])
 

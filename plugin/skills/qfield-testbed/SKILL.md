@@ -23,10 +23,10 @@ for questions that reading the code answers.
 
 ## Golden path
 
-Run every command with `--json`: stdout is then one JSON document, logs go to stderr. Give each `qft` call a
-shell command of its own and read the whole envelope: no `| head`, no `;` or `&&` chains, which cut the JSON and
-need permissions a plain `qft` call does not. Read and write files (specs, scripts) with your file tools, not
-`cat` or heredocs.
+Run every command with `--json`: stdout is then one JSON document, logs go to stderr. **One command per shell
+call**, `qft` or any other, from the current directory: no `cd …;`, `| head`, `;` or `&&` chains. Each part of
+a chain needs a permission of its own, which the user is then asked for, and `| head` cuts the JSON. Read and
+write files (specs, scripts, metadata) with your file tools, not `cat` or heredocs.
 The plugin also offers the same operations as MCP tools (`deployment_ensure`, `deployment_show`, …): with a
 shell, either works; the CLI's `deployment run` has no MCP counterpart unless the server runs with `--allow-run`.
 

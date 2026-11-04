@@ -27,6 +27,7 @@ SKILL = REPO / "plugin" / "skills" / "qfield-testbed"
 SOURCES = [
     *sorted((REPO / "plugin").rglob("*.md")),
     *sorted((REPO / "docs").rglob("*.md")),
+    *sorted((REPO / "examples").rglob("*.md")),
     REPO / "README.md",
     REPO / "AGENTS.md",
     REPO / "llms.txt",
@@ -221,3 +222,17 @@ def test_the_skill_stays_small() -> None:
         assert len(reference.read_text().splitlines()) <= 300, reference
     for link in re.findall(r"\]\((references/[^)]+)\)", skill.read_text()):
         assert (SKILL / link).is_file(), link
+
+
+def _words(text: str) -> str:
+    return " ".join(line.removeprefix(">").strip() for line in text.splitlines()).replace("  ", " ")
+
+
+def test_the_examples_quote_the_eval_prompts() -> None:
+    examples = sorted((REPO / "examples" / "agents").glob("uc*.md"))
+    assert len(examples) == 8
+    for example in examples:
+        number = example.name.split("-", 1)[0]
+        cases = sorted((REPO / "evals" / "cases").glob(f"{number}-*.yaml"))
+        prompts = [" ".join(yaml.safe_load(case.read_text())["prompt"].split()) for case in cases]
+        assert any(prompt in " ".join(_words(example.read_text()).split()) for prompt in prompts), example

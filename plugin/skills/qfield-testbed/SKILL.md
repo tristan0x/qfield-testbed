@@ -33,7 +33,7 @@ deployment removes them.
 The plugin also offers the same operations as MCP tools (`deployment_ensure`, `deployment_show`, …): with a
 shell, either works; the CLI's `deployment run` has no MCP counterpart unless the server runs with `--allow-run`.
 
-1. **Install** — when `qft --version` is not found: `uv tool install git+https://github.com/tristan0x/qfield-testbed`
+1. **Install** — when `qft --version` is not found: `uv tool install git+https://github.com/tristan0x/qfield-testbed@v0.2.0`
 2. **Agent session** — one id for the whole conversation. When the session-start context gives one, or
    `QFT_AGENT_SESSION` is already exported, use it; otherwise pick `claude-<something unique>` and pass
    `--agent-session ID` on every call. Deployments you create are yours, expire 24 h after their last use, and

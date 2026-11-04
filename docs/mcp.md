@@ -10,14 +10,14 @@ results are the `data` of `qft --json` (see [json-output](json-output.md)), and 
 The server is in the optional extra `mcp`:
 
 ```sh
-uv tool install 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed'
+uv tool install 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed@v0.2.0'
 qft mcp serve            # speaks MCP on stdin/stdout; logs go to stderr
 ```
 
 - **Claude Code with the plugin** (`/plugin install qfield-testbed --marketplace tristan0x/qfield-testbed`): the
   plugin declares the server, started with `uvx`, nothing else to do.
 - **Claude Code without the plugin**:
-  `claude mcp add qfield-testbed -- uvx --from 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed' qft mcp serve`
+  `claude mcp add qfield-testbed -- uvx --from 'qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed@v0.2.0' qft mcp serve`
 - **Claude Desktop** and other clients, in their MCP configuration:
 
   ```json
@@ -25,7 +25,7 @@ qft mcp serve            # speaks MCP on stdin/stdout; logs go to stderr
     "mcpServers": {
       "qfield-testbed": {
         "command": "uvx",
-        "args": ["--from", "qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed", "qft", "mcp", "serve"]
+        "args": ["--from", "qfield-testbed[mcp] @ git+https://github.com/tristan0x/qfield-testbed@v0.2.0", "qft", "mcp", "serve"]
       }
     }
   }

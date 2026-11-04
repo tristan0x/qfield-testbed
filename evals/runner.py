@@ -395,6 +395,7 @@ class Result:
     cost_equivalent_usd: float | None = None
     interventions: int = 0
     leaked: list[str] = field(default_factory=list)
+    images_removed: list[str] = field(default_factory=list)  # images the run built, deleted afterwards
     qft_commands: list[str] = field(default_factory=list)
     final: str = ""
 
@@ -448,6 +449,33 @@ def _agent(
     return parse_stream(stdout.splitlines()), timed_out
 
 
+def built_images(docker: str) -> set[str]:
+    """The local images qft builds (`qft-*`), as `repository:tag`."""
+    listed = subprocess.run(
+        [docker, "images", "--format", "{{.Repository}}:{{.Tag}}"], capture_output=True, text=True, check=False
+    ).stdout
+    return {image for image in listed.split() if image.startswith("qft-") and not image.endswith(":<none>")}
+
+
+def remove_new_images(docker: str, before: set[str]) -> list[str]:
+    """Delete the `qft-*` images that appeared since ``before`` and that no container uses.
+
+    The sandbox's cache index is the shared one, so `qft cache prune` from the sandbox could take what your own
+    deployments use; images are compared instead. qft rebuilds a missing image, so deleting one costs at most a build.
+    """
+    removed = []
+    for image in sorted(built_images(docker) - before):
+        used = subprocess.run(
+            [docker, "ps", "-a", "-q", "--filter", f"ancestor={image}"], capture_output=True, text=True, check=False
+        ).stdout.strip()
+        if (
+            not used
+            and subprocess.run([docker, "image", "rm", image], capture_output=True, check=False).returncode == 0
+        ):
+            removed.append(image)
+    return removed
+
+
 def run_case(
     case: Case,
     *,
@@ -457,9 +485,12 @@ def run_case(
     model: str | None = None,
     keep: bool = False,
     out: Path | None = None,
+    docker: str | None = None,
 ) -> Result:
+    """Run ``case``; with ``docker``, also delete the `qft-*` images the run built (unless ``keep``)."""
     root = Path(tempfile.mkdtemp(prefix=f"qft-eval-{case.name}-"))
     sandbox = Sandbox(root, token, qft)
+    before = built_images(docker) if docker else set()
     try:
         sandbox.prepare(case)
         missing = missing_capabilities(sandbox, case.requires)
@@ -481,6 +512,7 @@ def run_case(
                 checks.append(Check(f"{prefix}within time", ok=False, detail=f"killed after {case.max_minutes} min"))
         left, orphans = leaks(sandbox, keep=case.expect.keep)
         checks.append(Check("no leak", not (left or orphans), ", ".join(left + orphans)))
+        images = remove_new_images(docker, before) if docker and not (keep or case.expect.keep) else []
         traces = [trace for trace, _ in runs]
         return Result(
             case.name,
@@ -494,6 +526,7 @@ def run_case(
             cost_equivalent_usd=sum(trace.cost_usd or 0 for trace in traces) or None,
             interventions=sum(len(trace.permission_denials) for trace in traces),
             leaked=left + orphans,
+            images_removed=images,
             qft_commands=[command for trace in traces for command in trace.qft_commands],
             final="\n\n---\n\n".join(trace.final for trace in traces),
         )
@@ -549,9 +582,18 @@ def main(argv: list[str] | None = None) -> int:
     for case in cases:
         sys.stderr.write(f"→ {case.name} ({case.kind})\n")
         result = run_case(
-            case, token=token, qft=args.qft, claude=args.claude, model=args.model, keep=args.keep, out=out
+            case,
+            token=token,
+            qft=args.qft,
+            claude=args.claude,
+            model=args.model,
+            keep=args.keep,
+            out=out,
+            docker=shutil.which("docker"),
         )
         sys.stderr.write(f"  {result.status} {result.reason}\n")
+        if result.images_removed:
+            sys.stderr.write(f"  deleted the images it built: {', '.join(result.images_removed)}\n")
         results.append(result)
         (out / f"{case.name}.json").write_text(json.dumps(asdict(result), indent=2) + "\n")
     report = summary(results)

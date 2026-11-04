@@ -287,3 +287,29 @@ def test_summary() -> None:
     text = summary(results)
     assert "| b | scenario | failed | no leak: x |" in text
     assert "1/2 passed, 1 skipped." in text
+
+
+FAKE_DOCKER = """#!/bin/sh
+state="$(dirname "$0")/images"
+case "$1" in
+  images) cat "$state" ;;
+  ps) case "$5" in *qft-in-use*) echo abc123 ;; esac ;;
+  image) grep -vx "$3" "$state" > "$state.new"; mv "$state.new" "$state"; echo "$3" >> "$(dirname "$0")/removed" ;;
+esac
+"""
+
+
+def test_only_the_images_a_run_built_are_deleted(tmp_path: Path) -> None:
+    (tmp_path / "docker").write_text(FAKE_DOCKER)
+    (tmp_path / "docker").chmod(0o755)
+    docker = str(tmp_path / "docker")
+    images = tmp_path / "images"
+    images.write_text("qft-qfieldcloud-app:old\nghcr.io/opengisch/qfieldcloud-app:26.29\n")
+    before = runner.built_images(docker)
+    assert before == {"qft-qfieldcloud-app:old"}  # pulled images are never candidates
+    images.write_text(images.read_text() + "qft-qfieldcloud-app:new\nqft-in-use:1\nqft-dangling:<none>\n")
+
+    assert runner.remove_new_images(docker, before) == ["qft-qfieldcloud-app:new"]
+    assert (tmp_path / "removed").read_text() == "qft-qfieldcloud-app:new\n"
+    assert "qft-qfieldcloud-app:old" in images.read_text()  # there before the run: kept
+    assert "qft-in-use:1" in images.read_text()  # a container uses it: kept

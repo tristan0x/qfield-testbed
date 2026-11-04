@@ -63,6 +63,10 @@ Two kinds of cases:
 - **scenario** cases (UC1–UC8) run real deployments and need Docker; UC3 also needs KVM. A case whose
   requirements the host lacks is skipped.
 
+After a case, the runner removes what it left and deletes the `qft-*` images the case built (UC2 builds about
+10 GB); images that were there before, and the release images it pulled, stay. It never prunes the qft cache,
+which the sandbox shares with your own deployments.
+
 ```sh
 claude setup-token                        # once: a token of your Claude subscription
 install -m 600 /dev/null ~/.config/qfield-testbed/claude-token && $EDITOR ~/.config/qfield-testbed/claude-token
